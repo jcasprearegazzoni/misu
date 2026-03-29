@@ -1,4 +1,5 @@
 export type BookingStatus = "pendiente" | "confirmado" | "cancelado";
+export type BookingType = "individual" | "dobles" | "trio" | "grupal";
 
 export type CalendarBookingItem = {
   id: number;
@@ -11,6 +12,7 @@ export type CalendarBookingItem = {
   date: string;
   start_time: string;
   end_time: string;
+  type: BookingType;
   type_label: string;
   status: BookingStatus;
   package_consumed: boolean;

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { formatUserDate } from "@/lib/format/date";
 import { CalendarBookingItem } from "./types";
 import { MobileEventSheet } from "./mobile-event-sheet";
+import { groupDayBookingsBySlot } from "./slot-groups";
 
 type MobileAgendaProps = {
   days: Array<{
@@ -26,43 +27,50 @@ const statusClass: Record<CalendarBookingItem["status"], string> = {
 };
 
 export function MobileAgenda({ days, selectedDay }: MobileAgendaProps) {
-  const [openedEventId, setOpenedEventId] = useState<number | null>(null);
+  const [openedSlotKey, setOpenedSlotKey] = useState<string | null>(null);
 
   const day = days.find((value) => value.date === selectedDay) ?? days[0];
-  const sortedItems = useMemo(
-    () => [...day.items].sort((a, b) => a.start_time.localeCompare(b.start_time)),
+  const slotGroups = useMemo(
+    () => groupDayBookingsBySlot(day.items),
     [day.items],
   );
-  const openedItem = sortedItems.find((item) => item.id === openedEventId) ?? null;
+  const openedSlot = slotGroups.find((slot) => slot.slot_key === openedSlotKey) ?? null;
 
   return (
     <section className="mt-6 grid gap-3 md:hidden">
       <div className="rounded-lg border border-zinc-300 bg-white p-3">
         <p className="text-sm font-semibold text-zinc-900">{formatUserDate(day.date)}</p>
 
-        {sortedItems.length === 0 ? (
+        {slotGroups.length === 0 ? (
           <p className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
             Sin clases para este dia.
           </p>
         ) : (
           <ul className="mt-3 grid gap-2">
-            {sortedItems.map((item) => (
-              <li key={item.id}>
+            {slotGroups.map((slot) => (
+              <li key={slot.slot_key}>
                 <button
                   type="button"
-                  onClick={() => setOpenedEventId(item.id)}
+                  onClick={() => setOpenedSlotKey(slot.slot_key)}
                   className="w-full rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-left"
                 >
                   <p className="text-sm font-semibold text-zinc-900">
-                    {item.start_time.slice(0, 5)} - {item.end_time.slice(0, 5)}
+                    {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
                   </p>
-                  <p className="truncate text-sm text-zinc-700">{item.alumno_name}</p>
+                  <p className="truncate text-sm text-zinc-700">
+                    {slot.type === "individual"
+                      ? slot.bookings[0]?.alumno_name ?? "Alumno"
+                      : `${slot.occupied_count}/${slot.capacity} alumnos`}
+                  </p>
                   <div className="mt-1 flex items-center gap-2">
-                    <span className="text-xs text-zinc-700">{item.type_label}</span>
+                    <span className="text-xs text-zinc-700">
+                      {slot.type_label}
+                      {slot.type !== "individual" ? ` (${slot.occupied_count}/${slot.capacity})` : ""}
+                    </span>
                     <span
-                      className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium ${statusClass[item.status]}`}
+                      className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium ${statusClass[slot.status]}`}
                     >
-                      {statusLabel[item.status]}
+                      {statusLabel[slot.status]}
                     </span>
                   </div>
                 </button>
@@ -72,7 +80,7 @@ export function MobileAgenda({ days, selectedDay }: MobileAgendaProps) {
         )}
       </div>
 
-      <MobileEventSheet item={openedItem} onClose={() => setOpenedEventId(null)} />
+      <MobileEventSheet key={openedSlot?.slot_key ?? "empty"} slot={openedSlot} onClose={() => setOpenedSlotKey(null)} />
     </section>
   );
 }

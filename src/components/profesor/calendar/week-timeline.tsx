@@ -13,6 +13,7 @@ import {
 import { CalendarBookingItem } from "./types";
 import { BookingBlock } from "./booking-block";
 import { BookingDetailContent } from "./booking-detail-content";
+import { groupDayBookingsBySlot } from "./slot-groups";
 
 type WeekTimelineProps = {
   days: Array<{
@@ -25,9 +26,23 @@ export function WeekTimeline({ days }: WeekTimelineProps) {
   const hourTicks = getHourTicks();
   const timelineHeight = getTimelineHeight();
   const timelineStart = getTimelineStartMinute();
-  const flatItems = useMemo(() => days.flatMap((day) => day.items), [days]);
-  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(flatItems[0]?.id ?? null);
-  const selectedItem = flatItems.find((item) => item.id === selectedBookingId) ?? null;
+  const daySlots = useMemo(
+    () =>
+      days.map((day) => ({
+        date: day.date,
+        slots: groupDayBookingsBySlot(day.items),
+      })),
+    [days],
+  );
+  const flatSlots = useMemo(() => daySlots.flatMap((day) => day.slots), [daySlots]);
+  const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(flatSlots[0]?.slot_key ?? null);
+  const selectedSlot = flatSlots.find((slot) => slot.slot_key === selectedSlotKey) ?? flatSlots[0] ?? null;
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(selectedSlot?.bookings[0]?.id ?? null);
+
+  const selectedItem =
+    selectedSlot?.bookings.find((booking) => booking.id === selectedBookingId) ??
+    selectedSlot?.bookings[0] ??
+    null;
 
   return (
     <section className="mt-6 hidden md:block">
@@ -61,10 +76,10 @@ export function WeekTimeline({ days }: WeekTimelineProps) {
               })}
             </div>
 
-            {days.map((day) => (
+            {daySlots.map((day) => (
               <div
                 key={day.date}
-                className="relative overflow-hidden rounded-md border border-zinc-200 bg-white"
+                className="relative rounded-md border border-zinc-200 bg-white"
                 style={{ height: `${timelineHeight}px` }}
               >
                 {hourTicks.map((hour) => {
@@ -84,11 +99,11 @@ export function WeekTimeline({ days }: WeekTimelineProps) {
                   );
                 })}
 
-                {day.items.map((item) => {
-                  const position = getBookingPosition(item.start_time, item.end_time, { minHeight: 64 });
+                {day.slots.map((slot) => {
+                  const position = getBookingPosition(slot.start_time, slot.end_time, { minHeight: 64 });
                   return (
                     <div
-                      key={item.id}
+                      key={slot.slot_key}
                       className="absolute left-1 right-1 z-10"
                       style={{
                         top: `${position.top}px`,
@@ -96,10 +111,13 @@ export function WeekTimeline({ days }: WeekTimelineProps) {
                       }}
                     >
                       <BookingBlock
-                        item={item}
+                        slot={slot}
                         compact
-                        isSelected={item.id === selectedBookingId}
-                        onSelect={setSelectedBookingId}
+                        isSelected={slot.slot_key === selectedSlot?.slot_key}
+                        onSelect={() => {
+                          setSelectedSlotKey(slot.slot_key);
+                          setSelectedBookingId(slot.bookings[0]?.id ?? null);
+                        }}
                       />
                     </div>
                   );
@@ -113,6 +131,27 @@ export function WeekTimeline({ days }: WeekTimelineProps) {
           {selectedItem ? (
             <>
               <h3 className="text-sm font-semibold text-zinc-900">Detalle de clase</h3>
+              {selectedSlot && selectedSlot.bookings.length > 1 ? (
+                <div className="mt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">Alumnos en este horario</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedSlot.bookings.map((booking) => (
+                      <button
+                        key={booking.id}
+                        type="button"
+                        onClick={() => setSelectedBookingId(booking.id)}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                          selectedBookingId === booking.id
+                            ? "border-zinc-900 bg-zinc-900 text-white"
+                            : "border-zinc-300 bg-white text-zinc-700"
+                        }`}
+                      >
+                        {booking.alumno_name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-2">
                 <BookingDetailContent item={selectedItem} />
               </div>

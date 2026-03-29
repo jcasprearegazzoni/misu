@@ -266,6 +266,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       start_time: booking.start_time,
       end_time: booking.end_time,
       type_label: typeLabel[booking.type],
+      type: booking.type,
       status: booking.status,
       package_consumed: booking.package_consumed,
       consumed_student_package_id: booking.consumed_student_package_id,

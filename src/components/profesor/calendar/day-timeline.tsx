@@ -10,6 +10,7 @@ import {
 } from "./time-utils";
 import { CalendarBookingItem } from "./types";
 import { BookingBlock } from "./booking-block";
+import { groupDayBookingsBySlot } from "./slot-groups";
 
 type DayTimelineProps = {
   days: Array<{
@@ -35,6 +36,7 @@ export function DayTimeline({ days, selectedDay, activeFilter }: DayTimelineProp
   const timelineHeight = getTimelineHeight();
   const timelineStart = getTimelineStartMinute();
   const day = days.find((value) => value.date === selectedDay) ?? days[0];
+  const daySlots = groupDayBookingsBySlot(day.items);
 
   return (
     <section className="mt-6 grid gap-3 md:hidden">
@@ -68,24 +70,24 @@ export function DayTimeline({ days, selectedDay, activeFilter }: DayTimelineProp
             })}
           </div>
 
-          <div className="relative overflow-hidden rounded-md border border-zinc-200 bg-zinc-50" style={{ height: `${timelineHeight}px` }}>
+          <div className="relative rounded-md border border-zinc-200 bg-zinc-50" style={{ height: `${timelineHeight}px` }}>
             {hourTicks.map((hour) => {
               const top = (hour * 60 - timelineStart) * PIXELS_PER_MINUTE;
               return <div key={hour} className="absolute left-0 right-0 border-t border-zinc-200" style={{ top }} />;
             })}
 
-            {day.items.map((item) => {
-              const position = getBookingPosition(item.start_time, item.end_time, { minHeight: 76 });
+            {daySlots.map((slot) => {
+              const position = getBookingPosition(slot.start_time, slot.end_time, { minHeight: 76 });
               return (
                 <div
-                  key={item.id}
+                  key={slot.slot_key}
                   className="absolute left-1 right-1 z-10"
                   style={{
                     top: `${position.top}px`,
                     height: `${position.height}px`,
                   }}
                 >
-                  <BookingBlock item={item} />
+                  <BookingBlock slot={slot} />
                 </div>
               );
             })}

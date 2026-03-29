@@ -23,7 +23,12 @@ export async function createSupabaseServerClient() {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
+          try {
+            cookieStore.set(name, value, options);
+          } catch {
+            // En Server Components Next.js no permite mutar cookies durante render.
+            // En Server Actions y Route Handlers si se aplican normalmente.
+          }
         });
       },
     },
