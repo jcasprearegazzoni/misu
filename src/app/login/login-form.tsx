@@ -3,13 +3,18 @@
 import { useActionState } from "react";
 import { loginAction } from "./actions";
 
-export function LoginForm() {
+type LoginFormProps = {
+  redirectTo?: string | null;
+};
+
+export function LoginForm({ redirectTo }: LoginFormProps) {
   const [state, formAction, isPending] = useActionState(loginAction, {
     error: null,
   });
 
   return (
     <form action={formAction} className="mt-6 grid gap-4">
+      {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
       <label className="grid gap-1 text-sm font-medium text-zinc-800">
         <span>Correo electrónico</span>
         <input

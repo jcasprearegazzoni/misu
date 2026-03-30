@@ -21,6 +21,7 @@ type BookingRow = {
 type ProfesorRow = {
   user_id: string;
   name: string;
+  username: string | null;
   cancel_without_charge_hours: number | null;
 };
 
@@ -110,7 +111,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
   const [{ data: profesoresData }, { data: bookingsData }, { data: decisionsData }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("user_id, name, cancel_without_charge_hours")
+      .select("user_id, name, username, cancel_without_charge_hours")
       .eq("role", "profesor")
       .order("name", { ascending: true }),
     supabase
@@ -213,12 +214,18 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
                 <li key={profesor.user_id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-zinc-900">{profesor.name}</p>
-                    <Link
-                      href={`/alumno/profesores/${profesor.user_id}/slots`}
-                      className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white"
-                    >
-                      Ver semana
-                    </Link>
+                    {profesor.username ? (
+                      <Link
+                        href={`/p/${profesor.username}`}
+                        className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white"
+                      >
+                        Ver semana
+                      </Link>
+                    ) : (
+                      <span className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600">
+                        Link publico no disponible
+                      </span>
+                    )}
                   </div>
                 </li>
               ))}

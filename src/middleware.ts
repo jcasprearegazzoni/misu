@@ -13,7 +13,10 @@ export async function middleware(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   if (isProtected && !isPublic && !user) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    const redirectTo = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+    loginUrl.searchParams.set("redirectTo", redirectTo);
+    return NextResponse.redirect(loginUrl);
   }
 
   return response;

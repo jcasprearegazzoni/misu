@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { LoginForm } from "./login-form";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<{ redirectTo?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const redirectTo = resolvedSearchParams?.redirectTo ?? null;
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 py-10">
       <h1 className="text-2xl font-semibold text-zinc-900">Iniciar sesión</h1>
       <p className="mt-2 text-sm text-zinc-600">Ingresa con email y contraseña.</p>
 
-      <LoginForm />
+      <LoginForm redirectTo={redirectTo} />
 
       <p className="mt-4 text-sm">
         <Link href="/reset-password" className="font-medium text-zinc-900 underline">

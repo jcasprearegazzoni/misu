@@ -5,6 +5,8 @@ import { ZonaSelector } from "@/components/zona-selector";
 import { saveAlumnoProfileAction } from "./actions";
 
 type AlumnoPerfilFormProps = {
+  redirectTo?: string | null;
+  successMessage?: string | null;
   initialValues: {
     name: string;
     category: "Principiante" | "8va" | "7ma" | "6ta" | "5ta" | "4ta" | "3ra" | "2da" | "1ra";
@@ -15,7 +17,7 @@ type AlumnoPerfilFormProps = {
   };
 };
 
-export function AlumnoPerfilForm({ initialValues }: AlumnoPerfilFormProps) {
+export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: AlumnoPerfilFormProps) {
   const [state, formAction, isPending] = useActionState(saveAlumnoProfileAction, {
     error: null,
     success: null,
@@ -23,6 +25,7 @@ export function AlumnoPerfilForm({ initialValues }: AlumnoPerfilFormProps) {
 
   return (
     <form action={formAction} className="mt-6 grid gap-5">
+      {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
       <label className="grid gap-1 text-sm font-medium text-zinc-800">
         <span>Nombre</span>
         <input
@@ -91,9 +94,9 @@ export function AlumnoPerfilForm({ initialValues }: AlumnoPerfilFormProps) {
         </p>
       ) : null}
 
-      {state.success ? (
+      {successMessage ? (
         <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          {state.success}
+          {successMessage}
         </p>
       ) : null}
 

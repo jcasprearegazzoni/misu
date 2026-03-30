@@ -2,8 +2,13 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { AlumnoPerfilForm } from "./perfil-form";
 
-export default async function AlumnoPerfilPage() {
+type AlumnoPerfilPageProps = {
+  searchParams?: Promise<{ redirectTo?: string; updated?: string }>;
+};
+
+export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPageProps) {
   const profile = await getCurrentProfile();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   if (!profile) {
     redirect("/login");
@@ -21,6 +26,8 @@ export default async function AlumnoPerfilPage() {
       </p>
 
       <AlumnoPerfilForm
+        redirectTo={resolvedSearchParams?.redirectTo ?? null}
+        successMessage={resolvedSearchParams?.updated === "1" ? "Perfil actualizado correctamente." : null}
         initialValues={{
           name: profile.name,
           category:

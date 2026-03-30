@@ -74,8 +74,5 @@ export async function saveProfesorProfileAction(
 
   revalidatePath("/dashboard/profesor/perfil");
 
-  return {
-    error: null,
-    success: "Perfil actualizado correctamente.",
-  };
+  redirect("/dashboard/profesor/perfil?updated=1");
 }

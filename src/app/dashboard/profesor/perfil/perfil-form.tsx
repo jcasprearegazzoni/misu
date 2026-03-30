@@ -5,6 +5,7 @@ import { ZonaSelector } from "@/components/zona-selector";
 import { saveProfesorProfileAction } from "./actions";
 
 type PerfilFormProps = {
+  successMessage?: string | null;
   initialValues: {
     name: string;
     username: string;
@@ -15,7 +16,7 @@ type PerfilFormProps = {
   };
 };
 
-export function PerfilForm({ initialValues }: PerfilFormProps) {
+export function PerfilForm({ initialValues, successMessage }: PerfilFormProps) {
   const [state, formAction, isPending] = useActionState(saveProfesorProfileAction, {
     error: null,
     success: null,
@@ -89,9 +90,9 @@ export function PerfilForm({ initialValues }: PerfilFormProps) {
         </p>
       ) : null}
 
-      {state.success ? (
+      {successMessage ? (
         <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          {state.success}
+          {successMessage}
         </p>
       ) : null}
 

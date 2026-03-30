@@ -144,6 +144,14 @@ export async function cancelAlumnoBookingAction(formData: FormData): Promise<voi
   revalidatePath("/dashboard/alumno/turnos");
   revalidatePath("/dashboard/alumno/bookings");
   revalidatePath(`/alumno/profesores/${booking.profesor_id}/slots`);
+  const { data: profesorPublic } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("user_id", booking.profesor_id)
+    .maybeSingle();
+  if (profesorPublic?.username) {
+    revalidatePath(`/p/${profesorPublic.username}`);
+  }
   revalidatePath("/dashboard/profesor/calendario");
   revalidatePath("/dashboard/profesor/finanzas");
   revalidatePath("/dashboard/profesor/pagos");

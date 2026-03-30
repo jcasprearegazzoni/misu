@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getSafeInternalRedirectPath } from "@/lib/navigation/safe-redirect";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { alumnoProfileSchema } from "@/lib/validation/alumno-profile.schema";
 
@@ -14,6 +15,7 @@ export async function saveAlumnoProfileAction(
   _prevState: AlumnoPerfilActionState,
   formData: FormData,
 ): Promise<AlumnoPerfilActionState> {
+  const safeRedirectTo = getSafeInternalRedirectPath(formData.get("redirectTo"));
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -74,8 +76,8 @@ export async function saveAlumnoProfileAction(
   revalidatePath("/dashboard/alumno/perfil");
   revalidatePath("/dashboard/alumno/turnos");
 
-  return {
-    error: null,
-    success: "Perfil actualizado correctamente.",
-  };
+  if (safeRedirectTo) {
+    redirect(safeRedirectTo);
+  }
+  redirect("/dashboard/alumno/perfil?updated=1");
 }
