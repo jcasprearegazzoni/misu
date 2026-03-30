@@ -11,7 +11,6 @@ export type DisponibilidadActionState = {
 };
 
 function revalidateDisponibilidadPages() {
-  revalidatePath("/dashboard/profesor/disponibilidad");
   revalidatePath("/dashboard/profesor/clases/disponibilidad");
 }
 

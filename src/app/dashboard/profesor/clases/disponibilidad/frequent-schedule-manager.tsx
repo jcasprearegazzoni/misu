@@ -5,7 +5,7 @@ import {
   deleteAvailabilityAction,
   saveAvailabilityAction,
   type DisponibilidadActionState,
-} from "@/app/dashboard/profesor/disponibilidad/actions";
+} from "@/app/dashboard/profesor/clases/disponibilidad/actions";
 
 type AvailabilityRow = {
   id: number;
@@ -34,6 +34,7 @@ const initialState: DisponibilidadActionState = {
   success: null,
 };
 
+// Opciones de hora cada 30 minutos entre 00:00 y 23:30.
 const timeOptions = Array.from({ length: 48 }, (_, index) => {
   const totalMinutes = index * 30;
   const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
@@ -54,12 +55,27 @@ function toTimeValue(totalMinutes: number) {
   return `${hours}:${minutes}`;
 }
 
+// Calcula el fin sugerido: inicio + 60 min, redondeado al slot de 30 min más cercano.
+function suggestEnd(startTime: string) {
+  return toTimeValue(toMinutes(startTime) + 60);
+}
+
 type RowFormProps = {
   item: AvailabilityRow;
 };
 
 function FrequentRangeRow({ item }: RowFormProps) {
   const [state, formAction, isPending] = useActionState(saveAvailabilityAction, initialState);
+  const [startTime, setStartTime] = useState(item.start_time.slice(0, 5));
+  const [endTime, setEndTime] = useState(item.end_time.slice(0, 5));
+
+  function handleStartChange(value: string) {
+    setStartTime(value);
+    // Si el fin actual es igual o anterior al nuevo inicio, lo ajustamos a inicio + 1h.
+    if (toMinutes(endTime) <= toMinutes(value)) {
+      setEndTime(suggestEnd(value));
+    }
+  }
 
   return (
     <form action={formAction} className="grid gap-1.5 rounded-md border border-zinc-200 bg-white p-2">
@@ -68,7 +84,8 @@ function FrequentRangeRow({ item }: RowFormProps) {
       <div className="flex flex-wrap items-center gap-1.5">
         <select
           name="start_time"
-          defaultValue={item.start_time.slice(0, 5)}
+          value={startTime}
+          onChange={(e) => handleStartChange(e.target.value)}
           className="h-9 w-[104px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
           required
         >
@@ -78,34 +95,38 @@ function FrequentRangeRow({ item }: RowFormProps) {
             </option>
           ))}
         </select>
-        <span className="text-sm text-zinc-700">a</span>
+        <span className="text-sm text-zinc-500">a</span>
         <select
           name="end_time"
-          defaultValue={item.end_time.slice(0, 5)}
+          value={endTime}
+          onChange={(e) => setEndTime(e.target.value)}
           className="h-9 w-[104px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
           required
         >
-          {timeOptions.map((option) => (
-            <option key={`end-${option.value}`} value={option.value}>
-              {option.label}
-            </option>
-          ))}
+          {timeOptions
+            .filter((option) => toMinutes(option.value) > toMinutes(startTime))
+            .map((option) => (
+              <option key={`end-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
         </select>
         <button
           formAction={deleteAvailabilityAction}
-          className="h-9 w-9 rounded-md border border-red-300 text-sm font-semibold text-red-700 hover:bg-red-50"
+          className="h-9 w-9 rounded-md border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50"
           title="Eliminar rango"
         >
-          X
+          ✕
         </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs font-medium text-zinc-700">Duracion</span>
+        <span className="text-xs font-medium text-zinc-600">Duración (min)</span>
         <input
           type="number"
           name="slot_duration_minutes"
-          min={1}
+          min={30}
+          step={30}
           defaultValue={item.slot_duration_minutes}
           className="h-9 w-20 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
           required
@@ -115,7 +136,7 @@ function FrequentRangeRow({ item }: RowFormProps) {
           disabled={isPending}
           className="h-9 rounded-md border border-zinc-300 bg-zinc-50 px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-100 disabled:opacity-60"
         >
-          Guardar
+          {isPending ? "Guardando..." : "Guardar"}
         </button>
       </div>
 
@@ -134,17 +155,35 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
   const [isCreating, startTransition] = useTransition();
   const [createState, setCreateState] = useState<DisponibilidadActionState>(initialState);
   const [isAdding, setIsAdding] = useState(false);
+
+  // Hora de inicio sugerida: justo después del último rango existente, o 08:00 por defecto.
   const lastRange = dayRanges[dayRanges.length - 1];
-  const suggestedStart = lastRange ? toTimeValue(toMinutes(lastRange.end_time.slice(0, 5))) : "08:00";
-  const suggestedEnd = lastRange ? toTimeValue(toMinutes(lastRange.end_time.slice(0, 5)) + 120) : "12:00";
+  const defaultStart = lastRange ? toTimeValue(toMinutes(lastRange.end_time.slice(0, 5))) : "08:00";
+  const defaultEnd = suggestEnd(defaultStart);
+
+  const [newStart, setNewStart] = useState(defaultStart);
+  const [newEnd, setNewEnd] = useState(defaultEnd);
+
+  function handleNewStartChange(value: string) {
+    setNewStart(value);
+    if (toMinutes(newEnd) <= toMinutes(value)) {
+      setNewEnd(suggestEnd(value));
+    }
+  }
+
+  function handleOpen() {
+    setNewStart(defaultStart);
+    setNewEnd(suggestEnd(defaultStart));
+    setIsAdding(true);
+  }
 
   return (
     <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
       <h3 className="text-base font-semibold text-zinc-900">{day.label}</h3>
 
       {dayRanges.length === 0 ? (
-        <p className="mt-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
-          Aun no hay rangos para este dia.
+        <p className="mt-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-500">
+          Sin horarios cargados.
         </p>
       ) : (
         <div className="mt-2 grid gap-2">
@@ -158,11 +197,10 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
         <div className="mt-2">
           <button
             type="button"
-            onClick={() => setIsAdding(true)}
-            className="h-9 w-9 rounded-full border border-emerald-500 text-lg font-semibold text-emerald-700 hover:bg-emerald-50"
-            title={`Agregar horario en ${day.label}`}
+            onClick={handleOpen}
+            className="h-9 rounded-md border border-emerald-500 bg-white px-3 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
           >
-            +
+            + Agregar horario
           </button>
         </div>
       ) : (
@@ -177,6 +215,7 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
 
               if (!result.error) {
                 setIsAdding(false);
+                setCreateState(initialState);
               }
             });
           }}
@@ -186,7 +225,8 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
           <div className="flex flex-wrap items-center gap-1.5">
             <select
               name="start_time"
-              defaultValue={suggestedStart}
+              value={newStart}
+              onChange={(e) => handleNewStartChange(e.target.value)}
               className="h-9 w-[104px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
               required
             >
@@ -196,25 +236,41 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
                 </option>
               ))}
             </select>
-            <span className="text-sm text-zinc-700">a</span>
+            <span className="text-sm text-zinc-500">a</span>
             <select
               name="end_time"
-              defaultValue={suggestedEnd}
+              value={newEnd}
+              onChange={(e) => setNewEnd(e.target.value)}
               className="h-9 w-[104px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
               required
             >
-              {timeOptions.map((option) => (
-                <option key={`new-end-${day.value}-${option.value}`} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              {timeOptions
+                .filter((option) => toMinutes(option.value) > toMinutes(newStart))
+                .map((option) => (
+                  <option key={`new-end-${day.value}-${option.value}`} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
             </select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium text-zinc-600">Duración (min)</span>
+            <input
+              type="number"
+              name="slot_duration_minutes"
+              min={30}
+              step={30}
+              defaultValue={60}
+              className="h-9 w-20 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
+              required
+            />
             <button
               type="submit"
               disabled={isCreating}
               className="h-9 rounded-md border border-zinc-300 bg-zinc-50 px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-100 disabled:opacity-60"
             >
-              Agregar
+              {isCreating ? "Guardando..." : "Agregar"}
             </button>
             <button
               type="button"
@@ -226,18 +282,6 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
             >
               Cancelar
             </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-medium text-zinc-700">Duracion</span>
-            <input
-              type="number"
-              name="slot_duration_minutes"
-              min={1}
-              defaultValue={60}
-              className="h-9 w-20 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
-              required
-            />
           </div>
 
           {createState.error ? <p className="text-xs font-medium text-red-700">{createState.error}</p> : null}
@@ -278,13 +322,9 @@ export function FrequentScheduleManager({ availability }: FrequentScheduleManage
   function toggleDay(dayValue: number) {
     setSelectedDays((current) => {
       if (current.includes(dayValue)) {
-        if (current.length === 1) {
-          return current;
-        }
-
+        if (current.length === 1) return current;
         return current.filter((value) => value !== dayValue);
       }
-
       return [...current, dayValue];
     });
   }
@@ -292,25 +332,29 @@ export function FrequentScheduleManager({ availability }: FrequentScheduleManage
   return (
     <div className="mx-auto w-full max-w-xl rounded-lg border border-zinc-200 bg-white p-3">
       <h2 className="text-base font-semibold text-zinc-900">Horario frecuente</h2>
-      <p className="mt-1 text-sm text-zinc-700">
-        Marca uno o varios dias y carga los rangos horarios que se repetiran semana a semana.
+      <p className="mt-1 text-sm text-zinc-600">
+        Marcá los días y cargá los rangos horarios que se repiten semana a semana.
       </p>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {dayOptions.map((day) => {
           const isActive = selectedDays.includes(day.value);
+          const hasRanges = (rangesByDay.get(day.value) ?? []).length > 0;
           return (
             <button
               key={day.value}
               type="button"
               onClick={() => toggleDay(day.value)}
-              className={`h-9 rounded-md border px-3 text-sm font-medium ${
+              className={`relative h-9 rounded-md border px-3 text-sm font-medium ${
                 isActive
                   ? "border-emerald-500 bg-emerald-50 text-emerald-800"
                   : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
               }`}
             >
               {day.short}
+              {hasRanges && !isActive ? (
+                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-emerald-500" />
+              ) : null}
             </button>
           );
         })}

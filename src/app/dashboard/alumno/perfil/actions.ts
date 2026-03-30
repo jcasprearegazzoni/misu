@@ -40,12 +40,14 @@ export async function saveAlumnoProfileAction(
     name: formData.get("name"),
     category: formData.get("category"),
     branch: formData.get("branch"),
+    provincia: formData.get("provincia"),
+    municipio: formData.get("municipio"),
     has_equipment: formData.get("has_equipment"),
   });
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "Datos invalidos para guardar el perfil.",
+      error: parsed.error.issues[0]?.message ?? "Revisá los datos e intentá nuevamente.",
       success: null,
     };
   }
@@ -56,19 +58,20 @@ export async function saveAlumnoProfileAction(
       name: parsed.data.name,
       category: parsed.data.category,
       branch: parsed.data.branch,
+      provincia: parsed.data.provincia,
+      zone: parsed.data.municipio,
       has_equipment: parsed.data.has_equipment,
     })
     .eq("user_id", user.id);
 
   if (error) {
     return {
-      error: error.message,
+      error: "No se pudo guardar el perfil. Revisá los datos e intentá nuevamente.",
       success: null,
     };
   }
 
   revalidatePath("/dashboard/alumno/perfil");
-  revalidatePath("/dashboard/alumno/bookings");
   revalidatePath("/dashboard/alumno/turnos");
 
   return {

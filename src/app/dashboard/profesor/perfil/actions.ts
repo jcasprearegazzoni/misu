@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { profesorProfileSchema } from "@/lib/validation/profesor-profile.schema";
@@ -39,14 +40,15 @@ export async function saveProfesorProfileAction(
   const parsed = profesorProfileSchema.safeParse({
     name: formData.get("name"),
     username: formData.get("username"),
-    avatar_url: formData.get("avatar_url"),
     bio: formData.get("bio"),
     sport: formData.get("sport"),
+    provincia: formData.get("provincia"),
+    municipio: formData.get("municipio"),
   });
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "Datos invalidos para el perfil.",
+      error: parsed.error.issues[0]?.message ?? "Revisá los datos e intentá nuevamente.",
       success: null,
     };
   }
@@ -56,18 +58,21 @@ export async function saveProfesorProfileAction(
     .update({
       name: parsed.data.name,
       username: parsed.data.username ?? null,
-      avatar_url: parsed.data.avatar_url ?? null,
       bio: parsed.data.bio ?? null,
       sport: parsed.data.sport,
+      provincia: parsed.data.provincia,
+      zone: parsed.data.municipio,
     })
     .eq("user_id", user.id);
 
   if (error) {
     return {
-      error: error.message,
+      error: "No se pudo guardar el perfil. Revisá los datos e intentá nuevamente.",
       success: null,
     };
   }
+
+  revalidatePath("/dashboard/profesor/perfil");
 
   return {
     error: null,

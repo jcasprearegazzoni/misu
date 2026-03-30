@@ -284,7 +284,7 @@ export default async function AlumnoProfesorSlotsPage({
 
       <div className="mt-4">
         <Link
-          href="/dashboard/alumno/profesores"
+          href="/dashboard/alumno/turnos?tab=reservar"
           className="inline-flex rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-100"
         >
           Cambiar profesor

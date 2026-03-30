@@ -212,8 +212,8 @@ export function NewManualClassPanel({ alumnos, availabilityRanges }: NewManualCl
 
           {alumnos.length === 0 ? (
             <p className="rounded-md border border-amber-300 bg-amber-100 px-3 py-2 text-xs text-amber-800">
-              Aun no hay alumnos relacionados a este profesor. Para crear una clase manual, primero debe existir al
-              menos un alumno con reserva o paquete asignado.
+              Aun no hay alumnos registrados. Crea al menos un usuario con rol alumno para poder cargar clases
+              manuales.
             </p>
           ) : null}
 

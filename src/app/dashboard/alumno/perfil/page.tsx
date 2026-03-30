@@ -15,18 +15,10 @@ export default async function AlumnoPerfilPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-8 sm:px-6 sm:py-10">
-      <h1 className="text-2xl font-semibold text-zinc-900">Perfil</h1>
-      <p className="mt-2 text-sm text-zinc-600">Completa y actualiza tus datos como alumno.</p>
-
-      <div className="mt-6 rounded-lg border border-zinc-300 bg-white px-4 py-4 text-sm">
-        <p className="text-zinc-700">Nombre: {profile.name}</p>
-        <p className="text-zinc-700">Rol: Alumno</p>
-        <p className="text-zinc-700">Categoria: {profile.category?.trim() || "Sin dato"}</p>
-        <p className="text-zinc-700">Rama: {profile.branch?.trim() || "Sin dato"}</p>
-        <p className="text-zinc-700">
-          ¿Tiene paleta/raqueta?: {profile.has_equipment ? "Si" : "No"}
-        </p>
-      </div>
+      <h1 className="text-2xl font-semibold text-zinc-900">Mi perfil</h1>
+      <p className="mt-2 text-sm text-zinc-600">
+        Completá tus datos para que el profesor pueda conocerte antes de la clase.
+      </p>
 
       <AlumnoPerfilForm
         initialValues={{
@@ -44,6 +36,8 @@ export default async function AlumnoPerfilPage() {
               ? profile.category
               : "Principiante",
           branch: profile.branch === "Dama" ? "Dama" : "Caballero",
+          provincia: profile.provincia ?? "",
+          municipio: profile.zone ?? "",
           has_equipment: profile.has_equipment,
         }}
       />

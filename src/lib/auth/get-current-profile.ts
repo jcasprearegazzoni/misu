@@ -11,6 +11,7 @@ export type CurrentProfile = {
   bio: string | null;
   category: string | null;
   branch: string | null;
+  provincia: string | null;
   zone: string | null;
   has_equipment: boolean;
   sport: "tenis" | "padel" | "ambos" | null;
@@ -40,7 +41,7 @@ export async function getCurrentProfile(): Promise<CurrentProfile | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, user_id, role, name, username, avatar_url, bio, category, branch, zone, has_equipment, sport, price_individual, price_dobles, price_trio, price_grupal, court_cost_mode, court_cost_per_hour, court_percentage_per_student, cancel_without_charge_hours, solo_warning_hours, solo_decision_deadline_minutes",
+      "id, user_id, role, name, username, avatar_url, bio, category, branch, provincia, zone, has_equipment, sport, price_individual, price_dobles, price_trio, price_grupal, court_cost_mode, court_cost_per_hour, court_percentage_per_student, cancel_without_charge_hours, solo_warning_hours, solo_decision_deadline_minutes",
     )
     .eq("user_id", user.id)
     .single();

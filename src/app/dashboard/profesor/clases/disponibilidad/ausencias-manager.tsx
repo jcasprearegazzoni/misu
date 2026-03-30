@@ -6,7 +6,7 @@ import {
   addBlockedDateAction,
   deleteBlockedDateAction,
   type DisponibilidadActionState,
-} from "@/app/dashboard/profesor/disponibilidad/actions";
+} from "@/app/dashboard/profesor/clases/disponibilidad/actions";
 
 type BlockedDateRow = {
   id: number;

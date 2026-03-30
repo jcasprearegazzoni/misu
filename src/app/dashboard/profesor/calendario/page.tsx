@@ -45,6 +45,10 @@ type CoveragePaymentRow = {
 };
 
 type AlumnoOptionRow = {
+  user_id: string;
+  name: string | null;
+};
+type RelatedAlumnoOptionRow = {
   alumno_id: string;
   alumno_name: string | null;
 };
@@ -218,7 +222,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       : weekDates[0];
 
   const supabase = await createSupabaseServerClient();
-  const [bookingsResult, alumnoNamesResult, coveragePaymentsResult, alumnosResult, notesResult, availabilityResult, blockedRangesResult] = await Promise.all([
+  const [bookingsResult, alumnoNamesResult, coveragePaymentsResult, alumnosResult, relatedAlumnosResult, notesResult, availabilityResult, blockedRangesResult] = await Promise.all([
     supabase
       .from("bookings")
       .select("id, alumno_id, date, start_time, end_time, type, status, package_consumed, consumed_student_package_id")
@@ -237,6 +241,11 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       .eq("profesor_id", profile.user_id)
       .not("booking_id", "is", null)
       .in("type", ["clase", "seña", "diferencia_cobro"]),
+    supabase
+      .from("profiles")
+      .select("user_id, name")
+      .eq("role", "alumno")
+      .order("name", { ascending: true }),
     supabase.rpc("get_profesor_alumnos_for_manual_class", {
       p_profesor_id: profile.user_id,
     }),
@@ -260,6 +269,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       alumnoNamesResult.error ||
       coveragePaymentsResult.error ||
       alumnosResult.error ||
+      relatedAlumnosResult.error ||
       notesResult.error ||
       availabilityResult.error ||
       blockedRangesResult.error,
@@ -267,10 +277,21 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
   const bookings = (bookingsResult.data ?? []) as BookingRow[];
   const alumnoNameRows = (alumnoNamesResult.data ?? []) as AlumnoNameRow[];
   const coveragePayments = (coveragePaymentsResult.data ?? []) as CoveragePaymentRow[];
-  const alumnos = ((alumnosResult.data ?? []) as AlumnoOptionRow[]).map((alumno) => ({
+  const directAlumnos = ((alumnosResult.data ?? []) as AlumnoOptionRow[]).map((alumno) => ({
+    user_id: alumno.user_id,
+    name: alumno.name?.trim() || "Alumno",
+  }));
+  const relatedAlumnos = ((relatedAlumnosResult.data ?? []) as RelatedAlumnoOptionRow[]).map((alumno) => ({
     user_id: alumno.alumno_id,
     name: alumno.alumno_name?.trim() || "Alumno",
   }));
+  const alumnosMap = new Map<string, { user_id: string; name: string }>();
+  for (const alumno of [...relatedAlumnos, ...directAlumnos]) {
+    if (!alumnosMap.has(alumno.user_id)) {
+      alumnosMap.set(alumno.user_id, alumno);
+    }
+  }
+  const alumnos = Array.from(alumnosMap.values()).sort((a, b) => a.name.localeCompare(b.name, "es-AR"));
   const notes = (notesResult.data ?? []) as ProfesorAlumnoNoteRow[];
   const availability = (availabilityResult.data ?? []) as AvailabilityRow[];
   const blockedRanges = (blockedRangesResult.data ?? []) as BlockedRangeRow[];

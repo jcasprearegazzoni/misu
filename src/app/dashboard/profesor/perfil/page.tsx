@@ -22,9 +22,10 @@ export default async function PerfilProfesorPage() {
         initialValues={{
           name: profile.name,
           username: profile.username ?? "",
-          avatar_url: profile.avatar_url ?? "",
           bio: profile.bio ?? "",
           sport: profile.sport ?? "tenis",
+          provincia: profile.provincia ?? "",
+          municipio: profile.zone ?? "",
         }}
       />
     </main>

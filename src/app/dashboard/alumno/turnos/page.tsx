@@ -1,10 +1,10 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
-import { formatUserDate } from "@/lib/format/date";
+import { formatUserDate, formatUserDateTime } from "@/lib/format/date";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { acceptSoloDecisionAction, cancelSoloDecisionAction } from "@/app/dashboard/alumno/decisiones/actions";
-import { cancelAlumnoBookingAction } from "./actions";
+import { CancelBookingButton } from "./cancel-booking-button";
 
 type AlumnoTab = "reservar" | "mis-clases" | "decisiones";
 
@@ -84,7 +84,7 @@ function groupBookingsByDate(bookings: BookingRow[]) {
       label: formatUserDate(date),
       bookings: dayBookings.sort((a, b) => a.start_time.localeCompare(b.start_time)),
     }))
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 type AlumnoTurnosPageProps = {
@@ -118,7 +118,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
       .select("id, profesor_id, date, start_time, end_time, type, status")
       .eq("alumno_id", profile.user_id)
       .in("status", ["pendiente", "confirmado"])
-      .order("date", { ascending: false })
+      .order("date", { ascending: true })
       .order("start_time", { ascending: true }),
     supabase
       .from("booking_solo_decisions")
@@ -141,7 +141,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
 
   const tabs: Array<{ key: AlumnoTab; label: string; badge?: number }> = [
     { key: "reservar", label: "Reservar" },
-    { key: "mis-clases", label: "Mis clases", badge: bookings.length > 0 ? bookings.length : undefined },
+    { key: "mis-clases", label: "Mis clases" },
     {
       key: "decisiones",
       label: "Decisiones",
@@ -149,10 +149,28 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
     },
   ];
 
+  // El perfil se considera incompleto si el alumno nunca eligió su categoría.
+  const perfilCompleto = profile.category !== null;
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-4 py-8 sm:px-6 sm:py-10">
       <h1 className="text-2xl font-semibold text-zinc-900">Clases</h1>
       <p className="mt-2 text-sm text-zinc-600">Gestiona todo desde una sola pantalla: reservar, ver y decidir.</p>
+
+      {!perfilCompleto ? (
+        <section className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+          <p className="text-sm font-semibold text-amber-900">Completá tu perfil</p>
+          <p className="mt-1 text-sm text-amber-700">
+            Agregá tu categoría y rama para que el profesor pueda conocerte antes de la clase.
+          </p>
+          <Link
+            href="/dashboard/alumno/perfil"
+            className="mt-3 inline-flex rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50"
+          >
+            Ir a mi perfil
+          </Link>
+        </section>
+      ) : null}
 
       <div className="mt-5 flex flex-wrap gap-2">
         {tabs.map((tab) => {
@@ -271,15 +289,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
 
                         return (
                           <div className="mt-2">
-                            <form action={cancelAlumnoBookingAction}>
-                              <input type="hidden" name="booking_id" value={booking.id} />
-                              <button
-                                type="submit"
-                                className="rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
-                              >
-                                Cancelar clase
-                              </button>
-                            </form>
+                            <CancelBookingButton bookingId={booking.id} />
                           </div>
                         );
                       })()}
@@ -329,9 +339,13 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
                   </p>
                   <p className="text-zinc-700">Tipo actual: {typeLabel[booking.type]}</p>
 
+                  <p className="mt-2 text-sm text-zinc-600">
+                    Quedaste solo/a en esta clase grupal. Podés aceptarla como clase individual o cancelar la reserva.
+                  </p>
+
                   {deadline ? (
                     <p className={isUrgent ? "mt-1 font-medium text-red-700" : "mt-1 text-zinc-700"}>
-                      {isUrgent ? "Expira pronto" : "Vence"}: {formatUserDate(decision.decision_deadline_at!)}
+                      {isUrgent ? "Expira pronto" : "Vence"}: {formatUserDateTime(decision.decision_deadline_at!)}
                     </p>
                   ) : null}
 
@@ -358,15 +372,30 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
       ) : null}
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur md:hidden">
-        <Link
-          href="/dashboard/alumno/turnos?tab=reservar"
-          className="inline-flex h-11 w-full items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white"
-        >
-          Reservar clase
-        </Link>
+        {pendingDecisionsCount > 0 && activeTab !== "decisiones" ? (
+          <Link
+            href="/dashboard/alumno/turnos?tab=decisiones"
+            className="inline-flex h-11 w-full items-center justify-center rounded-md bg-red-700 px-4 text-sm font-semibold text-white"
+          >
+            Ver decisiones ({pendingDecisionsCount})
+          </Link>
+        ) : activeTab !== "reservar" ? (
+          <Link
+            href="/dashboard/alumno/turnos?tab=reservar"
+            className="inline-flex h-11 w-full items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white"
+          >
+            Reservar clase
+          </Link>
+        ) : (
+          <Link
+            href="/dashboard/alumno/turnos?tab=mis-clases"
+            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-900"
+          >
+            Ver mis clases
+          </Link>
+        )}
       </div>
       <div className="h-16 md:hidden" />
     </main>
   );
 }
-
