@@ -1,9 +1,10 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { formatUserDate } from "@/lib/format/date";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { acceptSoloDecisionAction, cancelSoloDecisionAction } from "@/app/dashboard/alumno/decisiones/actions";
+import { cancelAlumnoBookingAction } from "./actions";
 
 type AlumnoTab = "reservar" | "mis-clases" | "decisiones";
 
@@ -20,6 +21,7 @@ type BookingRow = {
 type ProfesorRow = {
   user_id: string;
   name: string;
+  cancel_without_charge_hours: number | null;
 };
 
 type DecisionRow = {
@@ -56,6 +58,14 @@ function parseTab(value?: string): AlumnoTab {
     return value;
   }
   return "reservar";
+}
+
+function isFinalizedBooking(booking: BookingRow) {
+  if (booking.status === "cancelado") {
+    return false;
+  }
+  const endDateTime = new Date(`${booking.date}T${booking.end_time.slice(0, 8)}-03:00`);
+  return endDateTime.getTime() < Date.now();
 }
 
 function groupBookingsByDate(bookings: BookingRow[]) {
@@ -98,11 +108,16 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
   const supabase = await createSupabaseServerClient();
 
   const [{ data: profesoresData }, { data: bookingsData }, { data: decisionsData }] = await Promise.all([
-    supabase.from("profiles").select("user_id, name").eq("role", "profesor").order("name", { ascending: true }),
+    supabase
+      .from("profiles")
+      .select("user_id, name, cancel_without_charge_hours")
+      .eq("role", "profesor")
+      .order("name", { ascending: true }),
     supabase
       .from("bookings")
       .select("id, profesor_id, date, start_time, end_time, type, status")
       .eq("alumno_id", profile.user_id)
+      .in("status", ["pendiente", "confirmado"])
       .order("date", { ascending: false })
       .order("start_time", { ascending: true }),
     supabase
@@ -118,7 +133,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
   const bookings = (bookingsData ?? []) as BookingRow[];
   const decisions = (decisionsData ?? []) as DecisionRow[];
 
-  const profesorNameMap = new Map(profesores.map((row) => [row.user_id, row.name]));
+  const profesorMap = new Map(profesores.map((row) => [row.user_id, row]));
   const bookingsByDate = groupBookingsByDate(bookings);
   const bookingMap = new Map(bookings.map((booking) => [booking.id, booking]));
   const pendingDecisionsCount = decisions.length;
@@ -209,20 +224,65 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
                 <ul className="grid gap-3 p-3">
                   {group.bookings.map((booking) => (
                     <li key={booking.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm">
+                      {(() => {
+                        const isFinalized = isFinalizedBooking(booking);
+                        const computedStatusLabel = isFinalized ? "Finalizada" : statusLabel[booking.status];
+                        const computedStatusStyle = isFinalized
+                          ? "border-sky-300 bg-sky-50 text-sky-800"
+                          : statusStyles[booking.status];
+
+                        return (
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-semibold text-zinc-900">
                           {booking.start_time.slice(0, 5)} a {booking.end_time.slice(0, 5)}
                         </p>
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyles[booking.status]}`}
-                        >
-                          {statusLabel[booking.status]}
+                        <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${computedStatusStyle}`}>
+                          {computedStatusLabel}
                         </span>
                       </div>
+                        );
+                      })()}
                       <p className="mt-2 text-zinc-700">
-                        Profesor: {profesorNameMap.get(booking.profesor_id) ?? "Profesor"}
+                        Profesor: {profesorMap.get(booking.profesor_id)?.name ?? "Profesor"}
                       </p>
                       <p className="text-zinc-700">Tipo: {typeLabel[booking.type]}</p>
+                      {(() => {
+                        const profesor = profesorMap.get(booking.profesor_id);
+                        const cancelWindowHours = Number(profesor?.cancel_without_charge_hours ?? 0);
+                        const bookingStart = new Date(`${booking.date}T${booking.start_time.slice(0, 8)}-03:00`);
+                        const nowDate = new Date();
+                        const minCancelDate = new Date(
+                          bookingStart.getTime() - cancelWindowHours * 60 * 60 * 1000,
+                        );
+                        const canCancelByWindow = cancelWindowHours <= 0 || nowDate <= minCancelDate;
+                        const canCancelStatus = booking.status === "pendiente" || booking.status === "confirmado";
+
+                        if (!canCancelStatus) {
+                          return null;
+                        }
+
+                        if (!canCancelByWindow) {
+                          return (
+                            <p className="mt-2 text-xs text-zinc-600">
+                              Ya paso el plazo de cancelacion definido por el profesor.
+                            </p>
+                          );
+                        }
+
+                        return (
+                          <div className="mt-2">
+                            <form action={cancelAlumnoBookingAction}>
+                              <input type="hidden" name="booking_id" value={booking.id} />
+                              <button
+                                type="submit"
+                                className="rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                              >
+                                Cancelar clase
+                              </button>
+                            </form>
+                          </div>
+                        );
+                      })()}
                     </li>
                   ))}
                 </ul>
@@ -265,7 +325,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
                     {booking.end_time.slice(0, 5)}
                   </p>
                   <p className="mt-1 text-zinc-700">
-                    Profesor: {profesorNameMap.get(booking.profesor_id) ?? "No disponible"}
+                    Profesor: {profesorMap.get(booking.profesor_id)?.name ?? "No disponible"}
                   </p>
                   <p className="text-zinc-700">Tipo actual: {typeLabel[booking.type]}</p>
 
@@ -309,3 +369,4 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
     </main>
   );
 }
+

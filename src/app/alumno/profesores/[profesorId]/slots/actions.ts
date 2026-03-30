@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createNotification } from "@/lib/notifications/create-notification";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -12,7 +11,7 @@ export type BookingActionState = {
 };
 
 function addWeeksToDate(dateIso: string, weekOffset: number) {
-  const baseDate = new Date(`${dateIso}T00:00:00.000Z`);
+  const baseDate = new Date(`${dateIso}T12:00:00.000Z`);
   const nextDate = new Date(baseDate.getTime() + weekOffset * 7 * 24 * 60 * 60 * 1000);
   return nextDate.toISOString().slice(0, 10);
 }
@@ -87,8 +86,6 @@ export async function reserveSlotAction(
       success: null,
     };
   }
-
-  revalidatePath(`/alumno/profesores/${parsed.data.profesor_id}/slots`);
 
   await createNotification({
     userId: parsed.data.profesor_id,

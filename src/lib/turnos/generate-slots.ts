@@ -158,20 +158,22 @@ export function generateSlots(params: {
   slotOccupancy?: SlotOccupancyRow[];
   daysAhead?: number;
   now?: Date;
+  startDate?: Date;
 }) {
   const daysAhead = params.daysAhead ?? 30;
   const now = params.now ?? new Date();
   const slots: GeneratedSlot[] = [];
 
-  const todayParts = getArgentinaDateParts(now);
-  const todayArgentinaMidnight = new Date(
-    `${todayParts.year}-${todayParts.month}-${todayParts.day}T00:00:00${ARGENTINA_OFFSET}`,
+  const startDateReference = params.startDate ?? now;
+  const startParts = getArgentinaDateParts(startDateReference);
+  const startArgentinaMidnight = new Date(
+    `${startParts.year}-${startParts.month}-${startParts.day}T00:00:00${ARGENTINA_OFFSET}`,
   );
 
   const slotOccupancy = params.slotOccupancy ?? [];
 
   for (let dayOffset = 0; dayOffset < daysAhead; dayOffset += 1) {
-    const dayStart = new Date(todayArgentinaMidnight.getTime() + dayOffset * ONE_DAY_MS);
+    const dayStart = new Date(startArgentinaMidnight.getTime() + dayOffset * ONE_DAY_MS);
     const dayParts = getArgentinaDateParts(dayStart);
     const dateKey = `${dayParts.year}-${dayParts.month}-${dayParts.day}`;
     const dayOfWeek = getArgentinaDayOfWeek(dayStart);

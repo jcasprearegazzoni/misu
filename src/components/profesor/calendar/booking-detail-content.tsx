@@ -5,9 +5,11 @@ import { createDebtChargeQuickAction } from "@/app/dashboard/profesor/deudas/act
 import { CalendarBookingItem } from "./types";
 import { ReprogramBookingPanel } from "./reprogram-booking-panel";
 import { ProfesorNoteEditor } from "./profesor-note-editor";
+import { AvailabilityRange } from "./time-options";
 
 type BookingDetailContentProps = {
   item: CalendarBookingItem;
+  availabilityRanges: AvailabilityRange[];
 };
 
 const statusLabel: Record<CalendarBookingItem["status"], string> = {
@@ -22,7 +24,12 @@ const statusClass: Record<CalendarBookingItem["status"], string> = {
   cancelado: "border-red-300 bg-red-100 text-red-800",
 };
 
-export function BookingDetailContent({ item }: BookingDetailContentProps) {
+export function BookingDetailContent({ item, availabilityRanges }: BookingDetailContentProps) {
+  const displayStatus = item.is_finalized ? "Finalizada" : statusLabel[item.status];
+  const displayStatusClass = item.is_finalized
+    ? "border-sky-300 bg-sky-100 text-sky-800"
+    : statusClass[item.status];
+
   return (
     <div className="grid gap-3">
       <div className="grid gap-1 text-sm text-zinc-700">
@@ -33,10 +40,8 @@ export function BookingDetailContent({ item }: BookingDetailContentProps) {
         <p>Tipo: {item.type_label}</p>
         <p>
           Estado:{" "}
-          <span
-            className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${statusClass[item.status]}`}
-          >
-            {statusLabel[item.status]}
+          <span className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${displayStatusClass}`}>
+            {displayStatus}
           </span>
         </p>
         <p>Monto estimado: ${item.estimated_amount.toLocaleString("es-AR")}</p>
@@ -100,6 +105,7 @@ export function BookingDetailContent({ item }: BookingDetailContentProps) {
           currentEndTime={item.end_time}
           packageConsumed={item.package_consumed}
           hasCoveragePayment={item.has_coverage_payment}
+          availabilityRanges={availabilityRanges}
         />
       ) : null}
 

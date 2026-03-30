@@ -15,6 +15,19 @@ const statusDotClass: Record<CalendarSlotGroup["status"], string> = {
   cancelado: "bg-red-500",
 };
 
+function getStatusTitle(slot: CalendarSlotGroup) {
+  if (slot.is_finalized) {
+    return "Finalizada";
+  }
+  if (slot.status === "pendiente") {
+    return "Pendiente";
+  }
+  if (slot.status === "confirmado") {
+    return "Confirmada";
+  }
+  return "Cancelada";
+}
+
 export function BookingBlock({ slot, compact = false, isSelected = false, onSelect }: BookingBlockProps) {
   const containerClass = compact
     ? `overflow-hidden rounded-md border px-1.5 py-1 text-[10px] shadow-sm ${
@@ -23,6 +36,9 @@ export function BookingBlock({ slot, compact = false, isSelected = false, onSele
     : `overflow-hidden rounded-md border p-2 text-xs shadow-sm ${
         isSelected ? "border-zinc-900 bg-white ring-1 ring-zinc-900" : "border-zinc-300 bg-white"
       }`;
+
+  const dotClass = slot.is_finalized ? "bg-sky-500" : statusDotClass[slot.status];
+  const dotTitle = getStatusTitle(slot);
 
   return (
     <button type="button" className={`${containerClass} text-left`} onClick={onSelect}>
@@ -36,9 +52,9 @@ export function BookingBlock({ slot, compact = false, isSelected = false, onSele
           {slot.type_label}
         </p>
         <span
-          className={`inline-block h-2 w-2 rounded-full ${statusDotClass[slot.status]}`}
-          title={slot.status === "pendiente" ? "Pendiente" : slot.status === "confirmado" ? "Confirmada" : "Cancelada"}
-          aria-label={slot.status === "pendiente" ? "Pendiente" : slot.status === "confirmado" ? "Confirmada" : "Cancelada"}
+          className={`inline-block h-2 w-2 rounded-full ${dotClass}`}
+          title={dotTitle}
+          aria-label={dotTitle}
         />
       </div>
     </button>

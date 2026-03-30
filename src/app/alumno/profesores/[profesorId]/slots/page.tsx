@@ -71,6 +71,17 @@ function parseWeekOffset(value?: string) {
   return Math.min(52, Math.max(0, parsed));
 }
 
+function getTodayDateIso() {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(now);
+}
+
 type DayGroup = {
   key: string;
   label: string;
@@ -187,10 +198,13 @@ export default async function AlumnoProfesorSlotsPage({
   const { profesorId } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const weekOffset = parseWeekOffset(resolvedSearchParams?.weekOffset);
+  const todayIso = getTodayDateIso();
   const { weekDates, start, endExclusive } = getWeekBounds(weekOffset);
   const selectedDay = weekDates.includes(resolvedSearchParams?.day ?? "")
     ? (resolvedSearchParams?.day as string)
-    : weekDates[0];
+    : weekOffset === 0 && weekDates.includes(todayIso)
+      ? todayIso
+      : weekDates[0];
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -254,7 +268,8 @@ export default async function AlumnoProfesorSlotsPage({
     blockedDates,
     slotOccupancy,
     daysAhead: 7,
-    now: new Date(`${start}T00:00:00-03:00`),
+    now: new Date(),
+    startDate: new Date(`${start}T00:00:00-03:00`),
   });
   const groupedSlots = groupSlotsByDay(slots, slotOccupancyMap);
   const selectedGroup = groupedSlots.find((group) => group.key === selectedDay);
@@ -264,7 +279,7 @@ export default async function AlumnoProfesorSlotsPage({
       <h1 className="text-2xl font-semibold text-zinc-900">Reservar clase</h1>
       <p className="mt-2 text-sm text-zinc-700">Profesor: {profesorProfile.name}</p>
       <p className="mt-1 text-sm text-zinc-600">
-        Elige fecha, horario y tipo de clase. Veras disponibilidad de los proximos 30 dias.
+        Elige fecha, horario y tipo de clase dentro de la semana seleccionada.
       </p>
 
       <div className="mt-4">
@@ -284,7 +299,7 @@ export default async function AlumnoProfesorSlotsPage({
         prevHref={`/alumno/profesores/${profesorId}/slots?weekOffset=${Math.max(0, weekOffset - 1)}&day=${selectedDay}`}
         nextHref={`/alumno/profesores/${profesorId}/slots?weekOffset=${weekOffset + 1}&day=${selectedDay}`}
         dayHrefBuilder={(date) => `/alumno/profesores/${profesorId}/slots?weekOffset=${weekOffset}&day=${date}`}
-        resetHref={weekOffset !== 0 ? `/alumno/profesores/${profesorId}/slots?weekOffset=0&day=${weekDates[0]}` : undefined}
+        resetHref={weekOffset !== 0 ? `/alumno/profesores/${profesorId}/slots?weekOffset=0&day=${todayIso}` : undefined}
       />
 
       {!selectedGroup || selectedGroup.items.length === 0 ? (

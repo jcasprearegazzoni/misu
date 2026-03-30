@@ -8,6 +8,7 @@ export type CalendarSlotGroup = {
   type: BookingType;
   type_label: string;
   status: BookingStatus;
+  is_finalized: boolean;
   occupied_count: number;
   capacity: number;
   bookings: CalendarBookingItem[];
@@ -63,6 +64,7 @@ export function groupDayBookingsBySlot(items: CalendarBookingItem[]) {
       type: first.type,
       type_label: first.type_label,
       status: resolveSlotStatus(sorted),
+      is_finalized: sorted.every((item) => item.is_finalized),
       occupied_count: sorted.length,
       capacity: getCapacityByType(first.type),
       bookings: sorted,
@@ -71,4 +73,3 @@ export function groupDayBookingsBySlot(items: CalendarBookingItem[]) {
 
   return groups.sort((a, b) => a.start_time.localeCompare(b.start_time));
 }
-

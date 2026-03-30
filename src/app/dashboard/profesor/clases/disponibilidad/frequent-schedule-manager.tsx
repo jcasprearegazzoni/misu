@@ -249,7 +249,14 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
 }
 
 export function FrequentScheduleManager({ availability }: FrequentScheduleManagerProps) {
-  const [selectedDays, setSelectedDays] = useState<number[]>([1]);
+  const initialSelectedDays = useMemo(() => {
+    const fromAvailability = Array.from(new Set(availability.map((item) => item.day_of_week)));
+    if (fromAvailability.length > 0) {
+      return fromAvailability;
+    }
+    return [1];
+  }, [availability]);
+  const [selectedDays, setSelectedDays] = useState<number[]>(initialSelectedDays);
 
   const rangesByDay = useMemo(() => {
     const map = new Map<number, AvailabilityRow[]>();

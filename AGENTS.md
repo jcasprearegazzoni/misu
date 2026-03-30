@@ -1,4 +1,4 @@
-# CourtManager — Instrucciones del proyecto
+# Misu — Instrucciones del proyecto
 
 ## Objetivo
 Construir una app SaaS web/PWA para profesores de tenis y pádel en Argentina.
@@ -26,13 +26,31 @@ Construir una app SaaS web/PWA para profesores de tenis y pádel en Argentina.
 11. No usar console.error sin manejo.
 12. No cambiar archivos no relacionados.
 
-## Prioridad actual
-Estamos en la etapa inicial del proyecto.
-Solo queremos:
-- estructura base
-- autenticación
-- roles
-- integración inicial con Supabase
+## Estado actual
+Módulos core completos. App en preparación para lanzamiento.
+
+## Etapa 0 — Fix críticos (ahora)
+- [ ] Renombrar proxy.ts → middleware.ts
+- [ ] Commitear actions.ts del alumno
+- [ ] Resolver duplicado de rutas de slots del alumno
+- [ ] Revisar y limpiar rutas legacy del profesor
+
+## Etapa 1 — MVP lanzamiento (semanas)
+- Onboarding mínimo para profesor nuevo
+- Link público del profesor para compartir con alumnos
+- PWA básica
+- Pasarela de pagos: Mercado Pago, mensualidad fija al profesor
+  (30 días gratis, luego planes — a definir precios)
+
+## Etapa 2 — Post lanzamiento
+- Cancha libre / torneos
+- Planes y tiers de suscripción
+- Rol Club
+
+## Monetización
+Mensualidad fija que paga el profesor.
+Primer mes gratis. Modelo de planes a definir post-lanzamiento.
+El alumno nunca paga a la plataforma.
 
 ## Forma de responder
 - Explicar qué vas a hacer antes de hacerlo.

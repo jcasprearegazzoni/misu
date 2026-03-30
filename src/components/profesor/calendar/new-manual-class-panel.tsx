@@ -1,8 +1,13 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { createManualBookingAction } from "@/app/dashboard/profesor/calendario/manual-booking-actions";
-import { buildHalfHourTimeOptions } from "./time-options";
+import {
+  AvailabilityRange,
+  buildEndOptionsForDateAndStart,
+  buildStartOptionsForDate,
+  getOneHourLaterOrNextAvailable,
+} from "./time-options";
 
 type AlumnoOption = {
   user_id: string;
@@ -11,26 +16,54 @@ type AlumnoOption = {
 
 type NewManualClassPanelProps = {
   alumnos: AlumnoOption[];
+  availabilityRanges: AvailabilityRange[];
 };
 
 function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function NewManualClassPanel({ alumnos }: NewManualClassPanelProps) {
+export function NewManualClassPanel({ alumnos, availabilityRanges }: NewManualClassPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedStartTime, setSelectedStartTime] = useState("08:00");
-  const [selectedEndTime, setSelectedEndTime] = useState("09:00");
+  const [selectedAlumnoId, setSelectedAlumnoId] = useState("");
+  const [selectedDate, setSelectedDate] = useState(getTodayIsoDate());
+  const [selectedType, setSelectedType] = useState<"individual" | "dobles" | "trio" | "grupal">("individual");
+  const [selectedStartTime, setSelectedStartTime] = useState("");
+  const [selectedEndTime, setSelectedEndTime] = useState("");
   const [state, formAction, isPending] = useActionState(createManualBookingAction, {
     error: null,
     success: null,
   });
 
   const minDate = useMemo(() => getTodayIsoDate(), []);
-  const timeOptions = useMemo(() => buildHalfHourTimeOptions({ startHour: 6, endHour: 23 }), []);
+  const startTimeOptions = useMemo(() => {
+    return buildStartOptionsForDate(selectedDate, availabilityRanges);
+  }, [availabilityRanges, selectedDate]);
   const endTimeOptions = useMemo(() => {
-    return timeOptions.filter((option) => option.value > selectedStartTime);
-  }, [selectedStartTime, timeOptions]);
+    return buildEndOptionsForDateAndStart(selectedDate, selectedStartTime, availabilityRanges);
+  }, [availabilityRanges, selectedDate, selectedStartTime]);
+
+  useEffect(() => {
+    const onCreateSlot = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        date: string;
+        startTime: string;
+        endTime: string;
+      }>;
+      const payload = customEvent.detail;
+      if (!payload) {
+        return;
+      }
+
+      setIsOpen(true);
+      setSelectedDate(payload.date);
+      setSelectedStartTime(payload.startTime);
+      setSelectedEndTime(payload.endTime);
+    };
+
+    window.addEventListener("calendar:create-slot", onCreateSlot);
+    return () => window.removeEventListener("calendar:create-slot", onCreateSlot);
+  }, []);
 
   return (
     <section className="mt-4 rounded-lg border border-zinc-300 bg-white p-3">
@@ -41,7 +74,19 @@ export function NewManualClassPanel({ alumnos }: NewManualClassPanelProps) {
         </div>
         <button
           type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={() => {
+            setIsOpen((prev) => {
+              const nextOpen = !prev;
+              if (nextOpen) {
+                const nextStartOptions = buildStartOptionsForDate(selectedDate, availabilityRanges);
+                const startValue = nextStartOptions[0]?.value ?? "";
+                setSelectedStartTime(startValue);
+                const nextEndOptions = buildEndOptionsForDateAndStart(selectedDate, startValue, availabilityRanges);
+                setSelectedEndTime(getOneHourLaterOrNextAvailable(startValue, nextEndOptions));
+              }
+              return nextOpen;
+            });
+          }}
           className="h-9 rounded-md border border-zinc-300 bg-zinc-100 px-3 text-xs font-medium text-zinc-800"
         >
           {isOpen ? "Cerrar" : "Crear clase"}
@@ -55,7 +100,8 @@ export function NewManualClassPanel({ alumnos }: NewManualClassPanelProps) {
             <select
               name="alumno_id"
               required
-              defaultValue=""
+              value={selectedAlumnoId}
+              onChange={(event) => setSelectedAlumnoId(event.target.value)}
               className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
             >
               <option value="" disabled>
@@ -77,6 +123,18 @@ export function NewManualClassPanel({ alumnos }: NewManualClassPanelProps) {
                 name="date"
                 min={minDate}
                 required
+                value={selectedDate}
+                onChange={(event) => {
+                  const nextDate = event.target.value;
+                  setSelectedDate(nextDate);
+
+                  const nextStartOptions = buildStartOptionsForDate(nextDate, availabilityRanges);
+                  const startValue = nextStartOptions[0]?.value ?? "";
+                  setSelectedStartTime(startValue);
+
+                  const nextEndOptions = buildEndOptionsForDateAndStart(nextDate, startValue, availabilityRanges);
+                  setSelectedEndTime(getOneHourLaterOrNextAvailable(startValue, nextEndOptions));
+                }}
                 className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
               />
             </label>
@@ -85,7 +143,8 @@ export function NewManualClassPanel({ alumnos }: NewManualClassPanelProps) {
               Modalidad
               <select
                 name="type"
-                defaultValue="individual"
+                value={selectedType}
+                onChange={(event) => setSelectedType(event.target.value as "individual" | "dobles" | "trio" | "grupal")}
                 className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
               >
                 <option value="individual">Individual</option>
@@ -108,12 +167,15 @@ export function NewManualClassPanel({ alumnos }: NewManualClassPanelProps) {
                   const nextStart = event.target.value;
                   setSelectedStartTime(nextStart);
                   if (selectedEndTime <= nextStart) {
-                    const nextEnd = timeOptions.find((option) => option.value > nextStart)?.value ?? nextStart;
-                    setSelectedEndTime(nextEnd);
+                    const nextEndOptions = buildEndOptionsForDateAndStart(selectedDate, nextStart, availabilityRanges);
+                    setSelectedEndTime(getOneHourLaterOrNextAvailable(nextStart, nextEndOptions));
                   }
                 }}
               >
-                {timeOptions.map((option) => (
+                <option value="" disabled>
+                  Seleccionar
+                </option>
+                {startTimeOptions.map((option) => (
                   <option key={`manual-start-${option.value}`} value={option.value}>
                     {option.label}
                   </option>
@@ -130,6 +192,9 @@ export function NewManualClassPanel({ alumnos }: NewManualClassPanelProps) {
                 value={selectedEndTime}
                 onChange={(event) => setSelectedEndTime(event.target.value)}
               >
+                <option value="" disabled>
+                  Seleccionar
+                </option>
                 {endTimeOptions.map((option) => (
                   <option key={`manual-end-${option.value}`} value={option.value}>
                     {option.label}
@@ -138,6 +203,12 @@ export function NewManualClassPanel({ alumnos }: NewManualClassPanelProps) {
               </select>
             </label>
           </div>
+
+          {startTimeOptions.length === 0 ? (
+            <p className="rounded-md border border-amber-300 bg-amber-100 px-3 py-2 text-xs text-amber-800">
+              No hay disponibilidad configurada para la fecha elegida.
+            </p>
+          ) : null}
 
           {alumnos.length === 0 ? (
             <p className="rounded-md border border-amber-300 bg-amber-100 px-3 py-2 text-xs text-amber-800">
@@ -157,7 +228,7 @@ export function NewManualClassPanel({ alumnos }: NewManualClassPanelProps) {
 
           <button
             type="submit"
-            disabled={isPending || alumnos.length === 0}
+            disabled={isPending || alumnos.length === 0 || startTimeOptions.length === 0 || endTimeOptions.length === 0}
             className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-semibold text-white disabled:opacity-60"
           >
             {isPending ? "Creando..." : "Crear clase"}

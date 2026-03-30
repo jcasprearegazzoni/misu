@@ -15,6 +15,7 @@ export type CalendarBookingItem = {
   type: BookingType;
   type_label: string;
   status: BookingStatus;
+  is_finalized: boolean;
   package_consumed: boolean;
   consumed_student_package_id: number | null;
   profesor_note: string;

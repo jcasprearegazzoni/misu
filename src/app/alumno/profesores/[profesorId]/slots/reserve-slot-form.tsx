@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { reserveSlotAction } from "./actions";
 
 type ReserveSlotFormProps = {
@@ -25,10 +26,23 @@ export function ReserveSlotForm({
   endTime,
   fixedType,
 }: ReserveSlotFormProps) {
+  const router = useRouter();
   const [state, formAction, isPending] = useActionState(reserveSlotAction, {
     error: null,
     success: null,
   });
+
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      router.refresh();
+    }, 1400);
+
+    return () => clearTimeout(timer);
+  }, [router, state.success]);
 
   return (
     <form action={formAction} className="grid gap-2 sm:flex sm:items-center sm:gap-2">
@@ -77,9 +91,10 @@ export function ReserveSlotForm({
         </p>
       ) : null}
       {state.success ? (
-        <p className="whitespace-pre-line rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
-          {state.success}
-        </p>
+        <div className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
+          <p className="font-semibold">Reserva enviada. Aguardando confirmacion del profesor.</p>
+          <p className="mt-1 whitespace-pre-line">{state.success}</p>
+        </div>
       ) : null}
     </form>
   );

@@ -17,11 +17,6 @@ type BlockedRangeRow = {
   end_at: string;
 };
 
-type AlumnoForManualClassRow = {
-  alumno_id: string;
-  alumno_name: string | null;
-};
-
 export type CreateManualBookingActionState = {
   error: string | null;
   success: string | null;
@@ -116,25 +111,21 @@ export async function createManualBookingAction(
     };
   }
 
-  const { data: allowedAlumnos, error: allowedAlumnosError } = await supabase.rpc(
-    "get_profesor_alumnos_for_manual_class",
-    {
-      p_profesor_id: user.id,
-    },
-  );
+  const { data: selectedAlumno, error: alumnoError } = await supabase
+    .from("profiles")
+    .select("user_id, role")
+    .eq("user_id", parsed.data.alumno_id)
+    .eq("role", "alumno")
+    .single();
 
-  if (allowedAlumnosError) {
+  if (alumnoError) {
     return {
       error: "No se pudo validar el alumno seleccionado.",
       success: null,
     };
   }
 
-  const allowedAlumnoIds = new Set(
-    ((allowedAlumnos ?? []) as AlumnoForManualClassRow[]).map((item) => item.alumno_id),
-  );
-
-  if (!allowedAlumnoIds.has(parsed.data.alumno_id)) {
+  if (!selectedAlumno) {
     return {
       error: "El alumno seleccionado no es valido.",
       success: null,

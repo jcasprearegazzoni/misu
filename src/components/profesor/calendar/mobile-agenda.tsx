@@ -5,6 +5,7 @@ import { formatUserDate } from "@/lib/format/date";
 import { CalendarBookingItem } from "./types";
 import { MobileEventSheet } from "./mobile-event-sheet";
 import { groupDayBookingsBySlot } from "./slot-groups";
+import { AvailabilityRange } from "./time-options";
 
 type MobileAgendaProps = {
   days: Array<{
@@ -12,6 +13,7 @@ type MobileAgendaProps = {
     items: CalendarBookingItem[];
   }>;
   selectedDay: string;
+  availabilityRanges: AvailabilityRange[];
 };
 
 const statusLabel: Record<CalendarBookingItem["status"], string> = {
@@ -26,7 +28,21 @@ const statusClass: Record<CalendarBookingItem["status"], string> = {
   cancelado: "border-red-300 bg-red-100 text-red-800",
 };
 
-export function MobileAgenda({ days, selectedDay }: MobileAgendaProps) {
+function getSlotStatus(slot: { status: CalendarBookingItem["status"]; is_finalized: boolean }) {
+  if (slot.is_finalized) {
+    return {
+      label: "Finalizada",
+      className: "border-sky-300 bg-sky-100 text-sky-800",
+    };
+  }
+
+  return {
+    label: statusLabel[slot.status],
+    className: statusClass[slot.status],
+  };
+}
+
+export function MobileAgenda({ days, selectedDay, availabilityRanges }: MobileAgendaProps) {
   const [openedSlotKey, setOpenedSlotKey] = useState<string | null>(null);
 
   const day = days.find((value) => value.date === selectedDay) ?? days[0];
@@ -49,6 +65,9 @@ export function MobileAgenda({ days, selectedDay }: MobileAgendaProps) {
           <ul className="mt-3 grid gap-2">
             {slotGroups.map((slot) => (
               <li key={slot.slot_key}>
+                {(() => {
+                  const slotStatus = getSlotStatus(slot);
+                  return (
                 <button
                   type="button"
                   onClick={() => setOpenedSlotKey(slot.slot_key)}
@@ -68,19 +87,26 @@ export function MobileAgenda({ days, selectedDay }: MobileAgendaProps) {
                       {slot.type !== "individual" ? ` (${slot.occupied_count}/${slot.capacity})` : ""}
                     </span>
                     <span
-                      className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium ${statusClass[slot.status]}`}
+                      className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium ${slotStatus.className}`}
                     >
-                      {statusLabel[slot.status]}
+                      {slotStatus.label}
                     </span>
                   </div>
                 </button>
+                  );
+                })()}
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      <MobileEventSheet key={openedSlot?.slot_key ?? "empty"} slot={openedSlot} onClose={() => setOpenedSlotKey(null)} />
+      <MobileEventSheet
+        key={openedSlot?.slot_key ?? "empty"}
+        slot={openedSlot}
+        availabilityRanges={availabilityRanges}
+        onClose={() => setOpenedSlotKey(null)}
+      />
     </section>
   );
 }

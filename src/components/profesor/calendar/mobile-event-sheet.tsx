@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { BookingDetailContent } from "./booking-detail-content";
 import { CalendarSlotGroup } from "./slot-groups";
+import { AvailabilityRange } from "./time-options";
 
 type MobileEventSheetProps = {
   slot: CalendarSlotGroup | null;
+  availabilityRanges: AvailabilityRange[];
   onClose: () => void;
 };
 
-export function MobileEventSheet({ slot, onClose }: MobileEventSheetProps) {
+export function MobileEventSheet({ slot, availabilityRanges, onClose }: MobileEventSheetProps) {
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(slot?.bookings[0]?.id ?? null);
 
   if (!slot) {
@@ -64,7 +66,7 @@ export function MobileEventSheet({ slot, onClose }: MobileEventSheetProps) {
             </div>
           </div>
         ) : null}
-        <BookingDetailContent item={selectedBooking} />
+        <BookingDetailContent item={selectedBooking} availabilityRanges={availabilityRanges} />
       </div>
     </div>
   );

@@ -22,6 +22,18 @@ type BookingRow = {
   consumed_student_package_id: number | null;
 };
 
+type AvailabilityRow = {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  slot_duration_minutes: number;
+};
+
+type BlockedRangeRow = {
+  start_at: string;
+  end_at: string;
+};
+
 type AlumnoNameRow = {
   alumno_id: string;
   alumno_name: string | null;
@@ -116,6 +128,17 @@ function getWeekBounds(weekOffset: number) {
   return { weekDates, start, nextMondayIso };
 }
 
+function getTodayDateIso() {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(now);
+}
+
 function parseWeekOffset(value?: string) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed)) {
@@ -157,6 +180,14 @@ function getFinancialStatusLabel(packageConsumed: boolean, hasCoveragePayment: b
   return "Pendiente" as const;
 }
 
+function isBookingFinalized(dateIso: string, endTime: string, status: BookingStatus) {
+  if (status === "cancelado") {
+    return false;
+  }
+  const endDateTime = new Date(`${dateIso}T${endTime.slice(0, 8)}-03:00`);
+  return endDateTime.getTime() < Date.now();
+}
+
 type CalendarioPageProps = {
   searchParams?: Promise<{
     filter?: string;
@@ -175,20 +206,24 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
   }
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const activeFilter = isValidFilter(resolvedSearchParams?.filter) ? resolvedSearchParams.filter : "pendientes";
+  const activeFilter = isValidFilter(resolvedSearchParams?.filter) ? resolvedSearchParams.filter : "todas";
   const weekOffset = parseWeekOffset(resolvedSearchParams?.weekOffset);
+  const todayIso = getTodayDateIso();
 
   const { weekDates, start, nextMondayIso } = getWeekBounds(weekOffset);
   const selectedDay = weekDates.includes(resolvedSearchParams?.day ?? "")
     ? (resolvedSearchParams?.day as string)
-    : weekDates[0];
+    : weekOffset === 0 && weekDates.includes(todayIso)
+      ? todayIso
+      : weekDates[0];
 
   const supabase = await createSupabaseServerClient();
-  const [bookingsResult, alumnoNamesResult, coveragePaymentsResult, alumnosResult, notesResult] = await Promise.all([
+  const [bookingsResult, alumnoNamesResult, coveragePaymentsResult, alumnosResult, notesResult, availabilityResult, blockedRangesResult] = await Promise.all([
     supabase
       .from("bookings")
       .select("id, alumno_id, date, start_time, end_time, type, status, package_consumed, consumed_student_package_id")
       .eq("profesor_id", profile.user_id)
+      .in("status", ["pendiente", "confirmado"])
       .gte("date", start)
       .lt("date", nextMondayIso)
       .order("date", { ascending: true })
@@ -209,6 +244,15 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       .from("profesor_alumno_notes")
       .select("alumno_id, note")
       .eq("profesor_id", profile.user_id),
+    supabase
+      .from("availability")
+      .select("day_of_week, start_time, end_time, slot_duration_minutes")
+      .eq("profesor_id", profile.user_id),
+    supabase.rpc("get_profesor_blocked_ranges", {
+      p_profesor_id: profile.user_id,
+      p_date_from: start,
+      p_date_to: nextMondayIso,
+    }),
   ]);
 
   const hasLoadError = Boolean(
@@ -216,7 +260,9 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       alumnoNamesResult.error ||
       coveragePaymentsResult.error ||
       alumnosResult.error ||
-      notesResult.error,
+      notesResult.error ||
+      availabilityResult.error ||
+      blockedRangesResult.error,
   );
   const bookings = (bookingsResult.data ?? []) as BookingRow[];
   const alumnoNameRows = (alumnoNamesResult.data ?? []) as AlumnoNameRow[];
@@ -226,6 +272,8 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
     name: alumno.alumno_name?.trim() || "Alumno",
   }));
   const notes = (notesResult.data ?? []) as ProfesorAlumnoNoteRow[];
+  const availability = (availabilityResult.data ?? []) as AvailabilityRow[];
+  const blockedRanges = (blockedRangesResult.data ?? []) as BlockedRangeRow[];
 
   const alumnoNameMap = new Map<string, string>();
   for (const row of alumnoNameRows) {
@@ -268,6 +316,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       type_label: typeLabel[booking.type],
       type: booking.type,
       status: booking.status,
+      is_finalized: isBookingFinalized(booking.date, booking.end_time, booking.status),
       package_consumed: booking.package_consumed,
       consumed_student_package_id: booking.consumed_student_package_id,
       profesor_note: noteByAlumnoId.get(booking.alumno_id) ?? "",
@@ -332,6 +381,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       alumno_branch: detail?.alumno_branch ?? null,
       alumno_zone: detail?.alumno_zone ?? null,
       alumno_has_equipment: detail?.alumno_has_equipment ?? false,
+      is_finalized: item.is_finalized,
       package_consumed: detail?.package_consumed ?? item.package_consumed,
       consumed_student_package_id: detail?.consumed_student_package_id ?? item.consumed_student_package_id ?? null,
       has_coverage_payment: detail?.payment_covered ?? item.has_coverage_payment,
@@ -370,7 +420,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
         counts={filterCounts}
       />
 
-      <NewManualClassPanel alumnos={alumnos} />
+      <NewManualClassPanel alumnos={alumnos} availabilityRanges={availability} />
 
       <WeekCalendarStrip
         weekDates={weekDates}
@@ -383,7 +433,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
         }
         resetHref={
           weekOffset !== 0
-            ? `/dashboard/profesor/calendario?filter=${activeFilter}&weekOffset=0&day=${weekDates[0]}`
+            ? `/dashboard/profesor/calendario?filter=${activeFilter}&weekOffset=0&day=${todayIso}`
             : undefined
         }
       />
@@ -394,11 +444,8 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
         </p>
       ) : (
         <>
-          <MobileAgenda
-            days={days}
-            selectedDay={selectedDay}
-          />
-          <WeekTimeline days={days} />
+          <MobileAgenda days={days} selectedDay={selectedDay} availabilityRanges={availability} />
+          <WeekTimeline days={days} availability={availability} blockedRanges={blockedRanges} />
         </>
       )}
     </main>

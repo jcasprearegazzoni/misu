@@ -10,6 +10,7 @@ type WeekCalendarStripProps = {
   nextHref: string;
   dayHrefBuilder: (dateIso: string) => string;
   resetHref?: string;
+  resetLabel?: string;
 };
 
 function formatMonthLabel(dateIso: string) {
@@ -50,6 +51,7 @@ export function WeekCalendarStrip({
   nextHref,
   dayHrefBuilder,
   resetHref,
+  resetLabel = "Volver a hoy",
 }: WeekCalendarStripProps) {
   const resolvedMonthLabel = monthLabel ?? formatMonthLabel(weekDates[0]);
   const isBookingTone = tone === "booking";
@@ -80,7 +82,7 @@ export function WeekCalendarStrip({
             }`}
             aria-label="Semana anterior"
           >
-            ‹
+            {"<"}
           </Link>
           <Link
             href={nextHref}
@@ -91,7 +93,7 @@ export function WeekCalendarStrip({
             }`}
             aria-label="Semana siguiente"
           >
-            ›
+            {">"}
           </Link>
         </div>
       </div>
@@ -137,10 +139,11 @@ export function WeekCalendarStrip({
                 : "border-zinc-300 bg-zinc-50 text-zinc-700 hover:bg-zinc-100"
             }`}
           >
-            Volver a semana actual
+            {resetLabel}
           </Link>
         </div>
       ) : null}
     </section>
   );
 }
+
