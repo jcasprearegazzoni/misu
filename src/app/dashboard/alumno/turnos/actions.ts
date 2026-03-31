@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createNotification } from "@/lib/notifications/create-notification";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function getEstimatedAmountByType(
@@ -55,7 +56,7 @@ export async function cancelAlumnoBookingAction(formData: FormData): Promise<voi
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, profesor_id, alumno_id, date, start_time, end_time, status, type, package_consumed")
+    .select("id, profesor_id, alumno_id, date, start_time, end_time, status, type, package_consumed, consumed_student_package_id")
     .eq("id", bookingId)
     .eq("alumno_id", user.id)
     .single();
@@ -80,7 +81,12 @@ export async function cancelAlumnoBookingAction(formData: FormData): Promise<voi
   const minCancelDate = new Date(bookingStart.getTime() - cancellationWindowHours * 60 * 60 * 1000);
   const isLateCancellation = cancellationWindowHours > 0 && now > minCancelDate;
 
-  const { data: updatedBooking, error: cancelError } = await supabase
+  // Usa admin client para la cancelación y operaciones posteriores:
+  // - El alumno necesita política UPDATE en bookings (migración 037).
+  // - Para student_packages y limpieza de package_consumed, el alumno no tiene UPDATE.
+  const admin = createSupabaseAdminClient();
+
+  const { data: updatedBooking, error: cancelError } = await admin
     .from("bookings")
     .update({ status: "cancelado" })
     .eq("id", booking.id)
@@ -91,6 +97,27 @@ export async function cancelAlumnoBookingAction(formData: FormData): Promise<voi
 
   if (cancelError || !updatedBooking) {
     return;
+  }
+
+  // Si la clase había consumido un crédito de paquete, restaurarlo.
+  if (booking.package_consumed && booking.consumed_student_package_id) {
+    const { data: pkg } = await admin
+      .from("student_packages")
+      .select("classes_remaining")
+      .eq("id", booking.consumed_student_package_id)
+      .single();
+
+    if (pkg) {
+      await admin
+        .from("student_packages")
+        .update({ classes_remaining: pkg.classes_remaining + 1 })
+        .eq("id", booking.consumed_student_package_id);
+    }
+
+    await admin
+      .from("bookings")
+      .update({ package_consumed: false, consumed_student_package_id: null })
+      .eq("id", booking.id);
   }
 
   if (isLateCancellation && booking.status === "confirmado" && !booking.package_consumed) {

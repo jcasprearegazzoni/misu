@@ -16,6 +16,7 @@ type BookingRow = {
   end_time: string;
   type: "individual" | "dobles" | "trio" | "grupal";
   status: "pendiente" | "confirmado" | "cancelado";
+  package_consumed: boolean;
 };
 
 type ProfesorRow = {
@@ -31,6 +32,14 @@ type DecisionRow = {
   status: "pendiente";
   decision_deadline_at: string | null;
   created_at: string;
+};
+
+type StudentPackageRow = {
+  id: number;
+  classes_remaining: number;
+  paid: boolean;
+  // Supabase puede devolver el join como objeto o array según la versión del cliente.
+  package: { name: string; total_classes: number } | { name: string; total_classes: number }[] | null;
 };
 
 const statusLabel: Record<BookingRow["status"], string> = {
@@ -108,7 +117,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
 
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: profesoresData }, { data: bookingsData }, { data: decisionsData }] = await Promise.all([
+  const [{ data: profesoresData }, { data: bookingsData }, { data: decisionsData }, { data: studentPackagesData }] = await Promise.all([
     supabase
       .from("profiles")
       .select("user_id, name, username, cancel_without_charge_hours")
@@ -116,7 +125,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
       .order("name", { ascending: true }),
     supabase
       .from("bookings")
-      .select("id, profesor_id, date, start_time, end_time, type, status")
+      .select("id, profesor_id, date, start_time, end_time, type, status, package_consumed")
       .eq("alumno_id", profile.user_id)
       .in("status", ["pendiente", "confirmado"])
       .order("date", { ascending: true })
@@ -128,11 +137,18 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
       .eq("status", "pendiente")
       .order("decision_deadline_at", { ascending: true })
       .order("created_at", { ascending: false }),
+    supabase
+      .from("student_packages")
+      .select("id, classes_remaining, paid, package:packages(name, total_classes)")
+      .eq("alumno_id", profile.user_id)
+      .gt("classes_remaining", 0)
+      .order("created_at", { ascending: false }),
   ]);
 
   const profesores = (profesoresData ?? []) as ProfesorRow[];
   const bookings = (bookingsData ?? []) as BookingRow[];
   const decisions = (decisionsData ?? []) as DecisionRow[];
+  const studentPackages = (studentPackagesData ?? []) as StudentPackageRow[];
 
   const profesorMap = new Map(profesores.map((row) => [row.user_id, row]));
   const bookingsByDate = groupBookingsByDate(bookings);
@@ -236,6 +252,24 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
 
       {activeTab === "mis-clases" ? (
         <section className="mt-6 grid gap-4">
+          {studentPackages.length > 0 ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-sm font-semibold text-emerald-900">Créditos de paquete disponibles</p>
+              <ul className="mt-2 grid gap-1">
+                {studentPackages.map((pkg) => {
+                  const pkgData = Array.isArray(pkg.package) ? pkg.package[0] : pkg.package;
+                  const nombre = pkgData?.name ?? "Paquete";
+                  const total = pkgData?.total_classes ?? 0;
+                  return (
+                    <li key={pkg.id} className="flex items-center justify-between text-sm text-emerald-800">
+                      <span>{nombre} ({total} clases)</span>
+                      <span className="font-semibold">{pkg.classes_remaining} restantes</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
           {bookingsByDate.length === 0 ? (
             <p className="rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-700">
               Aun no tienes clases reservadas.
@@ -251,20 +285,34 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
                     <li key={booking.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm">
                       {(() => {
                         const isFinalized = isFinalizedBooking(booking);
-                        const computedStatusLabel = isFinalized ? "Finalizada" : statusLabel[booking.status];
+                        const isPaid = booking.package_consumed;
+
+                        const computedStatusLabel = isFinalized
+                          ? isPaid ? "Finalizada — paquete" : "Finalizada"
+                          : statusLabel[booking.status];
+
                         const computedStatusStyle = isFinalized
-                          ? "border-sky-300 bg-sky-50 text-sky-800"
+                          ? isPaid
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                            : "border-amber-300 bg-amber-50 text-amber-800"
                           : statusStyles[booking.status];
 
                         return (
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold text-zinc-900">
-                          {booking.start_time.slice(0, 5)} a {booking.end_time.slice(0, 5)}
-                        </p>
-                        <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${computedStatusStyle}`}>
-                          {computedStatusLabel}
-                        </span>
-                      </div>
+                          <>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-semibold text-zinc-900">
+                                {booking.start_time.slice(0, 5)} a {booking.end_time.slice(0, 5)}
+                              </p>
+                              <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${computedStatusStyle}`}>
+                                {computedStatusLabel}
+                              </span>
+                            </div>
+                            {isFinalized ? (
+                              <p className={`mt-1 text-xs font-medium ${isPaid ? "text-emerald-700" : "text-amber-700"}`}>
+                                {isPaid ? "Cubierta por paquete" : "Pendiente de pago — coordiná con tu profesor"}
+                              </p>
+                            ) : null}
+                          </>
                         );
                       })()}
                       <p className="mt-2 text-zinc-700">

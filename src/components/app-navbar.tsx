@@ -104,7 +104,7 @@ export async function AppNavbar() {
     <header className="border-b border-zinc-300 bg-white">
       <nav className="mx-auto flex w-full max-w-6xl items-center gap-2 px-3 py-2 sm:px-4">
         <Link href={profile.role === "profesor" ? "/dashboard/profesor/turnos" : "/dashboard/alumno/turnos"}>
-          <span className="text-sm font-semibold text-zinc-900">misu</span>
+          <span className="text-sm font-bold tracking-tight text-misu">misu</span>
         </Link>
 
         <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">

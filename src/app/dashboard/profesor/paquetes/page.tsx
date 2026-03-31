@@ -23,11 +23,7 @@ type StudentPackageRow = {
   classes_remaining: number;
   paid: boolean;
   created_at: string;
-  package: {
-    name: string;
-    total_classes: number;
-    active: boolean;
-  }[] | null;
+  package: { name: string; total_classes: number; active: boolean } | { name: string; total_classes: number; active: boolean }[] | null;
 };
 
 type AlumnoOption = {
@@ -148,30 +144,26 @@ export default async function ProfesorPaquetesPage() {
           </div>
 
           <section className="mt-8">
-            <h2 className="text-lg font-semibold text-zinc-900">Paquetes creados</h2>
-            {packages.length === 0 ? (
+            <h2 className="text-lg font-semibold text-zinc-900">Paquetes disponibles</h2>
+            {packages.filter((p) => p.active).length === 0 ? (
               <p className="mt-3 rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-700">
-                Aun no creaste paquetes.
+                Aun no hay paquetes disponibles. Crea uno arriba.
               </p>
             ) : (
               <ul className="mt-3 grid gap-2">
-                {packages.map((pack) => (
+                {packages.filter((p) => p.active).map((pack) => (
                   <li key={pack.id} className="rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm">
                     <p className="font-medium text-zinc-900">
-                      {pack.name} ({pack.total_classes} clases)
+                      {pack.name} — {pack.total_classes} clases
                     </p>
                     <p className="text-zinc-700">Precio: {formatAmount(Number(pack.price))}</p>
-                    <p className="text-zinc-700">Estado: {pack.active ? "Activo" : "Inactivo"}</p>
-                    <p className="text-zinc-700">Creado: {formatUserDate(pack.created_at)}</p>
-                    {pack.description ? <p className="text-zinc-700">Descripcion: {pack.description}</p> : null}
-                    {pack.active ? (
-                      <form action={deactivatePackageAction} className="mt-3">
-                        <input type="hidden" name="package_id" value={pack.id} />
-                        <button className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white">
-                          Desactivar
-                        </button>
-                      </form>
-                    ) : null}
+                    {pack.description ? <p className="text-zinc-500">{pack.description}</p> : null}
+                    <form action={deactivatePackageAction} className="mt-3">
+                      <input type="hidden" name="package_id" value={pack.id} />
+                      <button className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">
+                        Eliminar
+                      </button>
+                    </form>
                   </li>
                 ))}
               </ul>
@@ -186,31 +178,35 @@ export default async function ProfesorPaquetesPage() {
               </p>
             ) : (
               <ul className="mt-3 grid gap-2">
-                {studentPackages.map((assigned) => (
-                  <li key={assigned.id} className="rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm">
-                    <p className="font-medium text-zinc-900">
-                      Alumno: {alumnosMap.get(assigned.alumno_id)?.name ?? "Alumno"}
-                    </p>
-                    <p className="text-zinc-700">
-                      Paquete: {assigned.package?.[0]?.name ?? packageNameMap.get(assigned.package_id) ?? "Sin nombre"}
-                    </p>
-                    <p className="text-zinc-700">Clases restantes: {assigned.classes_remaining}</p>
-                    <p className="text-zinc-700">Estado de pago: {assigned.paid ? "Pagado" : "Pendiente"}</p>
-                    <p className="text-zinc-700">
-                      Estado del paquete: {assigned.package?.[0]?.active ? "Activo" : "Inactivo"}
-                    </p>
-                    <p className="text-zinc-700">Asignado: {formatUserDate(assigned.created_at)}</p>
+                {studentPackages.map((assigned) => {
+                  const pkgData = Array.isArray(assigned.package) ? assigned.package[0] : assigned.package;
+                  const pkgName = pkgData?.name ?? packageNameMap.get(assigned.package_id) ?? "Sin nombre";
+                  const alumnoName = alumnosMap.get(assigned.alumno_id)?.name ?? "Alumno";
+
+                  return (
+                  <li key={assigned.id} className={`rounded-lg border px-4 py-3 text-sm ${assigned.paid ? "border-zinc-300 bg-white" : "border-amber-200 bg-amber-50"}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-zinc-900">{alumnoName}</p>
+                        <p className="text-zinc-700">{pkgName} · {assigned.classes_remaining} clases restantes</p>
+                        <p className="text-zinc-500 text-xs">Solicitado: {formatUserDate(assigned.created_at)}</p>
+                      </div>
+                      <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${assigned.paid ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-amber-100 text-amber-800"}`}>
+                        {assigned.paid ? "Pagado" : "Pendiente"}
+                      </span>
+                    </div>
 
                     {!assigned.paid ? (
                       <form action={markStudentPackagePaidAction} className="mt-3">
                         <input type="hidden" name="student_package_id" value={assigned.id} />
                         <button className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white">
-                          Marcar como pagado
+                          Confirmar pago — activar créditos
                         </button>
                       </form>
                     ) : null}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </section>

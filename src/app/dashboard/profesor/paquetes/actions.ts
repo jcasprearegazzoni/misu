@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createNotification } from "@/lib/notifications/create-notification";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   assignStudentPackageSchema,
@@ -103,7 +104,7 @@ export async function assignPackageToStudentAction(
 
   const { data: selectedPackage } = await context.supabase
     .from("packages")
-    .select("id, total_classes")
+    .select("id, name, total_classes")
     .eq("id", parsed.data.package_id)
     .eq("profesor_id", context.userId)
     .eq("active", true)
@@ -127,6 +128,14 @@ export async function assignPackageToStudentAction(
   if (error) {
     return { error: error.message, success: null };
   }
+
+  // Notificar al alumno que le asignaron un paquete.
+  await createNotification({
+    userId: parsed.data.alumno_id,
+    type: "package_assigned",
+    title: "Paquete de clases asignado",
+    message: `Tu profesor te asignó el paquete "${selectedPackage.name}" con ${selectedPackage.total_classes} clases.`,
+  });
 
   revalidatePath("/dashboard/profesor/paquetes");
   return { error: null, success: "Paquete asignado al alumno." };

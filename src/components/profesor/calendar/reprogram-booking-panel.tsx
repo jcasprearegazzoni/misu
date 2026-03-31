@@ -9,11 +9,14 @@ import {
   getOneHourLaterOrNextAvailable,
 } from "./time-options";
 
+type BookingType = "individual" | "dobles" | "trio" | "grupal";
+
 type ReprogramBookingPanelProps = {
   bookingId: number;
   currentDate: string;
   currentStartTime: string;
   currentEndTime: string;
+  currentType: BookingType;
   packageConsumed: boolean;
   hasCoveragePayment: boolean;
   availabilityRanges: AvailabilityRange[];
@@ -33,6 +36,7 @@ export function ReprogramBookingPanel({
   currentDate,
   currentStartTime,
   currentEndTime,
+  currentType,
   packageConsumed,
   hasCoveragePayment,
   availabilityRanges,
@@ -40,6 +44,7 @@ export function ReprogramBookingPanel({
 }: ReprogramBookingPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(currentDate);
+  const [selectedType, setSelectedType] = useState<BookingType>(currentType);
   const initialStart = normalizeTimeToHHMM(currentStartTime);
   const initialEnd = normalizeTimeToHHMM(currentEndTime);
   const [selectedStartTime, setSelectedStartTime] = useState(initialStart);
@@ -88,6 +93,7 @@ export function ReprogramBookingPanel({
       {isOpen ? (
         <form action={formAction} className="grid gap-1 rounded-md border border-zinc-300 bg-zinc-50 p-2">
           <input type="hidden" name="booking_id" value={bookingId} />
+          <input type="hidden" name="new_type" value={selectedType} />
 
           <label className="grid gap-0.5 text-[10px] text-zinc-700">
             Fecha nueva
@@ -160,6 +166,20 @@ export function ReprogramBookingPanel({
               </select>
             </label>
           </div>
+
+          <label className="grid gap-0.5 text-[10px] text-zinc-700">
+            Modalidad
+            <select
+              value={selectedType}
+              onChange={(event) => setSelectedType(event.target.value as BookingType)}
+              className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-xs text-zinc-900"
+            >
+              <option value="individual">Individual</option>
+              <option value="dobles">Dobles</option>
+              <option value="trio">Trío</option>
+              <option value="grupal">Grupal</option>
+            </select>
+          </label>
 
           {packageConsumed ? (
             <p className="text-[10px] text-amber-700">

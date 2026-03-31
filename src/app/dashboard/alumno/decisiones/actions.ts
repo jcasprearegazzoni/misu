@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createNotification } from "@/lib/notifications/create-notification";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { respondSoloDecisionSchema } from "@/lib/validation/solo-decision.schema";
@@ -45,7 +46,7 @@ async function respondSoloDecision(
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, profesor_id, date, start_time, end_time, type, status")
+    .select("id, profesor_id, date, start_time, end_time, type, status, package_consumed, consumed_student_package_id")
     .eq("id", decision.booking_id)
     .single();
 
@@ -77,12 +78,51 @@ async function respondSoloDecision(
     return;
   }
 
+  const admin = createSupabaseAdminClient();
+
   if (parsed.data.action === "aceptada_individual") {
     await supabase.from("bookings").update({ type: "individual" }).eq("id", booking.id);
+
+    // Notificar al profesor que el alumno aceptó la clase individual.
+    await createNotification({
+      userId: booking.profesor_id,
+      type: "booking_confirmed",
+      title: "Alumno aceptó clase individual",
+      message: `El alumno aceptó continuar con la clase del ${booking.date} de ${booking.start_time.slice(0, 5)} a ${booking.end_time.slice(0, 5)} como individual.`,
+    });
   } else {
     await supabase.from("bookings").update({ status: "cancelado" }).eq("id", booking.id);
+
+    // Restaurar crédito de paquete si correspondía (usa admin para saltear RLS).
+    if (booking.package_consumed && booking.consumed_student_package_id) {
+      const { data: pkg } = await admin
+        .from("student_packages")
+        .select("classes_remaining")
+        .eq("id", booking.consumed_student_package_id)
+        .single();
+
+      if (pkg) {
+        await admin
+          .from("student_packages")
+          .update({ classes_remaining: pkg.classes_remaining + 1 })
+          .eq("id", booking.consumed_student_package_id);
+      }
+
+      await admin
+        .from("bookings")
+        .update({ package_consumed: false, consumed_student_package_id: null })
+        .eq("id", booking.id);
+    }
+
+    // Notificar al profesor que el alumno canceló.
+    await createNotification({
+      userId: booking.profesor_id,
+      type: "booking_cancelled",
+      title: "Alumno canceló su clase",
+      message: `El alumno canceló la clase del ${booking.date} de ${booking.start_time.slice(0, 5)} a ${booking.end_time.slice(0, 5)}.`,
+    });
+
     try {
-      const admin = createSupabaseAdminClient();
       await admin.rpc("try_create_solo_decision_for_slot", {
         p_profesor_id: booking.profesor_id,
         p_date: booking.date,
@@ -104,9 +144,12 @@ async function respondSoloDecision(
     .eq("alumno_id", user.id)
     .eq("status", "pendiente");
 
+  revalidatePath("/dashboard/alumno/turnos");
   revalidatePath("/dashboard/alumno/decisiones");
   revalidatePath("/dashboard/alumno/bookings");
+  revalidatePath("/dashboard/profesor/calendario");
   revalidatePath("/dashboard/profesor/bookings");
+  revalidatePath("/dashboard/notificaciones");
 }
 
 export async function acceptSoloDecisionAction(formData: FormData) {

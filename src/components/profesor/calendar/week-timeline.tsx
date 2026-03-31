@@ -70,7 +70,12 @@ function normalizeSlotKey(date: string, startTime: string, endTime: string) {
 
 function getOccupiedBlockClass(slot: NonNullable<CalendarCell["slot"]>) {
   if (slot.is_finalized) {
-    return "border-sky-400 bg-sky-100 text-sky-900";
+    // Finalizada con cobro pendiente: naranja/amber para alertar.
+    if (slot.has_financial_pending) {
+      return "border-amber-400 bg-amber-100 text-amber-900";
+    }
+    // Finalizada y cobro cubierto: verde suave.
+    return "border-emerald-400 bg-emerald-100 text-emerald-900";
   }
 
   if (slot.status === "pendiente") {
@@ -86,7 +91,7 @@ function getOccupiedBlockClass(slot: NonNullable<CalendarCell["slot"]>) {
 
 function getOccupiedStatusLabel(slot: NonNullable<CalendarCell["slot"]>) {
   if (slot.is_finalized) {
-    return "Finalizada";
+    return slot.has_financial_pending ? "Finalizada ⚠" : "Finalizada ✓";
   }
   if (slot.status === "pendiente") {
     return "Pendiente";
@@ -99,7 +104,9 @@ function getOccupiedStatusLabel(slot: NonNullable<CalendarCell["slot"]>) {
 
 function getOccupiedStatusBadgeClass(slot: NonNullable<CalendarCell["slot"]>) {
   if (slot.is_finalized) {
-    return "border-sky-300 bg-sky-200 text-sky-900";
+    return slot.has_financial_pending
+      ? "border-amber-300 bg-amber-200 text-amber-900"
+      : "border-emerald-300 bg-emerald-200 text-emerald-900";
   }
   if (slot.status === "pendiente") {
     return "border-zinc-400 bg-zinc-100 text-zinc-700";

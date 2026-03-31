@@ -46,6 +46,15 @@ export function BookingDetailContent({ item, availabilityRanges }: BookingDetail
         </p>
         <p>Monto estimado: ${item.estimated_amount.toLocaleString("es-AR")}</p>
         {item.status !== "pendiente" ? <p>Estado financiero: {item.financial_status_label}</p> : null}
+        {item.is_finalized && item.financial_pending ? (
+          <p className="mt-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
+            ⚠ Clase finalizada — cobro pendiente.
+          </p>
+        ) : item.is_finalized && !item.financial_pending ? (
+          <p className="mt-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
+            ✓ Clase finalizada — cobro cubierto.
+          </p>
+        ) : null}
         <p>Consumo de paquete: {item.package_consumed ? "Si" : "No"}</p>
         {item.package_consumed && item.consumed_student_package_id ? (
           <p>Paquete aplicado: #{item.consumed_student_package_id}</p>
@@ -103,6 +112,7 @@ export function BookingDetailContent({ item, availabilityRanges }: BookingDetail
           currentDate={item.date}
           currentStartTime={item.start_time}
           currentEndTime={item.end_time}
+          currentType={item.type}
           packageConsumed={item.package_consumed}
           hasCoveragePayment={item.has_coverage_payment}
           availabilityRanges={availabilityRanges}

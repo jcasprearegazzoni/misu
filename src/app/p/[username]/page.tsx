@@ -5,6 +5,7 @@ import { AppNavbar } from "@/components/app-navbar";
 import { ReserveSlotForm } from "@/app/alumno/profesores/[profesorId]/slots/reserve-slot-form";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProfesorSlotsByWeek, parseWeekOffset } from "@/lib/turnos/get-profesor-slots";
+import { BuyPackageForm } from "./buy-package-form";
 
 type PublicProfesorRow = {
   user_id: string;
@@ -12,6 +13,14 @@ type PublicProfesorRow = {
   name: string;
   bio: string | null;
   sport: "tenis" | "padel" | "ambos" | null;
+};
+
+type PackageRow = {
+  id: number;
+  name: string;
+  total_classes: number;
+  price: number;
+  description: string | null;
 };
 
 type PageProps = {
@@ -67,6 +76,18 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
     }
   }
 
+  // Paquetes activos del profesor (visibles para todos los autenticados por RLS).
+  const { data: packagesData } = user
+    ? await supabase
+        .from("packages")
+        .select("id, name, total_classes, price, description")
+        .eq("profesor_id", profesor.user_id)
+        .eq("active", true)
+        .order("price", { ascending: true })
+    : { data: [] };
+
+  const activePackages = (packagesData ?? []) as PackageRow[];
+
   const slotsData = await getProfesorSlotsByWeek({
     supabase,
     profesorId: profesor.user_id,
@@ -86,6 +107,52 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
         <p className="mt-2 text-sm text-zinc-700">Deporte: {getSportLabel(profesor.sport)}</p>
         <p className="mt-1 text-sm text-zinc-600">{profesor.bio?.trim() || "Profesor de clases personalizadas."}</p>
       </section>
+
+      {activePackages.length > 0 ? (
+        <section className="mt-4 rounded-xl border border-zinc-300 bg-white p-4">
+          <p className="text-sm font-semibold text-zinc-900">Paquetes de clases</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Solicitá un paquete y coordiná el pago con el profesor para activar tus créditos.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {activePackages.map((pkg) =>
+              userRole === "alumno" ? (
+                <div key={pkg.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  {pkg.description ? (
+                    <p className="mb-2 text-xs text-zinc-500">{pkg.description}</p>
+                  ) : null}
+                  <BuyPackageForm
+                    packageId={pkg.id}
+                    profesorId={profesor.user_id}
+                    packageName={pkg.name}
+                    totalClasses={pkg.total_classes}
+                    price={Number(pkg.price)}
+                  />
+                </div>
+              ) : (
+                <div key={pkg.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  <p className="text-sm font-semibold text-zinc-900">{pkg.name}</p>
+                  <p className="text-xs text-zinc-600">
+                    {pkg.total_classes} clases ·{" "}
+                    {new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(Number(pkg.price))}
+                  </p>
+                  {pkg.description ? <p className="mt-1 text-xs text-zinc-500">{pkg.description}</p> : null}
+                  {!user ? (
+                    <Link
+                      href={loginHref}
+                      className="mt-2 inline-flex rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white"
+                    >
+                      Inicia sesión para solicitar
+                    </Link>
+                  ) : (
+                    <p className="mt-2 text-xs text-zinc-500">Usá una cuenta de alumno para solicitar.</p>
+                  )}
+                </div>
+              )
+            )}
+          </div>
+        </section>
+      ) : null}
 
       <WeekCalendarStrip
         weekDates={slotsData.weekDates}

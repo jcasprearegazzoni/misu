@@ -10,6 +10,11 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Color de marca misu — naranja característico */
+  --color-misu:      #ff8000;
+  --color-misu-dark: #cc6500;
+  --color-misu-warm: #fff8f0;
 }
 
 body {
