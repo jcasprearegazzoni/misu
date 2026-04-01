@@ -24,62 +24,78 @@ export default function ResetPasswordPage() {
     });
 
     if (resetError) {
-      setError("No se pudieron enviar las instrucciones. Intenta nuevamente.");
+      setError("No se pudieron enviar las instrucciones. Intentá nuevamente.");
       setIsSubmitting(false);
       return;
     }
 
-    setSuccess("Si el email existe, recibirás instrucciones.");
+    setSuccess("Si el email existe, recibirás instrucciones en tu casilla.");
     setIsSubmitting(false);
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 py-10">
-      <h1 className="text-2xl font-semibold text-zinc-900">Recuperar contraseña</h1>
-      <p className="mt-2 text-sm text-zinc-600">
-        Ingresa tu email y te enviaremos un enlace para crear una nueva contraseña.
-      </p>
-
-      <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
-        <label className="grid gap-1 text-sm font-medium text-zinc-800">
-          <span>Email</span>
-          <input
-            type="email"
-            name="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-500 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-            placeholder="email@ejemplo.com"
-            required
-          />
-        </label>
-
-        {error ? (
-          <p className="rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm font-medium text-red-800">
-            {error}
-          </p>
-        ) : null}
-
-        {success ? (
-          <p className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-800">
-            {success}
-          </p>
-        ) : null}
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {isSubmitting ? "Enviando..." : "Enviar instrucciones"}
-        </button>
-      </form>
-
-      <p className="mt-6 text-sm text-zinc-600">
-        <Link href="/login" className="font-medium text-zinc-900 underline">
-          Volver a iniciar sesión
+    <main
+      className="flex min-h-screen w-full items-center justify-center px-6 py-10"
+      style={{ background: "var(--background)" }}
+    >
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <Link href="/" className="mb-8 block">
+          <span
+            className="text-xl font-black tracking-tighter logo-glow"
+            style={{ color: "var(--misu)" }}
+          >
+            misu
+          </span>
         </Link>
-      </p>
+
+        {/* Card */}
+        <div className="card p-7">
+          <h1
+            className="text-xl font-black tracking-tight"
+            style={{ color: "var(--foreground)" }}
+          >
+            Recuperar contraseña
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
+            Ingresá tu email y te enviamos un enlace para crear una nueva contraseña.
+          </p>
+
+          <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
+            <label className="label">
+              <span>Email</span>
+              <input
+                type="email"
+                name="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="input"
+                placeholder="email@ejemplo.com"
+                required
+                autoComplete="email"
+              />
+            </label>
+
+            {error ? <div className="alert-error">{error}</div> : null}
+            {success ? <div className="alert-success">{success}</div> : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary w-full"
+              style={{ padding: "0.75rem", justifyContent: "center" }}
+            >
+              {isSubmitting ? "Enviando..." : "Enviar instrucciones"}
+            </button>
+          </form>
+        </div>
+
+        <p className="mt-5 text-center text-sm" style={{ color: "var(--muted)" }}>
+          <Link href="/login" className="text-link font-medium">
+            ← Volver a iniciar sesión
+          </Link>
+        </p>
+      </div>
     </main>
   );
 }

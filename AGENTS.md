@@ -40,7 +40,7 @@ Módulos core completos. App en preparación para lanzamiento.
 - Link público del profesor para compartir con alumnos
 - PWA básica
 - Pasarela de pagos: Mercado Pago, mensualidad fija al profesor
-  (30 días gratis, luego planes — a definir precios)
+  (planes a definir precios)
 
 ## Etapa 2 — Post lanzamiento
 - Cancha libre / torneos
@@ -49,7 +49,7 @@ Módulos core completos. App en preparación para lanzamiento.
 
 ## Monetización
 Mensualidad fija que paga el profesor.
-Primer mes gratis. Modelo de planes a definir post-lanzamiento.
+Modelo de planes a definir post-lanzamiento.
 El alumno nunca paga a la plataforma.
 
 ## Forma de responder

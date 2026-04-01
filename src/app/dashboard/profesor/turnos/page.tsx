@@ -6,18 +6,21 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 const turnosSections = [
   {
     href: "/dashboard/profesor/calendario",
+    icon: "📅",
     title: "Calendario",
-    description: "Pantalla operativa unica para confirmar, cancelar y cobrar clases.",
+    description: "Pantalla operativa única para confirmar, cancelar y cobrar clases.",
   },
   {
     href: "/dashboard/profesor/clases/disponibilidad",
+    icon: "🕐",
     title: "Disponibilidad",
-    description: "Configura horarios semanales y bloqueos de fechas.",
+    description: "Configurá horarios semanales y bloqueos de fechas.",
   },
   {
     href: "/dashboard/profesor/paquetes",
+    icon: "📦",
     title: "Paquetes",
-    description: "Administra paquetes, asignaciones y creditos.",
+    description: "Administrá paquetes, asignaciones y créditos.",
   },
 ];
 
@@ -39,24 +42,59 @@ function OnboardingCard({ steps }: { steps: OnboardingStep[] }) {
   }
 
   return (
-    <section className="mt-6 rounded-xl border border-sky-200 bg-sky-50 px-4 py-4">
-      <p className="text-sm font-semibold text-sky-900">
-        Primeros pasos ({totalDone}/{steps.length})
-      </p>
-      <p className="mt-1 text-sm text-sky-700">
-        Completa estos pasos para que tus alumnos puedan reservar clases.
+    <section
+      className="rounded-xl p-5"
+      style={{
+        background: "var(--info-bg)",
+        border: "1px solid var(--info-border)",
+      }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold" style={{ color: "#93c5fd" }}>
+          Primeros pasos
+        </p>
+        <span
+          className="text-xs font-bold"
+          style={{
+            background: "var(--info-bg)",
+            border: "1px solid var(--info-border)",
+            color: "#93c5fd",
+            padding: "2px 8px",
+            borderRadius: "999px",
+          }}
+        >
+          {totalDone}/{steps.length}
+        </span>
+      </div>
+      <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+        Completá estos pasos para que tus alumnos puedan reservar clases.
       </p>
 
-      <ol className="mt-4 grid gap-3">
+      {/* Barra de progreso */}
+      <div
+        className="mt-3 h-1.5 w-full rounded-full"
+        style={{ background: "rgba(59,130,246,0.2)" }}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${(totalDone / steps.length) * 100}%`,
+            background: "var(--info)",
+          }}
+        />
+      </div>
+
+      <ol className="mt-5 grid gap-4">
         {steps.map((step, index) => (
           <li key={step.label} className="flex items-start gap-3">
-            {/* Indicador de estado */}
+            {/* Ícono de estado */}
             <div
-              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+              className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+              style={
                 step.done
-                  ? "border-emerald-500 bg-emerald-500 text-white"
-                  : "border-zinc-400 bg-white text-zinc-500"
-              }`}
+                  ? { background: "var(--success)", color: "#fff" }
+                  : { background: "var(--surface-3)", border: "1px solid var(--border-hover)", color: "var(--muted)" }
+              }
             >
               {step.done ? "✓" : index + 1}
             </div>
@@ -64,25 +102,43 @@ function OnboardingCard({ steps }: { steps: OnboardingStep[] }) {
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <p
-                  className={`text-sm font-medium ${
-                    step.done ? "text-zinc-400 line-through" : "text-zinc-900"
-                  }`}
+                  className="text-sm font-medium"
+                  style={{
+                    color: step.done ? "var(--muted-2)" : "var(--foreground)",
+                    textDecoration: step.done ? "line-through" : "none",
+                  }}
                 >
                   {step.label}
                 </p>
                 {step.comingSoon ? (
-                  <span className="rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs text-zinc-500">
+                  <span
+                    className="text-xs"
+                    style={{
+                      background: "var(--surface-3)",
+                      border: "1px solid var(--border)",
+                      color: "var(--muted-2)",
+                      padding: "1px 8px",
+                      borderRadius: "999px",
+                    }}
+                  >
                     Próximamente
                   </span>
                 ) : null}
               </div>
-              <p className="mt-0.5 text-xs text-zinc-500">{step.description}</p>
+              <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
+                {step.description}
+              </p>
               {step.href && !step.done && !step.comingSoon ? (
                 <Link
                   href={step.href}
-                  className="mt-2 inline-flex rounded-md border border-sky-300 bg-white px-3 py-1.5 text-xs font-medium text-sky-800 hover:bg-sky-50"
+                  className="mt-2 inline-flex rounded-lg px-3 py-1.5 text-xs font-medium transition"
+                  style={{
+                    background: "rgba(59,130,246,0.1)",
+                    border: "1px solid var(--info-border)",
+                    color: "#93c5fd",
+                  }}
                 >
-                  Configurar
+                  Configurar →
                 </Link>
               ) : null}
             </div>
@@ -137,23 +193,53 @@ export default async function ProfesorTurnosPage() {
   ];
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-3 py-6 sm:px-4 sm:py-8">
-      <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">Clases</h1>
-      <p className="mt-2 text-sm text-zinc-600">
-        Acceso rapido a las secciones operativas de clases.
-      </p>
+    <main
+      className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-4 py-8 sm:px-6 sm:py-10"
+    >
+      {/* Header */}
+      <div>
+        <h1
+          className="text-2xl font-black tracking-tight sm:text-3xl"
+          style={{ color: "var(--foreground)" }}
+        >
+          Clases
+        </h1>
+        <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
+          Acceso rápido a las secciones operativas de clases.
+        </p>
+      </div>
 
-      <OnboardingCard steps={onboardingSteps} />
+      {/* Onboarding steps */}
+      <div className="mt-6">
+        <OnboardingCard steps={onboardingSteps} />
+      </div>
 
+      {/* Secciones rápidas */}
       <div className="mt-6 grid gap-3">
         {turnosSections.map((section) => (
           <Link
             key={section.href}
             href={section.href}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-3 hover:bg-zinc-50"
+            className="card-link flex items-center gap-4 px-5 py-4"
           >
-            <p className="text-base font-semibold text-zinc-900">{section.title}</p>
-            <p className="mt-1 text-sm text-zinc-700">{section.description}</p>
+            <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
+              style={{
+                background: "var(--misu-subtle)",
+                border: "1px solid var(--border-misu)",
+              }}
+            >
+              {section.icon}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                {section.title}
+              </p>
+              <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
+                {section.description}
+              </p>
+            </div>
+            <span style={{ color: "var(--muted-2)", fontSize: "18px" }}>›</span>
           </Link>
         ))}
       </div>

@@ -23,7 +23,7 @@ type NotificationRow = {
 const profesorLinks: NavItem[] = [
   { href: "/dashboard/profesor/turnos", label: "Clases" },
   { href: "/dashboard/profesor/finanzas", label: "Finanzas" },
-  { href: "/dashboard/profesor/configuracion", label: "Configuracion" },
+  { href: "/dashboard/profesor/configuracion", label: "Configuración" },
 ];
 
 const alumnoLinks: NavItem[] = [{ href: "/dashboard/alumno/turnos", label: "Clases" }];
@@ -39,7 +39,7 @@ async function signOutAction() {
 function BellIcon() {
   return (
     <svg
-      className="h-5 w-5"
+      className="h-4 w-4"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -57,7 +57,7 @@ function BellIcon() {
 function MenuIcon() {
   return (
     <svg
-      className="h-5 w-5"
+      className="h-4 w-4"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -101,26 +101,54 @@ export async function AppNavbar() {
   const notifications = (notificationsResult.data ?? []) as NotificationRow[];
 
   return (
-    <header className="border-b border-zinc-300 bg-white">
-      <nav className="mx-auto flex w-full max-w-6xl items-center gap-2 px-3 py-2 sm:px-4">
-        <Link href={profile.role === "profesor" ? "/dashboard/profesor/turnos" : "/dashboard/alumno/turnos"}>
-          <span className="text-sm font-bold tracking-tight text-misu">misu</span>
+    <header
+      style={{
+        borderBottom: "1px solid var(--border)",
+        background: "rgba(12, 12, 14, 0.9)",
+        backdropFilter: "blur(16px)",
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+      }}
+    >
+      <nav className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 sm:px-5">
+        {/* Logo */}
+        <Link
+          href={profile.role === "profesor" ? "/dashboard/profesor/turnos" : "/dashboard/alumno/turnos"}
+          className="flex shrink-0 items-center"
+        >
+          <span
+            className="text-base font-black tracking-tighter logo-glow"
+            style={{ color: "var(--misu)" }}
+          >
+            misu
+          </span>
         </Link>
 
-        <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
+        {/* Separador vertical */}
+        <div
+          className="hidden h-5 md:block"
+          style={{ width: "1px", background: "var(--border)" }}
+        />
+
+        {/* Links desktop */}
+        <div className="hidden min-w-0 flex-1 items-center gap-1 md:flex">
           {links.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
+              className="btn-ghost text-sm"
+              style={{ padding: "0.35rem 0.75rem" }}
             >
               {item.label}
             </Link>
           ))}
         </div>
 
+        {/* Mobile hamburger */}
         <MobileNavMenu links={links} menuIcon={<MenuIcon />} />
 
+        {/* Acciones derecha */}
         <div className="ml-auto flex items-center gap-2">
           <NotificationsMenu
             unreadCount={unreadNotificationsCount}

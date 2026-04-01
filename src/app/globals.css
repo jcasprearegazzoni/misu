@@ -1,25 +1,461 @@
 @import "tailwindcss";
 
+/* ============================================
+   Variables globales del sistema de diseño
+   ============================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Fondo oscuro principal */
+  --background: #0c0c0e;
+  --surface-1: #141418;
+  --surface-2: #1c1c22;
+  --surface-3: #242430;
+  --surface-hover: #2a2a38;
+
+  /* Texto */
+  --foreground: #f0f0f4;
+  --muted: #8888a0;
+  --muted-2: #5a5a72;
+
+  /* Marca principal — naranja premium */
+  --misu: #f97316;
+  --misu-light: #fb923c;
+  --misu-dark: #ea6907;
+  --misu-glow: rgba(249, 115, 22, 0.25);
+  --misu-subtle: rgba(249, 115, 22, 0.08);
+  --misu-warm: rgba(249, 115, 22, 0.05);
+
+  /* Bordes */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.14);
+  --border-misu: rgba(249, 115, 22, 0.35);
+
+  /* Estados */
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.08);
+  --success-border: rgba(34, 197, 94, 0.3);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.08);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.08);
+  --error-border: rgba(239, 68, 68, 0.3);
+  --info: #3b82f6;
+  --info-bg: rgba(59, 130, 246, 0.08);
+  --info-border: rgba(59, 130, 246, 0.3);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), var(--font-geist-sans), sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
 
-  /* Color de marca misu — naranja característico */
-  --color-misu:      #ff8000;
-  --color-misu-dark: #cc6500;
-  --color-misu-warm: #fff8f0;
+  /* Colores de marca disponibles como utilidades Tailwind */
+  --color-misu:          #f97316;
+  --color-misu-light:    #fb923c;
+  --color-misu-dark:     #ea6907;
+  --color-misu-warm:     rgba(249, 115, 22, 0.05);
+  --color-surface-1:     #141418;
+  --color-surface-2:     #1c1c22;
+  --color-surface-3:     #242430;
+}
+
+/* ============================================
+   Reset y base
+   ============================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), sans-serif;
+  font-family: var(--font-inter), var(--font-geist-sans), sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+/* ============================================
+   Scrollbar premium
+   ============================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-1);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--misu);
+}
+
+/* ============================================
+   Selección de texto
+   ============================================ */
+::selection {
+  background: var(--misu-glow);
+  color: var(--misu-light);
+}
+
+/* ============================================
+   Componentes reutilizables
+   ============================================ */
+
+/* Card base con glassmorphism sutil */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  border-color: var(--border-hover);
+}
+
+/* Card clickeable con efecto hover */
+.card-link {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+.card-link:hover {
+  border-color: var(--border-misu);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px var(--border-misu), 0 8px 32px rgba(0,0,0,0.5);
+  transform: translateY(-1px);
+}
+
+/* Botón primario — naranja sólido */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--misu);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+.btn-primary:hover {
+  background: var(--misu-dark);
+  box-shadow: 0 4px 20px var(--misu-glow);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Botón secundario — borde */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--foreground);
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-hover);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.btn-secondary:hover {
+  background: var(--surface-2);
+  border-color: var(--border-misu);
+}
+
+/* Botón ghost */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+  color: var(--foreground);
+}
+
+/* Input mejorado */
+.input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  padding: 0.65rem 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input::placeholder {
+  color: var(--muted-2);
+}
+.input:focus {
+  border-color: var(--misu);
+  box-shadow: 0 0 0 3px var(--misu-glow);
+}
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Select */
+.select {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  padding: 0.65rem 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888a0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+}
+.select:focus {
+  border-color: var(--misu);
+  box-shadow: 0 0 0 3px var(--misu-glow);
+}
+.select option {
+  background: var(--surface-2);
+  color: var(--foreground);
+}
+
+/* Label */
+.label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Badges de estado */
+.badge-pending {
+  border: 1px solid var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.badge-confirmed {
+  border: 1px solid var(--success-border);
+  background: var(--success-bg);
+  color: var(--success);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.badge-cancelled {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Alert de error */
+.alert-error {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: 10px;
+  color: #fca5a5;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Alert de éxito */
+.alert-success {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 10px;
+  color: #86efac;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Alert info */
+.alert-info {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 10px;
+  color: #93c5fd;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Alert warning */
+.alert-warning {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: 10px;
+  color: #fcd34d;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Separador */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* Tab activo */
+.tab-active {
+  background: var(--misu);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 12px var(--misu-glow);
+}
+
+/* Link de texto */
+a.text-link {
+  color: var(--misu-light);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+a.text-link:hover {
+  color: var(--misu);
+}
+
+/* Glow sutil naranja para el logo */
+.logo-glow {
+  text-shadow: 0 0 20px var(--misu-glow);
+}
+
+/* Pill / chip pequeño */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Tabla oscura */
+.table-dark {
+  width: 100%;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+}
+.table-dark thead tr {
+  background: var(--surface-2);
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.table-dark thead th {
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  text-align: left;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.table-dark tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.12s;
+}
+.table-dark tbody tr:hover {
+  background: var(--surface-2);
+}
+.table-dark tbody td {
+  padding: 0.875rem 1rem;
+  color: var(--foreground);
+}
+.table-dark tbody tr:last-child {
+  border-bottom: none;
+}
+
+/* ============================================
+   Animaciones
+   ============================================ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-misu {
+  0%, 100% { box-shadow: 0 0 0 0 var(--misu-glow); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.4s ease both;
+}
+
+/* ============================================
+   Detalles/summary sin lista
+   ============================================ */
+details summary {
+  list-style: none;
+}
+details summary::-webkit-details-marker {
+  display: none;
 }

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { LoginForm } from "./login-form";
 
 type LoginPageProps = {
@@ -11,37 +11,118 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const verifiedStatus = resolvedSearchParams?.verified ?? null;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 py-10">
-      <Link href="/" className="mb-6 inline-block text-xl font-bold tracking-tight text-misu">misu</Link>
-      <h1 className="text-2xl font-semibold text-zinc-900">Iniciar sesion</h1>
-      <p className="mt-2 text-sm text-zinc-600">Ingresa con email y contrasena.</p>
-
-      {verifiedStatus === "1" ? (
-        <p className="mt-4 rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-sm text-emerald-800">
-          Email confirmado correctamente. Ya puedes iniciar sesion.
-        </p>
-      ) : null}
-
-      {verifiedStatus === "0" ? (
-        <p className="mt-4 rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-800">
-          No se pudo confirmar el email. Intenta nuevamente desde el enlace recibido.
-        </p>
-      ) : null}
-
-      <LoginForm redirectTo={redirectTo} />
-
-      <p className="mt-4 text-sm">
-        <Link href="/reset-password" className="font-medium text-zinc-900 underline">
-          Olvidaste tu contrasena?
+    <main
+      className="flex min-h-screen w-full"
+      style={{ background: "var(--background)" }}
+    >
+      {/* Panel izquierdo decorativo (oculto en mobile) */}
+      <div
+        className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12"
+        style={{
+          background: "linear-gradient(145deg, var(--surface-1) 0%, var(--surface-2) 100%)",
+          borderRight: "1px solid var(--border)",
+        }}
+      >
+        {/* Logo */}
+        <Link href="/">
+          <span
+            className="text-2xl font-black tracking-tighter logo-glow"
+            style={{ color: "var(--misu)" }}
+          >
+            misu
+          </span>
         </Link>
-      </p>
 
-      <p className="mt-6 text-sm text-zinc-600">
-        No tienes cuenta?{" "}
-        <Link href="/register" className="font-medium text-zinc-900 underline">
-          Registrate
+        {/* Quote */}
+        <div>
+          <div
+            aria-hidden
+            style={{
+              width: "48px",
+              height: "3px",
+              borderRadius: "2px",
+              background: "var(--misu)",
+              marginBottom: "20px",
+            }}
+          />
+          <blockquote
+            className="text-2xl font-bold leading-snug tracking-tight"
+            style={{ color: "var(--foreground)" }}
+          >
+            "Tu agenda,
+            <br />
+            <span style={{ color: "var(--misu)" }}>sin el caos."</span>
+          </blockquote>
+          <p className="mt-4 text-sm" style={{ color: "var(--muted)" }}>
+            Gestioná clases, reservas y cobros desde cualquier dispositivo.
+          </p>
+        </div>
+
+        {/* Footer info */}
+        <p className="text-xs" style={{ color: "var(--muted-2)" }}>
+          misu · Tenis & Pádel · Argentina
+        </p>
+      </div>
+
+      {/* Panel derecho — formulario */}
+      <div className="flex w-full flex-col justify-center px-6 py-10 lg:w-1/2 lg:px-16 xl:px-24">
+        {/* Logo mobile */}
+        <Link
+          href="/"
+          className="mb-8 lg:hidden"
+        >
+          <span
+            className="text-xl font-black tracking-tighter logo-glow"
+            style={{ color: "var(--misu)" }}
+          >
+            misu
+          </span>
         </Link>
-      </p>
+
+        <div className="mx-auto w-full max-w-sm">
+          <h1
+            className="text-2xl font-black tracking-tight"
+            style={{ color: "var(--foreground)" }}
+          >
+            Bienvenido de vuelta
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+            Ingresá con tu email y contraseña.
+          </p>
+
+          {verifiedStatus === "1" ? (
+            <div className="alert-success mt-5">
+              ✓ Email confirmado correctamente. Ya podés iniciar sesión.
+            </div>
+          ) : null}
+
+          {verifiedStatus === "0" ? (
+            <div className="alert-error mt-5">
+              No se pudo confirmar el email. Intentá nuevamente desde el enlace recibido.
+            </div>
+          ) : null}
+
+          <LoginForm redirectTo={redirectTo} />
+
+          <p className="mt-5 text-sm" style={{ color: "var(--muted)" }}>
+            <Link href="/reset-password" className="text-link font-medium">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </p>
+
+          <div
+            className="mt-6 pt-6"
+            style={{ borderTop: "1px solid var(--border)" }}
+          >
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              ¿No tenés cuenta?{" "}
+              <Link href="/register" className="text-link font-semibold">
+                Registrate gratis
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

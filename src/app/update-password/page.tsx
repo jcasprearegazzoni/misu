@@ -50,12 +50,12 @@ export default function UpdatePasswordPage() {
     });
 
     if (updateError) {
-      setError("No se pudo actualizar la contraseña. Solicita un nuevo enlace.");
+      setError("No se pudo actualizar la contraseña. Solicitá un nuevo enlace.");
       setIsSubmitting(false);
       return;
     }
 
-    setSuccess("Contraseña actualizada correctamente");
+    setSuccess("¡Contraseña actualizada correctamente!");
     setIsSubmitting(false);
 
     setTimeout(() => {
@@ -64,72 +64,90 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 py-10">
-      <h1 className="text-2xl font-semibold text-zinc-900">Actualizar contraseña</h1>
-
-      {!isRecoverySessionReady ? (
-        <div className="mt-6 rounded-lg border border-red-300 bg-red-100 px-3 py-3 text-sm font-medium text-red-800">
-          El enlace de recuperación no es válido o expiró. Solicita uno nuevo.
-        </div>
-      ) : null}
-
-      <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
-        <label className="grid gap-1 text-sm font-medium text-zinc-800">
-          <span>Nueva contraseña</span>
-          <input
-            type="password"
-            name="new_password"
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-            className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-500 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-            placeholder="Mínimo 6 caracteres"
-            required
-            minLength={6}
-            disabled={!isRecoverySessionReady || isSubmitting}
-          />
-        </label>
-
-        <label className="grid gap-1 text-sm font-medium text-zinc-800">
-          <span>Confirmar contraseña</span>
-          <input
-            type="password"
-            name="confirm_password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-500 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-            placeholder="Repite la nueva contraseña"
-            required
-            minLength={6}
-            disabled={!isRecoverySessionReady || isSubmitting}
-          />
-        </label>
-
-        {error ? (
-          <p className="rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm font-medium text-red-800">
-            {error}
-          </p>
-        ) : null}
-
-        {success ? (
-          <p className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-800">
-            {success}
-          </p>
-        ) : null}
-
-        <button
-          type="submit"
-          disabled={isSubmitting || !isRecoverySessionReady}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {isSubmitting ? "Actualizando..." : "Actualizar contraseña"}
-        </button>
-      </form>
-
-      <p className="mt-6 text-sm text-zinc-600">
-        <Link href="/reset-password" className="font-medium text-zinc-900 underline">
-          Solicitar nuevo enlace
+    <main
+      className="flex min-h-screen w-full items-center justify-center px-6 py-10"
+      style={{ background: "var(--background)" }}
+    >
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <Link href="/" className="mb-8 block">
+          <span
+            className="text-xl font-black tracking-tighter logo-glow"
+            style={{ color: "var(--misu)" }}
+          >
+            misu
+          </span>
         </Link>
-      </p>
+
+        {/* Card */}
+        <div className="card p-7">
+          <h1
+            className="text-xl font-black tracking-tight"
+            style={{ color: "var(--foreground)" }}
+          >
+            Actualizar contraseña
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+            Ingresá tu nueva contraseña dos veces para confirmar.
+          </p>
+
+          {!isRecoverySessionReady ? (
+            <div className="alert-error mt-5">
+              El enlace de recuperación no es válido o expiró. Solicitá uno nuevo.
+            </div>
+          ) : null}
+
+          <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
+            <label className="label">
+              <span>Nueva contraseña</span>
+              <input
+                type="password"
+                name="new_password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                className="input"
+                placeholder="Mínimo 6 caracteres"
+                required
+                minLength={6}
+                disabled={!isRecoverySessionReady || isSubmitting}
+              />
+            </label>
+
+            <label className="label">
+              <span>Confirmar contraseña</span>
+              <input
+                type="password"
+                name="confirm_password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="input"
+                placeholder="Repetí la nueva contraseña"
+                required
+                minLength={6}
+                disabled={!isRecoverySessionReady || isSubmitting}
+              />
+            </label>
+
+            {error ? <div className="alert-error">{error}</div> : null}
+            {success ? <div className="alert-success">{success}</div> : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting || !isRecoverySessionReady}
+              className="btn-primary w-full"
+              style={{ padding: "0.75rem", justifyContent: "center" }}
+            >
+              {isSubmitting ? "Actualizando..." : "Actualizar contraseña"}
+            </button>
+          </form>
+        </div>
+
+        <p className="mt-5 text-center text-sm" style={{ color: "var(--muted)" }}>
+          <Link href="/reset-password" className="text-link font-medium">
+            Solicitar nuevo enlace
+          </Link>
+        </p>
+      </div>
     </main>
   );
 }

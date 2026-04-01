@@ -36,41 +36,72 @@ export function NotificationsMenu({
 
   return (
     <details ref={detailsRef} className="relative">
-      <summary className="relative flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100">
+      {/* Botón campana */}
+      <summary
+        className="relative flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg transition"
+        style={{
+          background: "var(--surface-2)",
+          border: "1px solid var(--border)",
+          color: "var(--muted)",
+        }}
+      >
         {bellIcon}
         {unreadCount > 0 ? (
-          <span className="absolute -right-1 -top-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <span
+            className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+            style={{ background: "var(--misu)" }}
+          >
             {unreadCount}
           </span>
         ) : null}
       </summary>
+
+      {/* Backdrop mobile */}
       <button
         type="button"
         aria-label="Cerrar notificaciones"
         onClick={closeMenu}
-        className="fixed inset-0 z-40 bg-black/20 md:hidden"
+        className="fixed inset-0 z-40 md:hidden"
+        style={{ background: "rgba(0,0,0,0.5)" }}
       />
-      <div className="fixed inset-x-2 top-14 z-50 max-h-[70vh] overflow-y-auto rounded-lg border border-zinc-300 bg-white p-3 shadow-lg md:absolute md:inset-x-auto md:right-0 md:top-12 md:z-40 md:w-80 md:max-w-[92vw] md:max-h-[75vh]">
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-sm font-semibold text-zinc-900">Notificaciones</p>
+
+      {/* Panel notificaciones */}
+      <div
+        className="fixed inset-x-2 top-14 z-50 max-h-[75vh] overflow-y-auto rounded-xl p-3 shadow-xl md:absolute md:inset-x-auto md:right-0 md:top-12 md:w-80"
+        style={{
+          background: "var(--surface-2)",
+          border: "1px solid var(--border-hover)",
+          boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
+        }}
+      >
+        {/* Header del panel */}
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+            Notificaciones
+          </p>
           {unreadCount > 0 ? (
-            <form
-              action={markAllAction}
-              onSubmit={() => {
-                closeMenu();
-              }}
-            >
-              <button className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-800 hover:bg-zinc-100">
+            <form action={markAllAction} onSubmit={closeMenu}>
+              <button
+                className="text-xs font-medium transition"
+                style={{ color: "var(--misu)" }}
+              >
                 Limpiar todas
               </button>
             </form>
           ) : null}
         </div>
 
+        {/* Lista */}
         {notifications.length === 0 ? (
-          <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
-            No tienes notificaciones.
-          </p>
+          <div
+            className="rounded-lg px-3 py-4 text-center text-xs"
+            style={{
+              background: "var(--surface-3)",
+              color: "var(--muted)",
+            }}
+          >
+            Sin notificaciones nuevas
+          </div>
         ) : (
           <ul className="grid gap-2">
             {notifications.map((notification) => {
@@ -79,21 +110,27 @@ export function NotificationsMenu({
               if (!isRead) {
                 return (
                   <li key={notification.id}>
-                    <form
-                      action={markOneAction}
-                      onSubmit={() => {
-                        closeMenu();
-                      }}
-                    >
+                    <form action={markOneAction} onSubmit={closeMenu}>
                       <input type="hidden" name="notification_id" value={notification.id} />
                       <button
                         type="submit"
-                        className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-left hover:bg-zinc-50"
+                        className="w-full rounded-lg px-3 py-2.5 text-left transition"
+                        style={{
+                          background: "var(--misu-subtle)",
+                          border: "1px solid var(--border-misu)",
+                        }}
                       >
-                        <p className="text-xs font-semibold text-zinc-900">{notification.title}</p>
-                        <p className="mt-1 line-clamp-2 text-xs text-zinc-700">{notification.message}</p>
-                        <p className="mt-1 text-[11px] text-zinc-600">
-                          {formatUserDate(notification.created_at)} - No leida
+                        <p className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
+                          {notification.title}
+                        </p>
+                        <p
+                          className="mt-1 line-clamp-2 text-xs leading-relaxed"
+                          style={{ color: "var(--muted)" }}
+                        >
+                          {notification.message}
+                        </p>
+                        <p className="mt-1.5 text-[11px]" style={{ color: "var(--misu)" }}>
+                          {formatUserDate(notification.created_at)} · No leída
                         </p>
                       </button>
                     </form>
@@ -102,11 +139,22 @@ export function NotificationsMenu({
               }
 
               return (
-                <li key={notification.id} className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
-                  <p className="text-xs font-semibold text-zinc-900">{notification.title}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-zinc-700">{notification.message}</p>
-                  <p className="mt-1 text-[11px] text-zinc-600">
-                    {formatUserDate(notification.created_at)} - Leida
+                <li
+                  key={notification.id}
+                  className="rounded-lg px-3 py-2.5"
+                  style={{
+                    background: "var(--surface-3)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <p className="text-xs font-semibold" style={{ color: "var(--muted)" }}>
+                    {notification.title}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-xs" style={{ color: "var(--muted-2)" }}>
+                    {notification.message}
+                  </p>
+                  <p className="mt-1 text-[11px]" style={{ color: "var(--muted-2)" }}>
+                    {formatUserDate(notification.created_at)} · Leída
                   </p>
                 </li>
               );
@@ -117,7 +165,12 @@ export function NotificationsMenu({
         <Link
           href="/dashboard/notificaciones"
           onClick={closeMenu}
-          className="mt-3 inline-flex rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-800 hover:bg-zinc-100"
+          className="mt-3 block rounded-lg px-3 py-2 text-center text-xs font-medium transition"
+          style={{
+            background: "var(--surface-3)",
+            border: "1px solid var(--border)",
+            color: "var(--muted)",
+          }}
         >
           Ver todas
         </Link>

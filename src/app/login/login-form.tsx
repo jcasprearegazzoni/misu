@@ -13,40 +13,44 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
   });
 
   return (
-    <form action={formAction} className="mt-6 grid gap-4">
+    <form action={formAction} className="mt-7 grid gap-4">
       {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+
+      {/* Email */}
+      <label className="label">
         <span>Correo electrónico</span>
         <input
           type="email"
           name="email"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-500 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="input"
           placeholder="email@ejemplo.com"
           required
+          autoComplete="email"
         />
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      {/* Contraseña */}
+      <label className="label">
         <span>Contraseña</span>
         <input
           type="password"
           name="password"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-500 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="input"
           placeholder="Tu contraseña"
           required
+          autoComplete="current-password"
         />
       </label>
 
       {state.error ? (
-        <p className="rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm font-medium text-red-800">
-          {state.error}
-        </p>
+        <div className="alert-error">{state.error}</div>
       ) : null}
 
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        className="btn-primary mt-2 w-full"
+        style={{ padding: "0.75rem", fontSize: "0.9375rem", justifyContent: "center" }}
       >
         {isPending ? "Ingresando..." : "Iniciar sesión"}
       </button>
