@@ -13,11 +13,16 @@ export function CancelBookingButton({ bookingId }: Props) {
       <button
         type="submit"
         onClick={(e) => {
-          if (!confirm("Confirmas que queres cancelar esta clase?")) {
+          if (!confirm("¿Confirmás que querés cancelar esta clase?")) {
             e.preventDefault();
           }
         }}
-        className="rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+        className="rounded-md border px-2.5 py-1 text-xs font-medium transition"
+        style={{
+          borderColor: "var(--error-border)",
+          background: "var(--error-bg)",
+          color: "#fca5a5",
+        }}
       >
         Cancelar clase
       </button>

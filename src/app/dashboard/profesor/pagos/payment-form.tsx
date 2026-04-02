@@ -34,22 +34,10 @@ function getSuggestedAmount(
   priceTrio: number | null,
   priceGrupal: number | null,
 ) {
-  if (!booking) {
-    return "";
-  }
-
-  if (booking.type === "individual") {
-    return priceIndividual && priceIndividual > 0 ? String(priceIndividual) : "";
-  }
-
-  if (booking.type === "dobles") {
-    return priceDobles && priceDobles > 0 ? String(priceDobles) : "";
-  }
-
-  if (booking.type === "trio") {
-    return priceTrio && priceTrio > 0 ? String(priceTrio) : "";
-  }
-
+  if (!booking) return "";
+  if (booking.type === "individual") return priceIndividual && priceIndividual > 0 ? String(priceIndividual) : "";
+  if (booking.type === "dobles") return priceDobles && priceDobles > 0 ? String(priceDobles) : "";
+  if (booking.type === "trio") return priceTrio && priceTrio > 0 ? String(priceTrio) : "";
   return priceGrupal && priceGrupal > 0 ? String(priceGrupal) : "";
 }
 
@@ -77,24 +65,21 @@ export function PaymentForm({
   const hasBookingSelected = selectedBookingId.length > 0;
 
   return (
-    <form action={formAction} className="mt-6 grid gap-4 rounded-lg border border-zinc-300 bg-white p-4">
-      <h2 className="text-lg font-semibold text-zinc-900">Registrar cobro manual</h2>
+    <form action={formAction} className="grid gap-4">
+      <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+        Registrar cobro manual
+      </h2>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
-        <span>Booking (opcional)</span>
+      <label className="label">
+        <span>Clase (opcional)</span>
         <select
           name="booking_id"
           value={selectedBookingId}
           onChange={(event) => {
             const bookingId = event.target.value;
             setSelectedBookingId(bookingId);
-
             const booking = bookingMap.get(bookingId);
-            if (!booking) {
-              return;
-            }
-
-            // Al elegir booking, se autocompleta alumno y monto sugerido.
+            if (!booking) return;
             setSelectedAlumnoId(booking.alumno_id);
             const suggested = getSuggestedAmount(
               booking,
@@ -103,13 +88,11 @@ export function PaymentForm({
               priceTrio,
               priceGrupal,
             );
-            if (suggested) {
-              setAmountValue(suggested);
-            }
+            if (suggested) setAmountValue(suggested);
           }}
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="select"
         >
-          <option value="">Sin booking asociado</option>
+          <option value="">Sin clase asociada</option>
           {bookings.map((booking) => (
             <option key={booking.id} value={booking.id}>
               #{booking.id} - {booking.alumno_name} - {booking.date} ({booking.start_time.slice(0, 5)} a{" "}
@@ -119,14 +102,14 @@ export function PaymentForm({
         </select>
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="label">
         <span>Alumno</span>
         <select
           name="alumno_id"
           value={selectedAlumnoId}
           onChange={(event) => setSelectedAlumnoId(event.target.value)}
           disabled={hasBookingSelected}
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20 disabled:bg-zinc-100 disabled:text-zinc-600"
+          className="select disabled:opacity-50"
           required
         >
           <option value="">Seleccionar alumno</option>
@@ -139,7 +122,7 @@ export function PaymentForm({
         {hasBookingSelected ? <input type="hidden" name="alumno_id" value={selectedAlumnoId} /> : null}
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="label">
         <span>Monto</span>
         <input
           type="number"
@@ -149,66 +132,43 @@ export function PaymentForm({
           placeholder="0.00"
           value={amountValue}
           onChange={(event) => setAmountValue(event.target.value)}
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="input"
           required
         />
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
-        <span>Metodo</span>
-        <select
-          name="method"
-          defaultValue="efectivo"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-        >
+      <label className="label">
+        <span>Método</span>
+        <select name="method" defaultValue="efectivo" className="select">
           <option value="efectivo">Efectivo</option>
           <option value="transferencia_directa">Transferencia directa</option>
         </select>
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="label">
         <span>Tipo</span>
-        <select
-          name="type"
-          defaultValue="clase"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-        >
+        <select name="type" defaultValue="clase" className="select">
           <option value="clase">Clase</option>
           <option value="paquete">Paquete</option>
-          <option value={"se\u00f1a"}>Sena</option>
+          <option value={"seña"}>Seña</option>
           <option value="diferencia_cobro">Diferencia de cobro</option>
           <option value="reembolso">Reembolso</option>
         </select>
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="label">
         <span>Nota (opcional)</span>
-        <textarea
-          name="note"
-          className="min-h-20 rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-          placeholder="Detalle breve del cobro"
-        />
+        <textarea name="note" className="input min-h-20" placeholder="Detalle breve del cobro" />
       </label>
 
-      {state.error ? (
-        <p className="rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm font-medium text-red-800">
-          {state.error}
-        </p>
-      ) : null}
+      {state.error ? <p className="alert-error">{state.error}</p> : null}
+      {state.success ? <p className="alert-success">{state.success}</p> : null}
 
-      {state.success ? (
-        <p className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-800">
-          {state.success}
-        </p>
-      ) : null}
-
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-      >
-        {isPending ? "Guardando..." : "Registrar pago"}
-      </button>
+      <div className="flex justify-end">
+        <button type="submit" disabled={isPending} className="btn-primary w-full justify-center sm:w-auto disabled:opacity-60">
+          {isPending ? "Guardando..." : "Registrar pago"}
+        </button>
+      </div>
     </form>
   );
 }

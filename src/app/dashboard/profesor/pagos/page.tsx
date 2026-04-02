@@ -22,7 +22,7 @@ type PaymentRow = {
   booking_id: number | null;
   amount: number;
   method: "efectivo" | "transferencia_directa";
-  type: "clase" | "paquete" | "se\u00f1a" | "diferencia_cobro" | "reembolso";
+  type: "clase" | "paquete" | "seña" | "diferencia_cobro" | "reembolso";
   note: string | null;
   created_at: string;
 };
@@ -35,7 +35,7 @@ const methodLabel: Record<PaymentRow["method"], string> = {
 const typeLabel: Record<PaymentRow["type"], string> = {
   clase: "Clase",
   paquete: "Paquete",
-  ["se\u00f1a"]: "Sena",
+  ["seña"]: "Seña",
   diferencia_cobro: "Diferencia de cobro",
   reembolso: "Reembolso",
 };
@@ -112,54 +112,56 @@ export default async function ProfesorPagosPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-3 py-6 sm:px-4 sm:py-8">
-      <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">Pagos</h1>
-      <p className="mt-2 text-sm text-zinc-600">Registro manual de cobros y listado historico simple.</p>
-
-      {hasLoadError ? (
-        <p className="mt-6 rounded-lg border border-red-300 bg-red-100 px-4 py-3 text-sm text-red-800">
-          No se pudieron cargar los datos de pagos. Aplica la migracion 020 y recarga la pagina.
+      <header>
+        <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
+          Pagos
+        </h1>
+        <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+          Registro manual de cobros e historial de pagos.
         </p>
-      ) : null}
+      </header>
+
+      {hasLoadError ? <p className="alert-error mt-6">No se pudieron cargar los datos de pagos. Intentá nuevamente.</p> : null}
 
       {!hasLoadError && alumnos.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-700">
-          No hay bookings de alumnos para seleccionar. Primero confirma o crea una reserva.
+        <p className="card mt-6 px-4 py-3 text-sm" style={{ color: "var(--muted)" }}>
+          No hay clases de alumnos para seleccionar. Primero confirmá o creá una reserva.
         </p>
       ) : null}
 
       {!hasLoadError && alumnos.length > 0 ? (
-        <PaymentForm
-          alumnos={alumnos}
-          bookings={bookingOptions}
-          priceIndividual={profile.price_individual}
-          priceDobles={profile.price_dobles}
-          priceTrio={profile.price_trio}
-          priceGrupal={profile.price_grupal}
-        />
+        <section className="card mt-6 p-4">
+          <PaymentForm
+            alumnos={alumnos}
+            bookings={bookingOptions}
+            priceIndividual={profile.price_individual}
+            priceDobles={profile.price_dobles}
+            priceTrio={profile.price_trio}
+            priceGrupal={profile.price_grupal}
+          />
+        </section>
       ) : null}
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-zinc-900">Historial de pagos</h2>
+        <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+          Historial de pagos
+        </h2>
         {payments.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-700">
-            Aun no registraste pagos.
+          <p className="card mt-3 px-4 py-3 text-sm" style={{ color: "var(--muted)" }}>
+            Aún no registraste pagos.
           </p>
         ) : (
           <ul className="mt-3 grid gap-2">
             {payments.map((payment) => (
-              <li key={payment.id} className="rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm">
-                <p className="font-medium text-zinc-900">
-                  {formatAmount(Number(payment.amount))} - {typeLabel[payment.type]}
+              <li key={payment.id} className="card px-4 py-3 text-sm">
+                <p className="font-medium" style={{ color: "var(--foreground)" }}>
+                  {formatAmount(Number(payment.amount))} · {typeLabel[payment.type]}
                 </p>
-                <p className="text-zinc-700">
-                  Alumno: {alumnoNameMap.get(payment.alumno_id) ?? "Alumno"}
-                </p>
-                <p className="text-zinc-700">Metodo: {methodLabel[payment.method]}</p>
-                <p className="text-zinc-700">Fecha: {formatUserDate(payment.created_at)}</p>
-                {payment.booking_id ? (
-                  <p className="text-zinc-700">Booking asociado: #{payment.booking_id}</p>
-                ) : null}
-                {payment.note ? <p className="text-zinc-700">Nota: {payment.note}</p> : null}
+                <p style={{ color: "var(--muted)" }}>Alumno: {alumnoNameMap.get(payment.alumno_id) ?? "Alumno"}</p>
+                <p style={{ color: "var(--muted)" }}>Método: {methodLabel[payment.method]}</p>
+                <p style={{ color: "var(--muted)" }}>Fecha: {formatUserDate(payment.created_at)}</p>
+                {payment.booking_id ? <p style={{ color: "var(--muted)" }}>Clase asociada: #{payment.booking_id}</p> : null}
+                {payment.note ? <p style={{ color: "var(--muted)" }}>Nota: {payment.note}</p> : null}
               </li>
             ))}
           </ul>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { cancelBookingAction, confirmBookingAction } from "@/app/dashboard/profesor/bookings/actions";
 import { createDebtChargeQuickAction } from "@/app/dashboard/profesor/deudas/actions";
 import { CalendarBookingItem } from "./types";
@@ -18,44 +19,50 @@ const statusLabel: Record<CalendarBookingItem["status"], string> = {
   cancelado: "Cancelada",
 };
 
-const statusClass: Record<CalendarBookingItem["status"], string> = {
-  pendiente: "border-amber-300 bg-amber-100 text-amber-800",
-  confirmado: "border-emerald-300 bg-emerald-100 text-emerald-800",
-  cancelado: "border-red-300 bg-red-100 text-red-800",
+const statusStyle: Record<CalendarBookingItem["status"], CSSProperties> = {
+  pendiente: { borderColor: "var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning)" },
+  confirmado: { borderColor: "var(--success-border)", background: "var(--success-bg)", color: "var(--success)" },
+  cancelado: { borderColor: "var(--error-border)", background: "var(--error-bg)", color: "#fca5a5" },
 };
 
 export function BookingDetailContent({ item, availabilityRanges }: BookingDetailContentProps) {
   const displayStatus = item.is_finalized ? "Finalizada" : statusLabel[item.status];
-  const displayStatusClass = item.is_finalized
-    ? "border-sky-300 bg-sky-100 text-sky-800"
-    : statusClass[item.status];
+  const displayStatusStyle = item.is_finalized
+    ? { borderColor: "var(--info-border)", background: "var(--info-bg)", color: "var(--info)" }
+    : statusStyle[item.status];
 
   return (
     <div className="grid gap-3">
-      <div className="grid gap-1 text-sm text-zinc-700">
-        <p className="text-base font-semibold text-zinc-900">
+      <div className="grid gap-1 text-sm" style={{ color: "var(--muted)" }}>
+        <p className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
           {item.start_time.slice(0, 5)} - {item.end_time.slice(0, 5)}
         </p>
         <p>{item.alumno_name}</p>
         <p>Tipo: {item.type_label}</p>
         <p>
           Estado:{" "}
-          <span className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${displayStatusClass}`}>
+          <span className="inline-flex rounded-md border px-2 py-0.5 text-xs font-medium" style={displayStatusStyle}>
             {displayStatus}
           </span>
         </p>
         <p>Monto estimado: ${item.estimated_amount.toLocaleString("es-AR")}</p>
         {item.status !== "pendiente" ? <p>Estado financiero: {item.financial_status_label}</p> : null}
         {item.is_finalized && item.financial_pending ? (
-          <p className="mt-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
-            ⚠ Clase finalizada — cobro pendiente.
+          <p
+            className="mt-1 rounded-md border px-2 py-1 text-xs font-medium"
+            style={{ borderColor: "var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning)" }}
+          >
+            Clase finalizada · cobro pendiente.
           </p>
         ) : item.is_finalized && !item.financial_pending ? (
-          <p className="mt-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
-            ✓ Clase finalizada — cobro cubierto.
+          <p
+            className="mt-1 rounded-md border px-2 py-1 text-xs font-medium"
+            style={{ borderColor: "var(--success-border)", background: "var(--success-bg)", color: "var(--success)" }}
+          >
+            Clase finalizada · cobro cubierto.
           </p>
         ) : null}
-        <p>Consumo de paquete: {item.package_consumed ? "Si" : "No"}</p>
+        <p>Consumo de paquete: {item.package_consumed ? "Sí" : "No"}</p>
         {item.package_consumed && item.consumed_student_package_id ? (
           <p>Paquete aplicado: #{item.consumed_student_package_id}</p>
         ) : null}
@@ -65,13 +72,13 @@ export function BookingDetailContent({ item, availabilityRanges }: BookingDetail
         <div className="grid grid-cols-2 gap-2">
           <form action={confirmBookingAction}>
             <input type="hidden" name="booking_id" value={item.id} />
-            <button className="w-full rounded-md bg-emerald-700 px-3 py-2 text-xs font-semibold text-white">
+            <button className="w-full rounded-md px-3 py-2 text-xs font-semibold text-white" style={{ background: "var(--success)" }}>
               Confirmar
             </button>
           </form>
           <form action={cancelBookingAction}>
             <input type="hidden" name="booking_id" value={item.id} />
-            <button className="w-full rounded-md bg-red-700 px-3 py-2 text-xs font-semibold text-white">
+            <button className="w-full rounded-md px-3 py-2 text-xs font-semibold text-white" style={{ background: "var(--error)" }}>
               Cancelar
             </button>
           </form>
@@ -82,7 +89,7 @@ export function BookingDetailContent({ item, availabilityRanges }: BookingDetail
         <div className="grid grid-cols-2 gap-2">
           <form action={cancelBookingAction}>
             <input type="hidden" name="booking_id" value={item.id} />
-            <button className="w-full rounded-md bg-red-700 px-3 py-2 text-xs font-semibold text-white">
+            <button className="w-full rounded-md px-3 py-2 text-xs font-semibold text-white" style={{ background: "var(--error)" }}>
               Cancelar
             </button>
           </form>
@@ -94,12 +101,13 @@ export function BookingDetailContent({ item, availabilityRanges }: BookingDetail
               <input type="hidden" name="amount" value={item.estimated_amount || 0} />
               <input type="hidden" name="method" value="efectivo" />
               <input type="hidden" name="note" value="" />
-              <button className="w-full rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white">
-                Cobrar
-              </button>
+              <button className="btn-primary w-full justify-center px-3 py-2 text-xs">Cobrar</button>
             </form>
           ) : (
-            <div className="inline-flex items-center justify-center rounded-md border border-zinc-300 bg-zinc-100 px-2 py-2 text-xs font-medium text-zinc-600">
+            <div
+              className="inline-flex items-center justify-center rounded-md border px-2 py-2 text-xs font-medium"
+              style={{ borderColor: "var(--success-border)", background: "var(--success-bg)", color: "var(--success)" }}
+            >
               Cobrado
             </div>
           )}
@@ -119,21 +127,25 @@ export function BookingDetailContent({ item, availabilityRanges }: BookingDetail
         />
       ) : null}
 
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
-        <p className="font-semibold text-zinc-900">Detalle del alumno</p>
-        <p className="mt-1">Categoria: {item.alumno_category || "No definida"}</p>
+      <div className="rounded-md border p-3 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}>
+        <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+          Detalle del alumno
+        </p>
+        <p className="mt-1">Categoría: {item.alumno_category || "No definida"}</p>
         <p>Rama: {item.alumno_branch || "No definida"}</p>
         <p>Zona: {item.alumno_zone || "No definida"}</p>
-        <p>Paleta/Raqueta: {item.alumno_has_equipment ? "Si" : "No"}</p>
+        <p>Paleta/Raqueta: {item.alumno_has_equipment ? "Sí" : "No"}</p>
 
         <div className="mt-2">
-          <p className="font-semibold text-zinc-900">Proximas clases</p>
+          <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+            Próximas clases
+          </p>
           {item.next_classes.length === 0 ? (
-            <p className="mt-1 text-zinc-600">Sin clases proximas.</p>
+            <p className="mt-1">Sin clases próximas.</p>
           ) : (
             <ul className="mt-1 grid gap-1 text-xs">
               {item.next_classes.map((nextClass) => (
-                <li key={nextClass.id} className="rounded-md border border-zinc-200 bg-white px-2 py-1">
+                <li key={nextClass.id} className="rounded-md border px-2 py-1" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
                   {nextClass.date} {nextClass.start_time.slice(0, 5)}-{nextClass.end_time.slice(0, 5)} |{" "}
                   {nextClass.type_label} | {nextClass.status_label}
                 </li>

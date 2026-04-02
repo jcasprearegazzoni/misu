@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
 import {
@@ -22,10 +22,10 @@ type FrequentScheduleManagerProps = {
 const dayOptions = [
   { value: 1, short: "Lu", label: "Lunes" },
   { value: 2, short: "Ma", label: "Martes" },
-  { value: 3, short: "Mi", label: "Miercoles" },
+  { value: 3, short: "Mi", label: "Miércoles" },
   { value: 4, short: "Ju", label: "Jueves" },
   { value: 5, short: "Vi", label: "Viernes" },
-  { value: 6, short: "Sa", label: "Sabado" },
+  { value: 6, short: "Sá", label: "Sábado" },
   { value: 0, short: "Do", label: "Domingo" },
 ];
 
@@ -68,6 +68,7 @@ function FrequentRangeRow({ item }: RowFormProps) {
   const [state, formAction, isPending] = useActionState(saveAvailabilityAction, initialState);
   const [startTime, setStartTime] = useState(item.start_time.slice(0, 5));
   const [endTime, setEndTime] = useState(item.end_time.slice(0, 5));
+  const [timeError, setTimeError] = useState<string | null>(null);
 
   function handleStartChange(value: string) {
     setStartTime(value);
@@ -75,10 +76,22 @@ function FrequentRangeRow({ item }: RowFormProps) {
     if (toMinutes(endTime) <= toMinutes(value)) {
       setEndTime(suggestEnd(value));
     }
+    setTimeError(null);
   }
 
   return (
-    <form action={formAction} className="grid gap-1.5 rounded-md border border-zinc-200 bg-white p-2">
+    <form
+      action={formAction}
+      onSubmit={(event) => {
+        if (toMinutes(endTime) <= toMinutes(startTime)) {
+          event.preventDefault();
+          setTimeError("La hora de fin debe ser mayor que la hora de inicio.");
+          return;
+        }
+        setTimeError(null);
+      }}
+      className="grid gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-1)] p-2"
+    >
       <input type="hidden" name="id" value={item.id} />
       <input type="hidden" name="day_of_week" value={item.day_of_week} />
       <div className="flex flex-wrap items-center gap-1.5">
@@ -86,7 +99,7 @@ function FrequentRangeRow({ item }: RowFormProps) {
           name="start_time"
           value={startTime}
           onChange={(e) => handleStartChange(e.target.value)}
-          className="h-9 w-[104px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
+          className="h-9 w-[104px] rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
           required
         >
           {timeOptions.map((option) => (
@@ -95,12 +108,12 @@ function FrequentRangeRow({ item }: RowFormProps) {
             </option>
           ))}
         </select>
-        <span className="text-sm text-zinc-500">a</span>
+        <span className="text-sm text-[var(--muted-2)]">a</span>
         <select
           name="end_time"
           value={endTime}
           onChange={(e) => setEndTime(e.target.value)}
-          className="h-9 w-[104px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
+          className="h-9 w-[104px] rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
           required
         >
           {timeOptions
@@ -113,34 +126,40 @@ function FrequentRangeRow({ item }: RowFormProps) {
         </select>
         <button
           formAction={deleteAvailabilityAction}
-          className="h-9 w-9 rounded-md border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50"
+          className="h-9 w-9 rounded-md border text-sm font-semibold transition"
+          style={{
+            borderColor: "var(--border-misu)",
+            color: "var(--misu-light)",
+            background: "transparent",
+          }}
           title="Eliminar rango"
         >
-          ✕
+          ×
         </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs font-medium text-zinc-600">Duración (min)</span>
+        <span className="text-xs font-medium text-[var(--muted)]">Duración (min)</span>
         <input
           type="number"
           name="slot_duration_minutes"
           min={30}
           step={30}
           defaultValue={item.slot_duration_minutes}
-          className="h-9 w-20 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
+          className="h-9 w-20 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
           required
         />
         <button
           type="submit"
           disabled={isPending}
-          className="h-9 rounded-md border border-zinc-300 bg-zinc-50 px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-100 disabled:opacity-60"
+          className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-3)] disabled:opacity-60"
         >
           {isPending ? "Guardando..." : "Guardar"}
         </button>
       </div>
 
-      {state.error ? <p className="text-xs font-medium text-red-700">{state.error}</p> : null}
+      {timeError ? <p className="text-xs font-medium text-red-300">{timeError}</p> : null}
+      {state.error ? <p className="text-xs font-medium text-red-300">{state.error}</p> : null}
       {state.success ? <p className="text-xs font-medium text-emerald-700">{state.success}</p> : null}
     </form>
   );
@@ -163,26 +182,29 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
 
   const [newStart, setNewStart] = useState(defaultStart);
   const [newEnd, setNewEnd] = useState(defaultEnd);
+  const [timeError, setTimeError] = useState<string | null>(null);
 
   function handleNewStartChange(value: string) {
     setNewStart(value);
     if (toMinutes(newEnd) <= toMinutes(value)) {
       setNewEnd(suggestEnd(value));
     }
+    setTimeError(null);
   }
 
   function handleOpen() {
     setNewStart(defaultStart);
     setNewEnd(suggestEnd(defaultStart));
+    setTimeError(null);
     setIsAdding(true);
   }
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
-      <h3 className="text-base font-semibold text-zinc-900">{day.label}</h3>
+    <section className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2.5">
+      <h3 className="text-base font-semibold text-[var(--foreground)]">{day.label}</h3>
 
       {dayRanges.length === 0 ? (
-        <p className="mt-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-500">
+        <p className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-3 py-2 text-sm text-[var(--muted-2)]">
           Sin horarios cargados.
         </p>
       ) : (
@@ -198,7 +220,7 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
           <button
             type="button"
             onClick={handleOpen}
-            className="h-9 rounded-md border border-emerald-500 bg-white px-3 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+            className="h-9 rounded-md border border-emerald-500/50 bg-[var(--surface-1)] px-3 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10"
           >
             + Agregar horario
           </button>
@@ -208,6 +230,11 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
           onSubmit={(event) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
+            if (toMinutes(newEnd) <= toMinutes(newStart)) {
+              setTimeError("La hora de fin debe ser mayor que la hora de inicio.");
+              return;
+            }
+            setTimeError(null);
 
             startTransition(async () => {
               const result = await saveAvailabilityAction(initialState, formData);
@@ -219,7 +246,7 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
               }
             });
           }}
-          className="mt-2 grid gap-1.5 rounded-md border border-zinc-200 bg-white p-2"
+          className="mt-2 grid gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-1)] p-2"
         >
           <input type="hidden" name="day_of_week" value={day.value} />
           <div className="flex flex-wrap items-center gap-1.5">
@@ -227,7 +254,7 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
               name="start_time"
               value={newStart}
               onChange={(e) => handleNewStartChange(e.target.value)}
-              className="h-9 w-[104px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
+              className="h-9 w-[104px] rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
               required
             >
               {timeOptions.map((option) => (
@@ -236,12 +263,12 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
                 </option>
               ))}
             </select>
-            <span className="text-sm text-zinc-500">a</span>
+            <span className="text-sm text-[var(--muted-2)]">a</span>
             <select
               name="end_time"
               value={newEnd}
               onChange={(e) => setNewEnd(e.target.value)}
-              className="h-9 w-[104px] rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
+              className="h-9 w-[104px] rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
               required
             >
               {timeOptions
@@ -255,20 +282,20 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-medium text-zinc-600">Duración (min)</span>
+            <span className="text-xs font-medium text-[var(--muted)]">Duración (min)</span>
             <input
               type="number"
               name="slot_duration_minutes"
               min={30}
               step={30}
               defaultValue={60}
-              className="h-9 w-20 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
+              className="h-9 w-20 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
               required
             />
             <button
               type="submit"
               disabled={isCreating}
-              className="h-9 rounded-md border border-zinc-300 bg-zinc-50 px-3 text-xs font-medium text-zinc-900 hover:bg-zinc-100 disabled:opacity-60"
+              className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-3)] disabled:opacity-60"
             >
               {isCreating ? "Guardando..." : "Agregar"}
             </button>
@@ -277,13 +304,15 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
               onClick={() => {
                 setIsAdding(false);
                 setCreateState(initialState);
+                setTimeError(null);
               }}
-              className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+              className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-3 text-xs font-medium text-[var(--muted)] hover:bg-[var(--surface-3)]"
             >
               Cancelar
             </button>
           </div>
 
+          {timeError ? <p className="text-xs font-medium text-red-300">{timeError}</p> : null}
           {createState.error ? <p className="text-xs font-medium text-red-700">{createState.error}</p> : null}
           {createState.success ? <p className="text-xs font-medium text-emerald-700">{createState.success}</p> : null}
         </form>
@@ -330,9 +359,9 @@ export function FrequentScheduleManager({ availability }: FrequentScheduleManage
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl rounded-lg border border-zinc-200 bg-white p-3">
-      <h2 className="text-base font-semibold text-zinc-900">Horario frecuente</h2>
-      <p className="mt-1 text-sm text-zinc-600">
+    <div className="mx-auto w-full max-w-xl rounded-lg border border-[var(--border)] bg-[var(--surface-1)] p-3">
+      <h2 className="text-base font-semibold text-[var(--foreground)]">Horario frecuente</h2>
+      <p className="mt-1 text-sm text-[var(--muted)]">
         Marcá los días y cargá los rangos horarios que se repiten semana a semana.
       </p>
 
@@ -347,8 +376,8 @@ export function FrequentScheduleManager({ availability }: FrequentScheduleManage
               onClick={() => toggleDay(day.value)}
               className={`relative h-9 rounded-md border px-3 text-sm font-medium ${
                 isActive
-                  ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-                  : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                  : "border-[var(--border)] bg-[var(--surface-1)] text-[var(--foreground)] hover:bg-[var(--surface-3)]"
               }`}
             >
               {day.short}
@@ -370,3 +399,4 @@ export function FrequentScheduleManager({ availability }: FrequentScheduleManage
     </div>
   );
 }
+

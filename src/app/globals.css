@@ -4,42 +4,42 @@
    Variables globales del sistema de diseño
    ============================================ */
 :root {
-  /* Fondo oscuro principal */
-  --background: #0c0c0e;
-  --surface-1: #141418;
-  --surface-2: #1c1c22;
-  --surface-3: #242430;
-  --surface-hover: #2a2a38;
+  /* Fondo oscuro principal (alto contraste para mobile en exterior) */
+  --background: #151515;
+  --surface-1: #1f1f1f;
+  --surface-2: #2a2a2a;
+  --surface-3: #353535;
+  --surface-hover: #3f3f3f;
 
   /* Texto */
-  --foreground: #f0f0f4;
-  --muted: #8888a0;
-  --muted-2: #5a5a72;
+  --foreground: #f5f5f5;
+  --muted: #c2c2c2;
+  --muted-2: #9b9b9b;
 
   /* Marca principal — naranja premium */
-  --misu: #f97316;
-  --misu-light: #fb923c;
-  --misu-dark: #ea6907;
-  --misu-glow: rgba(249, 115, 22, 0.25);
-  --misu-subtle: rgba(249, 115, 22, 0.08);
-  --misu-warm: rgba(249, 115, 22, 0.05);
+  --misu: #e68019;
+  --misu-light: #ffb15c;
+  --misu-dark: #c96f12;
+  --misu-glow: rgba(230, 128, 25, 0.25);
+  --misu-subtle: rgba(230, 128, 25, 0.1);
+  --misu-warm: rgba(230, 128, 25, 0.06);
 
   /* Bordes */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.14);
-  --border-misu: rgba(249, 115, 22, 0.35);
+  --border: rgba(255, 255, 255, 0.14);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --border-misu: rgba(230, 128, 25, 0.35);
 
   /* Estados */
-  --success: #22c55e;
+  --success: #39d98a;
   --success-bg: rgba(34, 197, 94, 0.08);
   --success-border: rgba(34, 197, 94, 0.3);
-  --warning: #f59e0b;
+  --warning: #f6b73c;
   --warning-bg: rgba(245, 158, 11, 0.08);
   --warning-border: rgba(245, 158, 11, 0.3);
-  --error: #ef4444;
+  --error: #ff6b6b;
   --error-bg: rgba(239, 68, 68, 0.08);
   --error-border: rgba(239, 68, 68, 0.3);
-  --info: #3b82f6;
+  --info: #5ca9ff;
   --info-bg: rgba(59, 130, 246, 0.08);
   --info-border: rgba(59, 130, 246, 0.3);
 }
@@ -51,13 +51,13 @@
   --font-mono: var(--font-geist-mono), monospace;
 
   /* Colores de marca disponibles como utilidades Tailwind */
-  --color-misu:          #f97316;
-  --color-misu-light:    #fb923c;
-  --color-misu-dark:     #ea6907;
-  --color-misu-warm:     rgba(249, 115, 22, 0.05);
-  --color-surface-1:     #141418;
-  --color-surface-2:     #1c1c22;
-  --color-surface-3:     #242430;
+  --color-misu:          #e68019;
+  --color-misu-light:    #ffb15c;
+  --color-misu-dark:     #c96f12;
+  --color-misu-warm:     rgba(230, 128, 25, 0.06);
+  --color-surface-1:     #1f1f1f;
+  --color-surface-2:     #2a2a2a;
+  --color-surface-3:     #353535;
 }
 
 /* ============================================
@@ -458,4 +458,29 @@ details summary {
 }
 details summary::-webkit-details-marker {
   display: none;
+}
+
+/* ============================================
+   Compatibilidad visual para pantallas legacy
+   ============================================ */
+[class~="bg-white"] {
+  background: var(--surface-1) !important;
+}
+[class~="bg-zinc-50"],
+[class~="bg-zinc-100"] {
+  background: var(--surface-2) !important;
+}
+[class~="border-zinc-200"],
+[class~="border-zinc-300"],
+[class~="border-zinc-400"] {
+  border-color: var(--border) !important;
+}
+[class~="text-zinc-900"],
+[class~="text-zinc-800"] {
+  color: var(--foreground) !important;
+}
+[class~="text-zinc-700"],
+[class~="text-zinc-600"],
+[class~="text-zinc-500"] {
+  color: var(--muted) !important;
 }

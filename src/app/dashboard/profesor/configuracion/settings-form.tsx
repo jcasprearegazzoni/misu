@@ -18,19 +18,18 @@ export function ProfesorSettingsForm({ initialValues }: SettingsFormProps) {
   });
 
   return (
-    <form action={formAction} className="mt-6 grid gap-4">
-      <div className="rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-700">
+    <form action={formAction} className="mt-4 grid gap-4">
+      <div className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}>
         <p>
-          Diferencia clave:
-          <strong> Aviso de quedo solo</strong> define cuando se muestra la decision.
-          <strong> Tiempo de respuesta</strong> define cuanto tiempo tiene el alumno para contestar.
+          El aviso de &quot;quedó solo&quot; define cuándo aparece la decisión.
+          El tiempo de respuesta define cuántos minutos tiene el alumno para responder.
         </p>
       </div>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
-        <span>Cancelacion sin cobro: horas minimas de anticipacion</span>
-        <span className="text-xs font-normal text-zinc-600">
-          Ejemplo: 6 significa que si cancela con menos de 6 horas, ya no entra en sin cobro.
+      <label className="label">
+        <span>Cancelación sin cobro (horas de anticipación)</span>
+        <span className="text-xs" style={{ color: "var(--muted-2)" }}>
+          Ejemplo: 6 horas. Si cancela con menos, ya no entra en &quot;sin cobro&quot;.
         </span>
         <input
           type="number"
@@ -39,15 +38,15 @@ export function ProfesorSettingsForm({ initialValues }: SettingsFormProps) {
           min="0"
           max="168"
           step="1"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="input"
           placeholder="Ejemplo: 24"
         />
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
-        <span>Aviso de quedo solo: horas antes de la clase</span>
-        <span className="text-xs font-normal text-zinc-600">
-          Ejemplo: 24 significa que el aviso se habilita solo cuando faltan 24 horas o menos.
+      <label className="label">
+        <span>Aviso de &quot;quedó solo&quot; (horas antes de la clase)</span>
+        <span className="text-xs" style={{ color: "var(--muted-2)" }}>
+          Ejemplo: 24 horas. El aviso se habilita cuando faltan 24 horas o menos.
         </span>
         <input
           type="number"
@@ -56,15 +55,15 @@ export function ProfesorSettingsForm({ initialValues }: SettingsFormProps) {
           min="0"
           max="168"
           step="1"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="input"
           placeholder="Ejemplo: 24"
         />
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
-        <span>Tiempo de respuesta del alumno (en minutos)</span>
-        <span className="text-xs font-normal text-zinc-600">
-          Ejemplo: 1440 equivale a 24 horas para responder si pasa a individual o cancela.
+      <label className="label">
+        <span>Tiempo de respuesta del alumno (minutos)</span>
+        <span className="text-xs" style={{ color: "var(--muted-2)" }}>
+          Ejemplo: 1440 equivale a 24 horas para responder.
         </span>
         <input
           type="number"
@@ -73,30 +72,19 @@ export function ProfesorSettingsForm({ initialValues }: SettingsFormProps) {
           min="1"
           max="10080"
           step="1"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-          placeholder="Ejemplo: 1440 (24 horas)"
+          className="input"
+          placeholder="Ejemplo: 1440"
         />
       </label>
 
-      {state.error ? (
-        <p className="rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm font-medium text-red-800">
-          {state.error}
-        </p>
-      ) : null}
+      {state.error ? <p className="alert-error">{state.error}</p> : null}
+      {state.success ? <p className="alert-success">{state.success}</p> : null}
 
-      {state.success ? (
-        <p className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-800">
-          {state.success}
-        </p>
-      ) : null}
-
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-      >
-        {isPending ? "Guardando..." : "Guardar configuracion"}
-      </button>
+      <div className="flex justify-end">
+        <button type="submit" disabled={isPending} className="btn-secondary w-full justify-center sm:w-auto disabled:opacity-60">
+          {isPending ? "Guardando..." : "Guardar ajustes"}
+        </button>
+      </div>
     </form>
   );
 }

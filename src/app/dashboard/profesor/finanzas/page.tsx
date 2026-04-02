@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { buildDebtSummaryByStudent, buildPendingDebtBookings } from "@/lib/finanzas/debt-helpers";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
+import { buildDebtSummaryByStudent, buildPendingDebtBookings } from "@/lib/finanzas/debt-helpers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PriceSettingsForm } from "./price-settings-form";
 
@@ -261,6 +262,7 @@ export default async function ProfesorFinanzasPage() {
     priceGrupal: profile.price_grupal,
   });
   const debtSummary = buildDebtSummaryByStudent(pendingDebtBookings);
+  const debtTotal = debtSummary.reduce((acc, item) => acc + item.estimated_total, 0);
 
   const ingresosMesActual = sumPaymentsAmount(currentPayments);
   const ingresosMesAnterior = sumPaymentsAmount(previousPayments);
@@ -284,171 +286,125 @@ export default async function ProfesorFinanzasPage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-8 sm:px-6 sm:py-10">
-      {/* Header */}
-      <div>
-        <h1
-          className="text-2xl font-black tracking-tight sm:text-3xl"
-          style={{ color: "var(--foreground)" }}
-        >
-          Finanzas
-        </h1>
-        <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
-          Resumen financiero de tu actividad como profesor.
-        </p>
-      </div>
+    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-3 py-6 sm:px-4 sm:py-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
+            Finanzas
+          </h1>
+          <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
+            Controlá ingresos, deudas y estado de cobros en una sola vista.
+          </p>
+        </div>
+        <Link href="/dashboard/profesor/pagos" className="btn-primary w-full sm:w-auto">
+          Registrar pago
+        </Link>
+      </header>
 
       {hasLoadError ? (
-        <div className="alert-error mt-6">
-          No se pudieron cargar los datos financieros. Intentá nuevamente.
-        </div>
+        <div className="alert-error mt-6">No se pudieron cargar los datos financieros. Intentá nuevamente.</div>
       ) : null}
 
-      {/* Parámetros financieros */}
       <section className="mt-6">
-        <details
-          className="card overflow-hidden"
-          style={{ borderRadius: "14px" }}
-        >
-          <summary
-            className="flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-semibold"
-            style={{ color: "var(--foreground)" }}
-          >
-            <span>⚙️ Parámetros financieros</span>
-            <span style={{ color: "var(--muted)", fontSize: "18px" }}>›</span>
-          </summary>
-          <div
-            style={{
-              borderTop: "1px solid var(--border)",
-              padding: "1.25rem",
-              background: "var(--surface-2)",
-            }}
-          >
-            <p className="mb-4 text-sm" style={{ color: "var(--muted)" }}>
-              Configurá precios y costo de cancha. Suele ajustarse ocasionalmente.
-            </p>
-            <PriceSettingsForm
-              initialValues={{
-                price_individual: profile.price_individual === null ? "" : String(profile.price_individual),
-                price_dobles: profile.price_dobles === null ? "" : String(profile.price_dobles),
-                price_trio: profile.price_trio === null ? "" : String(profile.price_trio),
-                price_grupal: profile.price_grupal === null ? "" : String(profile.price_grupal),
-                court_cost_mode: profile.court_cost_mode,
-                court_cost_per_hour:
-                  profile.court_cost_per_hour === null ? "" : String(profile.court_cost_per_hour),
-                court_percentage_per_student:
-                  profile.court_percentage_per_student === null
-                    ? ""
-                    : String(profile.court_percentage_per_student),
-              }}
-            />
-          </div>
-        </details>
-      </section>
-
-      {/* Mes actual y anterior */}
-      <section className="mt-6">
-        <h2
-          className="mb-3 text-base font-bold"
-          style={{ color: "var(--foreground)" }}
-        >
-          Resumen mensual
+        <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+          Resumen rápido
         </h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          {/* Mes actual */}
-          <div
-            className="card p-5"
-            style={{ borderColor: "var(--border-misu)" }}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--misu)" }}>
-                Mes actual
-              </p>
-              <span
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  background: "var(--misu)",
-                  display: "block",
-                  animation: "pulse-misu 2s infinite",
-                }}
-              />
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Ingresos brutos</p>
-                <p className="mt-1 text-xl font-black" style={{ color: "var(--foreground)" }}>
-                  {formatAmount(ingresosMesActual)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Ingresos netos</p>
-                <p className="mt-1 text-xl font-black" style={{ color: "var(--success)" }}>
-                  {formatAmount(ingresosNetosMesActual)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Mes anterior */}
-          <div className="card p-5">
-            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-              Mes anterior
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <article className="card px-4 py-4">
+            <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+              Ingresos brutos (mes actual)
             </p>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Ingresos brutos</p>
-                <p className="mt-1 text-xl font-black" style={{ color: "var(--foreground)" }}>
-                  {formatAmount(ingresosMesAnterior)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Ingresos netos</p>
-                <p className="mt-1 text-xl font-black" style={{ color: "var(--foreground)" }}>
-                  {formatAmount(ingresosNetosMesAnterior)}
-                </p>
-              </div>
-            </div>
-          </div>
+            <p className="mt-2 text-2xl font-black leading-none" style={{ color: "var(--foreground)" }}>
+              {formatAmount(ingresosMesActual)}
+            </p>
+          </article>
+
+          <article className="card px-4 py-4">
+            <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+              Costo de cancha estimado
+            </p>
+            <p className="mt-2 text-2xl font-black leading-none" style={{ color: "var(--warning)" }}>
+              {formatAmount(costoCanchaMesActual)}
+            </p>
+          </article>
+
+          <article className="card px-4 py-4" style={{ borderColor: "var(--border-misu)" }}>
+            <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+              Ingreso neto (mes actual)
+            </p>
+            <p className="mt-2 text-2xl font-black leading-none" style={{ color: "var(--misu-light)" }}>
+              {formatAmount(ingresosNetosMesActual)}
+            </p>
+          </article>
+
+          <article className="card px-4 py-4">
+            <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+              Deuda pendiente estimada
+            </p>
+            <p className="mt-2 text-2xl font-black leading-none" style={{ color: "var(--warning)" }}>
+              {formatAmount(debtTotal)}
+            </p>
+          </article>
         </div>
       </section>
 
-      {/* Resumen operativo */}
-      <section className="mt-6">
-        <h2 className="mb-3 text-base font-bold" style={{ color: "var(--foreground)" }}>
-          Resumen operativo (mes actual)
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            { label: "Pagos registrados", value: currentPayments.length },
-            { label: "Reservas pendientes de cobro", value: pendingDebtBookings.length },
-            { label: "Alumnos con deuda", value: debtSummary.length },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className="card flex items-center justify-between gap-3 px-4 py-4"
-            >
-              <p className="text-sm" style={{ color: "var(--muted)" }}>
-                {item.label}
+      <section className="mt-6 grid gap-3 md:grid-cols-2">
+        <article className="card p-4">
+          <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            Mes actual
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>
+                Bruto
               </p>
-              <p
-                className="text-2xl font-black"
-                style={{ color: item.value > 0 && item.label === "Alumnos con deuda" ? "var(--warning)" : "var(--foreground)" }}
-              >
-                {item.value}
+              <p className="text-xl font-black" style={{ color: "var(--foreground)" }}>
+                {formatAmount(ingresosMesActual)}
               </p>
             </div>
-          ))}
-        </div>
+            <div>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>
+                Neto
+              </p>
+              <p className="text-xl font-black" style={{ color: "var(--success)" }}>
+                {formatAmount(ingresosNetosMesActual)}
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <article className="card p-4">
+          <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            Mes anterior
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>
+                Bruto
+              </p>
+              <p className="text-xl font-black" style={{ color: "var(--foreground)" }}>
+                {formatAmount(ingresosMesAnterior)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>
+                Neto
+              </p>
+              <p className="text-xl font-black" style={{ color: "var(--foreground)" }}>
+                {formatAmount(ingresosNetosMesAnterior)}
+              </p>
+            </div>
+          </div>
+        </article>
       </section>
 
-      {/* Métodos de pago */}
-      <section className="mt-6">
-        <h2 className="mb-3 text-base font-bold" style={{ color: "var(--foreground)" }}>
-          Métodos de pago (mes actual)
-        </h2>
-        <div className="card overflow-hidden">
+      <section className="mt-6 grid gap-3 lg:grid-cols-2">
+        <article className="card overflow-hidden">
+          <div className="px-4 py-3">
+            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+              Métodos de pago (mes actual)
+            </h2>
+          </div>
           <table className="table-dark">
             <thead>
               <tr>
@@ -467,29 +423,26 @@ export default async function ProfesorFinanzasPage() {
               </tr>
             </tbody>
           </table>
-        </div>
-      </section>
+        </article>
 
-      {/* Deudores */}
-      <section className="mt-6">
-        <h2 className="mb-3 text-base font-bold" style={{ color: "var(--foreground)" }}>
-          Deudores
-        </h2>
-        {debtSummary.length === 0 ? (
-          <div
-            className="card px-4 py-4 text-sm"
-            style={{ color: "var(--muted)", textAlign: "center" }}
-          >
-            ✓ Sin deudores por el momento
+        <article className="card overflow-hidden">
+          <div className="px-4 py-3">
+            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+              Deudores
+            </h2>
           </div>
-        ) : (
-          <div className="card overflow-hidden">
+
+          {debtSummary.length === 0 ? (
+            <div className="px-4 pb-4 text-sm" style={{ color: "var(--muted)" }}>
+              No hay deudas pendientes.
+            </div>
+          ) : (
             <table className="table-dark">
               <thead>
                 <tr>
                   <th>Alumno</th>
-                  <th>Reservas pendientes</th>
-                  <th>Monto estimado</th>
+                  <th>Reservas</th>
+                  <th>Monto</th>
                 </tr>
               </thead>
               <tbody>
@@ -497,44 +450,65 @@ export default async function ProfesorFinanzasPage() {
                   <tr key={item.alumno_id}>
                     <td className="font-medium">{item.alumno_name}</td>
                     <td>{item.bookings_count}</td>
-                    <td
-                      className="font-semibold"
-                      style={{ color: "var(--warning)" }}
-                    >
+                    <td className="font-semibold" style={{ color: "var(--warning)" }}>
                       {formatAmount(item.estimated_total)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
+          )}
+        </article>
       </section>
 
-      {/* Paquetes */}
-      <section className="mt-6 mb-8">
-        <h2 className="mb-3 text-base font-bold" style={{ color: "var(--foreground)" }}>
+      <section className="mt-6">
+        <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
           Paquetes
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { label: "Paquetes activos", value: packagesResumen.activePackages },
-            { label: "Asignados a alumnos", value: packagesResumen.assignedStudentPackages },
-            { label: "Paquetes pagados", value: packagesResumen.paidStudentPackages },
-            { label: "Con créditos disponibles", value: packagesResumen.withCreditsStudentPackages },
+            { label: "Activos", value: packagesResumen.activePackages },
+            { label: "Asignados", value: packagesResumen.assignedStudentPackages },
+            { label: "Pagados", value: packagesResumen.paidStudentPackages },
+            { label: "Con créditos", value: packagesResumen.withCreditsStudentPackages },
           ].map((item) => (
-            <div
-              key={item.label}
-              className="card flex items-center justify-between gap-3 px-4 py-3"
-            >
-              <p className="text-sm" style={{ color: "var(--muted)" }}>
+            <article key={item.label} className="card px-4 py-4">
+              <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
                 {item.label}
               </p>
-              <p className="text-2xl font-black" style={{ color: "var(--foreground)" }}>
+              <p className="mt-2 text-2xl font-black leading-none" style={{ color: "var(--foreground)" }}>
                 {item.value}
               </p>
-            </div>
+            </article>
           ))}
+        </div>
+      </section>
+
+      <section className="mt-6 mb-8">
+        <div className="card p-4">
+          <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+            Parámetros financieros
+          </h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+            Definí precios y costo de cancha para mantener cálculos consistentes.
+          </p>
+          <div className="mt-4">
+            <PriceSettingsForm
+              initialValues={{
+                price_individual: profile.price_individual === null ? "" : String(profile.price_individual),
+                price_dobles: profile.price_dobles === null ? "" : String(profile.price_dobles),
+                price_trio: profile.price_trio === null ? "" : String(profile.price_trio),
+                price_grupal: profile.price_grupal === null ? "" : String(profile.price_grupal),
+                court_cost_mode: profile.court_cost_mode,
+                court_cost_per_hour:
+                  profile.court_cost_per_hour === null ? "" : String(profile.court_cost_per_hour),
+                court_percentage_per_student:
+                  profile.court_percentage_per_student === null
+                    ? ""
+                    : String(profile.court_percentage_per_student),
+              }}
+            />
+          </div>
         </div>
       </section>
     </main>

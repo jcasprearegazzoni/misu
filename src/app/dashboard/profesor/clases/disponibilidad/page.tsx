@@ -22,15 +22,15 @@ type BlockedDateRow = {
 };
 
 function resolveTab(tab?: string): DisponibilidadTabKey {
-  if (tab === "frecuente") {
-    return "frecuente";
+  if (tab === "disponibilidad") {
+    return "disponibilidad";
   }
 
   if (tab === "ausencias") {
     return "ausencias";
   }
 
-  return "disponibilidad";
+  return "frecuente";
 }
 
 type DisponibilidadPageProps = {
@@ -72,10 +72,14 @@ export default async function DisponibilidadClasesPage({ searchParams }: Disponi
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-3 py-6 sm:px-4 sm:py-8">
-      <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">Disponibilidad de clases</h1>
-      <p className="mt-2 text-sm text-zinc-600">
-        Gestiona horarios semanales, patrones frecuentes y ausencias en una sola pantalla.
-      </p>
+      <header>
+        <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
+          Disponibilidad
+        </h1>
+        <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
+          Configura horarios semanales y bloqueos sin salir de esta pantalla.
+        </p>
+      </header>
 
       <TabsNav activeTab={activeTab} />
 

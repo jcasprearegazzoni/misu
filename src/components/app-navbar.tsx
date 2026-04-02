@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { markAllNotificationsAsReadAction, markNotificationAsReadAction } from "@/app/dashboard/notificaciones/actions";
@@ -21,9 +21,11 @@ type NotificationRow = {
 };
 
 const profesorLinks: NavItem[] = [
-  { href: "/dashboard/profesor/turnos", label: "Clases" },
-  { href: "/dashboard/profesor/finanzas", label: "Finanzas" },
-  { href: "/dashboard/profesor/configuracion", label: "Configuración" },
+  { href: '/dashboard/profesor/turnos', label: 'Clases' },
+  { href: '/dashboard/profesor/clases/disponibilidad', label: 'Disponibilidad' },
+  { href: '/dashboard/profesor/paquetes', label: 'Paquetes' },
+  { href: '/dashboard/profesor/finanzas', label: 'Finanzas' },
+  { href: '/dashboard/profesor/perfil', label: 'Perfil' },
 ];
 
 const alumnoLinks: NavItem[] = [{ href: "/dashboard/alumno/turnos", label: "Clases" }];
@@ -168,3 +170,4 @@ export async function AppNavbar() {
     </header>
   );
 }
+

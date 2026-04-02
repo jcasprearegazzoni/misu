@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CalendarStatusFilter } from "@/components/profesor/calendar/calendar-status-filter";
@@ -431,8 +431,8 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-3 py-6 sm:px-4 sm:py-8">
-      <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">Calendario de clases</h1>
-      <p className="mt-2 text-sm text-zinc-600">Vista operativa semanal con eje horario comun.</p>
+      <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>Calendario de clases</h1>
+      <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>Vista operativa semanal con eje horario común.</p>
 
       <CalendarStatusFilter
         value={activeFilter}
@@ -460,7 +460,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       />
 
       {hasLoadError ? (
-        <p className="mt-6 rounded-lg border border-red-300 bg-red-100 px-4 py-3 text-sm text-red-800">
+        <p className="alert-error mt-6">
           No se pudieron cargar las clases de la semana.
         </p>
       ) : (
@@ -472,5 +472,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
     </main>
   );
 }
+
+
 
 

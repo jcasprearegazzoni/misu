@@ -58,39 +58,35 @@ export function WeekCalendarStrip({
 
   return (
     <section
-      className={`mt-4 rounded-xl border p-3 sm:p-4 ${
-        isBookingTone ? "border-emerald-200 bg-emerald-50/40" : "border-zinc-300 bg-white"
-      }`}
+      className="mt-4 rounded-xl border p-3 sm:p-4"
+      style={{
+        borderColor: isBookingTone ? "var(--success-border)" : "var(--border)",
+        background: isBookingTone ? "var(--success-bg)" : "var(--surface-1)",
+      }}
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-lg font-semibold text-zinc-900 sm:text-2xl">{resolvedMonthLabel}</p>
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-500">{subtitle}</p>
+          <p className="text-lg font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
+            {resolvedMonthLabel}
+          </p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.12em]" style={{ color: "var(--muted)" }}>
+            {subtitle}
+          </p>
         </div>
 
-        <div
-          className={`flex items-center gap-2 border-l pl-3 ${
-            isBookingTone ? "border-emerald-200" : "border-zinc-200"
-          }`}
-        >
+        <div className="flex items-center gap-2 border-l pl-3" style={{ borderColor: "var(--border)" }}>
           <Link
             href={prevHref}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-lg font-semibold ${
-              isBookingTone
-                ? "border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50"
-                : "border-zinc-300 bg-zinc-50 text-zinc-800 hover:bg-zinc-100"
-            }`}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border text-lg font-semibold transition"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
             aria-label="Semana anterior"
           >
             {"<"}
           </Link>
           <Link
             href={nextHref}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-lg font-semibold ${
-              isBookingTone
-                ? "border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50"
-                : "border-zinc-300 bg-zinc-50 text-zinc-800 hover:bg-zinc-100"
-            }`}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border text-lg font-semibold transition"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
             aria-label="Semana siguiente"
           >
             {">"}
@@ -106,20 +102,24 @@ export function WeekCalendarStrip({
             <Link
               key={date}
               href={dayHrefBuilder(date)}
-              className={`rounded-xl border px-1 py-1.5 text-center ${
+              className="rounded-xl border px-1 py-1.5 text-center"
+              style={
                 isActive
-                  ? isBookingTone
-                    ? "border-emerald-700 bg-emerald-700 text-white shadow-sm"
-                    : "border-zinc-800 bg-zinc-800 text-white shadow-sm"
-                  : isBookingTone
-                    ? "border-emerald-200 bg-white text-zinc-800"
-                    : "border-zinc-300 bg-white text-zinc-800"
-              }`}
+                  ? {
+                      borderColor: isBookingTone ? "var(--success)" : "var(--misu)",
+                      background: isBookingTone ? "var(--success)" : "var(--misu)",
+                      color: "#fff",
+                    }
+                  : {
+                      borderColor: "var(--border)",
+                      background: "var(--surface-2)",
+                      color: "var(--foreground)",
+                    }
+              }
             >
               <p
-                className={`text-[11px] font-medium leading-3 sm:text-xs ${
-                  isActive ? "text-zinc-100" : "text-zinc-600"
-                }`}
+                className="text-[11px] font-medium leading-3 sm:text-xs"
+                style={{ color: isActive ? "rgba(255,255,255,0.9)" : "var(--muted)" }}
               >
                 {day.weekday}
               </p>
@@ -133,11 +133,8 @@ export function WeekCalendarStrip({
         <div className="mt-3">
           <Link
             href={resetHref}
-            className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium ${
-              isBookingTone
-                ? "border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50"
-                : "border-zinc-300 bg-zinc-50 text-zinc-700 hover:bg-zinc-100"
-            }`}
+            className="inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}
           >
             {resetLabel}
           </Link>
@@ -146,4 +143,3 @@ export function WeekCalendarStrip({
     </section>
   );
 }
-

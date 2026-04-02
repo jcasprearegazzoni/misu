@@ -24,26 +24,17 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
   });
 
   return (
-    <form action={formAction} className="mt-6 grid gap-5">
+    <form action={formAction} className="grid gap-4">
       {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+
+      <label className="label">
         <span>Nombre</span>
-        <input
-          type="text"
-          name="name"
-          defaultValue={initialValues.name}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-          required
-        />
+        <input type="text" name="name" defaultValue={initialValues.name} className="input" required />
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="label">
         <span>Categoría</span>
-        <select
-          name="category"
-          defaultValue={initialValues.category}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-        >
+        <select name="category" defaultValue={initialValues.category} className="select">
           <option value="Principiante">Principiante</option>
           <option value="8va">8va</option>
           <option value="7ma">7ma</option>
@@ -56,57 +47,44 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
         </select>
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="label">
         <span>Rama</span>
-        <select
-          name="branch"
-          defaultValue={initialValues.branch}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
-        >
+        <select name="branch" defaultValue={initialValues.branch} className="select">
           <option value="Caballero">Caballero</option>
           <option value="Dama">Dama</option>
         </select>
       </label>
 
-      <ZonaSelector
-        defaultProvincia={initialValues.provincia}
-        defaultMunicipio={initialValues.municipio}
-      />
+      <ZonaSelector defaultProvincia={initialValues.provincia} defaultMunicipio={initialValues.municipio} />
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-300 bg-white px-4 py-3">
+      <label
+        className="flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3"
+        style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+      >
         <input
           type="checkbox"
           name="has_equipment"
           defaultChecked={initialValues.has_equipment}
-          className="mt-0.5 h-4 w-4 rounded border-zinc-400 accent-zinc-900"
+          className="mt-0.5 h-4 w-4 rounded accent-orange-500"
         />
         <div>
-          <p className="text-sm font-medium text-zinc-800">Tengo paleta / raqueta propia</p>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+            Tengo paleta o raqueta propia
+          </p>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
             El profesor podrá ver este dato al revisar tu perfil.
           </p>
         </div>
       </label>
 
-      {state.error ? (
-        <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
-          {state.error}
-        </p>
-      ) : null}
+      {state.error ? <p className="alert-error">{state.error}</p> : null}
+      {successMessage ? <p className="alert-success">{successMessage}</p> : null}
 
-      {successMessage ? (
-        <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          {successMessage}
-        </p>
-      ) : null}
-
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
-      >
-        {isPending ? "Guardando..." : "Guardar perfil"}
-      </button>
+      <div className="flex justify-end">
+        <button type="submit" disabled={isPending} className="btn-primary w-full justify-center sm:w-auto disabled:opacity-60">
+          {isPending ? "Guardando..." : "Guardar perfil"}
+        </button>
+      </div>
     </form>
   );
 }

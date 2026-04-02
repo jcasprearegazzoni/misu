@@ -10,73 +10,90 @@ export function PackageForm() {
   });
 
   return (
-    <form action={formAction} className="mt-4 grid gap-3 rounded-lg border border-zinc-300 bg-white p-4">
-      <h2 className="text-lg font-semibold text-zinc-900">Crear paquete</h2>
+    <form action={formAction} className="grid gap-3">
+      <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+        Crear paquete
+      </h2>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="grid gap-1 text-sm font-medium" style={{ color: "var(--muted)" }}>
         <span>Nombre</span>
         <input
           name="name"
           type="text"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="rounded-lg px-3 py-2 text-sm outline-none transition"
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--surface-2)",
+            color: "var(--foreground)",
+          }}
           placeholder="Ej: Pack 8 clases"
           required
         />
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="grid gap-1 text-sm font-medium" style={{ color: "var(--muted)" }}>
         <span>Total de clases</span>
         <input
           name="total_classes"
           type="number"
           min="1"
           step="1"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="rounded-lg px-3 py-2 text-sm outline-none transition"
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--surface-2)",
+            color: "var(--foreground)",
+          }}
           required
         />
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="grid gap-1 text-sm font-medium" style={{ color: "var(--muted)" }}>
         <span>Precio</span>
         <input
           name="price"
           type="number"
           min="0.01"
           step="0.01"
-          className="rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="rounded-lg px-3 py-2 text-sm outline-none transition"
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--surface-2)",
+            color: "var(--foreground)",
+          }}
           required
         />
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
-        <span>Descripcion (opcional)</span>
+      <label className="grid gap-1 text-sm font-medium" style={{ color: "var(--muted)" }}>
+        <span>Descripción (opcional)</span>
         <textarea
           name="description"
-          className="min-h-20 rounded-lg border border-zinc-400 bg-white px-3 py-2 text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+          className="min-h-20 rounded-lg px-3 py-2 text-sm outline-none transition"
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--surface-2)",
+            color: "var(--foreground)",
+          }}
           placeholder="Detalle breve del paquete"
         />
       </label>
 
       {state.error ? (
-        <p className="rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm font-medium text-red-800">
+        <p className="rounded-lg px-3 py-2 text-sm font-medium" style={{ border: "1px solid var(--error-border)", background: "var(--error-bg)", color: "#fca5a5" }}>
           {state.error}
         </p>
       ) : null}
 
       {state.success ? (
-        <p className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-800">
+        <p className="rounded-lg px-3 py-2 text-sm font-medium" style={{ border: "1px solid var(--success-border)", background: "var(--success-bg)", color: "#86efac" }}>
           {state.success}
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-      >
+      <button type="submit" disabled={isPending} className="btn-secondary w-full justify-center disabled:opacity-60">
         {isPending ? "Guardando..." : "Crear paquete"}
       </button>
     </form>
   );
 }
-

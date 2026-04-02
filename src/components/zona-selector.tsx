@@ -8,9 +8,6 @@ type ZonaSelectorProps = {
   defaultMunicipio?: string;
 };
 
-const selectClass =
-  "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/20";
-
 export function ZonaSelector({ defaultProvincia, defaultMunicipio }: ZonaSelectorProps) {
   const initialProvincia = defaultProvincia ?? "";
   const [provinciaId, setProvinciaId] = useState(initialProvincia);
@@ -18,24 +15,17 @@ export function ZonaSelector({ defaultProvincia, defaultMunicipio }: ZonaSelecto
   const municipios = provinciaId ? getMunicipiosByProvincia(provinciaId) : [];
 
   // Si el municipio guardado no está en la lista de la provincia actual, lo reseteamos.
-  const defaultMunicipioValido =
-    municipios.includes(defaultMunicipio ?? "") ? defaultMunicipio : "";
+  const defaultMunicipioValido = municipios.includes(defaultMunicipio ?? "") ? defaultMunicipio : "";
 
-  function handleProvinciaChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    setProvinciaId(e.target.value);
+  function handleProvinciaChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    setProvinciaId(event.target.value);
   }
 
   return (
     <div className="grid gap-4">
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="label">
         <span>Provincia</span>
-        <select
-          name="provincia"
-          value={provinciaId}
-          onChange={handleProvinciaChange}
-          className={selectClass}
-          required
-        >
+        <select name="provincia" value={provinciaId} onChange={handleProvinciaChange} className="select" required>
           <option value="" disabled>
             Seleccioná una provincia
           </option>
@@ -47,17 +37,17 @@ export function ZonaSelector({ defaultProvincia, defaultMunicipio }: ZonaSelecto
         </select>
       </label>
 
-      <label className="grid gap-1 text-sm font-medium text-zinc-800">
+      <label className="label">
         <span>Municipio / Partido</span>
         {provinciaId === "" ? (
-          <select disabled className={`${selectClass} cursor-not-allowed opacity-50`}>
+          <select disabled className="select cursor-not-allowed opacity-50">
             <option>Primero seleccioná una provincia</option>
           </select>
         ) : (
           <select
             name="municipio"
             defaultValue={defaultMunicipioValido}
-            className={selectClass}
+            className="select"
             required
             key={provinciaId}
           >

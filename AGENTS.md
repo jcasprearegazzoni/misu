@@ -3,6 +3,8 @@
 ## Objetivo
 Construir una app SaaS web/PWA para profesores de tenis y pádel en Argentina.
 
+---
+
 ## Stack obligatorio
 - Next.js con App Router
 - TypeScript
@@ -11,6 +13,8 @@ Construir una app SaaS web/PWA para profesores de tenis y pádel en Argentina.
 - Zod
 - Vitest
 - PWA más adelante, no en la primera etapa
+
+---
 
 ## Reglas de trabajo
 1. Avanzar módulo por módulo.
@@ -26,33 +30,83 @@ Construir una app SaaS web/PWA para profesores de tenis y pádel en Argentina.
 11. No usar console.error sin manejo.
 12. No cambiar archivos no relacionados.
 
-## Estado actual
-Módulos core completos. App en preparación para lanzamiento.
+---
 
-## Etapa 0 — Fix críticos (ahora)
-- [ ] Renombrar proxy.ts → middleware.ts
-- [ ] Commitear actions.ts del alumno
-- [ ] Resolver duplicado de rutas de slots del alumno
-- [ ] Revisar y limpiar rutas legacy del profesor
+## 🧠 PRODUCT RULES (CRÍTICO)
 
-## Etapa 1 — MVP lanzamiento (semanas)
-- Onboarding mínimo para profesor nuevo
-- Link público del profesor para compartir con alumnos
-- PWA básica
-- Pasarela de pagos: Mercado Pago, mensualidad fija al profesor
-  (planes a definir precios)
+### Principio general
+La app se organiza por dominios claros, con una única fuente de verdad por responsabilidad.
+Se prioriza: claridad, simplicidad, consistencia y separación de responsabilidades.
 
-## Etapa 2 — Post lanzamiento
-- Cancha libre / torneos
-- Planes y tiers de suscripción
-- Rol Club
+---
 
-## Monetización
-Mensualidad fija que paga el profesor.
-Modelo de planes a definir post-lanzamiento.
-El alumno nunca paga a la plataforma.
+### 1. Onboarding
 
-## Forma de responder
-- Explicar qué vas a hacer antes de hacerlo.
-- Dividir cambios grandes en pasos pequeños.
-- Si hay una duda de implementación, detenerte y consultar.
+- El onboarding tiene una única fuente de verdad: `Perfil`.
+- Ningún otro módulo puede recalcularlo.
+- Se modela por hitos con estados:
+  - pendiente
+  - en_progreso
+  - completo
+  - bloqueado
+- Vive dentro de `Perfil/Ajustes`.
+
+#### Accesibilidad
+- Puede ser accesible desde `Clases` como entry point.
+- Otros módulos solo pueden mostrar indicadores pasivos.
+
+#### Prohibido
+- Duplicar onboarding en múltiples pantallas
+- Recalcular estado en otros módulos
+- Mostrar progreso completo fuera de Perfil
+
+---
+
+### 2. Navegación
+
+Navbar fija (no condicional):
+
+- Clases
+- Disponibilidad
+- Paquetes
+- Finanzas
+- Perfil/Ajustes
+
+#### Reglas
+- No cambia según estado del usuario
+- Configuración no es sección independiente
+- No hay items dinámicos
+
+---
+
+### 3. Dominios (separación estricta)
+
+- Clases → calendario y reservas
+- Disponibilidad → horarios y bloqueos
+- Finanzas → dinero y reportes
+- Paquetes → paquetes y asignaciones
+- Perfil → datos, configuración y onboarding
+
+#### Regla clave
+Ningún módulo invade el dominio de otro.
+
+---
+
+### 4. Finanzas
+
+- No puede contener onboarding
+- No banners ni CTAs de configuración
+
+#### Estructura
+- Resumen (lectura rápida)
+- Detalle (tablas y trazabilidad)
+
+---
+
+### 5. Contrato entre módulos
+
+Otros módulos solo pueden consumir:
+
+```ts
+is_ready: boolean
+missing_requirements: string[]

@@ -31,7 +31,7 @@ export async function saveProfesorOperationalSettingsAction(
 
   if (!currentProfile || currentProfile.role !== "profesor") {
     return {
-      error: "Solo los profesores pueden editar esta configuracion.",
+      error: "Solo los profesores pueden editar esta configuración.",
       success: null,
     };
   }
@@ -44,7 +44,7 @@ export async function saveProfesorOperationalSettingsAction(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "Datos invalidos para la configuracion.",
+      error: parsed.error.issues[0]?.message ?? "Datos inválidos para la configuración.",
       success: null,
     };
   }
@@ -65,12 +65,13 @@ export async function saveProfesorOperationalSettingsAction(
     };
   }
 
+  revalidatePath("/dashboard/profesor/perfil");
   revalidatePath("/dashboard/profesor/configuracion");
   revalidatePath("/dashboard/profesor/bookings");
   revalidatePath("/dashboard/profesor/reservas");
 
   return {
     error: null,
-    success: "Configuracion guardada correctamente.",
+    success: "Configuración guardada correctamente.",
   };
 }

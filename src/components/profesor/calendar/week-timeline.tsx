@@ -9,8 +9,8 @@ import {
   getBookingPosition,
   getHourTicks,
   getTimelineStartMinute,
-  PIXELS_PER_MINUTE,
   parseTimeToMinutes,
+  PIXELS_PER_MINUTE,
 } from "./time-utils";
 import { CalendarBookingItem } from "./types";
 import { BookingDetailContent } from "./booking-detail-content";
@@ -70,28 +70,26 @@ function normalizeSlotKey(date: string, startTime: string, endTime: string) {
 
 function getOccupiedBlockClass(slot: NonNullable<CalendarCell["slot"]>) {
   if (slot.is_finalized) {
-    // Finalizada con cobro pendiente: naranja/amber para alertar.
     if (slot.has_financial_pending) {
-      return "border-amber-400 bg-amber-100 text-amber-900";
+      return "border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning)]";
     }
-    // Finalizada y cobro cubierto: verde suave.
-    return "border-emerald-400 bg-emerald-100 text-emerald-900";
+    return "border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success)]";
   }
 
   if (slot.status === "pendiente") {
-    return "border-zinc-500 bg-white text-zinc-900";
+    return "border-[var(--border)] bg-[var(--surface-1)] text-[var(--foreground)]";
   }
 
   if (slot.occupied_count >= slot.capacity) {
-    return "border-emerald-300 bg-emerald-100 text-emerald-900";
+    return "border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success)]";
   }
 
-  return "border-amber-300 bg-amber-100 text-amber-900";
+  return "border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning)]";
 }
 
 function getOccupiedStatusLabel(slot: NonNullable<CalendarCell["slot"]>) {
   if (slot.is_finalized) {
-    return slot.has_financial_pending ? "Finalizada ⚠" : "Finalizada ✓";
+    return slot.has_financial_pending ? "Finalizada (pendiente)" : "Finalizada (cobrada)";
   }
   if (slot.status === "pendiente") {
     return "Pendiente";
@@ -105,16 +103,16 @@ function getOccupiedStatusLabel(slot: NonNullable<CalendarCell["slot"]>) {
 function getOccupiedStatusBadgeClass(slot: NonNullable<CalendarCell["slot"]>) {
   if (slot.is_finalized) {
     return slot.has_financial_pending
-      ? "border-amber-300 bg-amber-200 text-amber-900"
-      : "border-emerald-300 bg-emerald-200 text-emerald-900";
+      ? "border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning)]"
+      : "border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success)]";
   }
   if (slot.status === "pendiente") {
-    return "border-zinc-400 bg-zinc-100 text-zinc-700";
+    return "border-[var(--border)] bg-[var(--surface-3)] text-[var(--muted)]";
   }
   if (slot.occupied_count >= slot.capacity) {
-    return "border-emerald-300 bg-emerald-200 text-emerald-900";
+    return "border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success)]";
   }
-  return "border-amber-300 bg-amber-200 text-amber-900";
+  return "border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning)]";
 }
 
 export function WeekTimeline({ days, availability, blockedRanges }: WeekTimelineProps) {
@@ -132,7 +130,9 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
   const flatSlots = useMemo(() => daySlots.flatMap((day) => day.slots), [daySlots]);
   const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(flatSlots[0]?.slot_key ?? null);
   const selectedSlot = flatSlots.find((slot) => slot.slot_key === selectedSlotKey) ?? flatSlots[0] ?? null;
-  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(selectedSlot?.bookings[0]?.id ?? null);
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(
+    selectedSlot?.bookings[0]?.id ?? null,
+  );
 
   const selectedItem =
     selectedSlot?.bookings.find((booking) => booking.id === selectedBookingId) ??
@@ -141,7 +141,9 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
 
   const dayCells = useMemo(() => {
     return daySlots.map((day) => {
-      const slotMap = new Map(day.slots.map((slot) => [normalizeSlotKey(day.date, slot.start_time, slot.end_time), slot]));
+      const slotMap = new Map(
+        day.slots.map((slot) => [normalizeSlotKey(day.date, slot.start_time, slot.end_time), slot]),
+      );
       const dayOfWeek = getDayOfWeekFromIsoDate(day.date);
       const cells: CalendarCell[] = [];
 
@@ -166,7 +168,9 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
             overlaps(slotStartAt, slotEndAt, new Date(item.start_at), new Date(item.end_at)),
           );
 
-          const position = getBookingPosition(hhmmToTimeValue(slotStart), hhmmToTimeValue(slotEnd), { minHeight: 0 });
+          const position = getBookingPosition(hhmmToTimeValue(slotStart), hhmmToTimeValue(slotEnd), {
+            minHeight: 0,
+          });
 
           cells.push({
             key: `${day.date}-${slotStart}-${slotEnd}`,
@@ -191,13 +195,14 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
   return (
     <section className="mt-6 hidden md:block">
       <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-3">
-        <div className="rounded-xl border border-zinc-300 bg-white p-3">
+        <div className="card p-3">
           <div className="grid grid-cols-[58px_repeat(7,minmax(0,1fr))] gap-2">
             <div />
             {days.map((day) => (
               <div
                 key={day.date}
-                className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-center text-xs font-semibold text-zinc-800"
+                className="rounded-md border px-2 py-1 text-center text-xs font-semibold"
+                style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
               >
                 {formatUserDate(day.date)}
               </div>
@@ -211,8 +216,8 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
                 return (
                   <div
                     key={hour}
-                    className="absolute left-0 right-0 -translate-y-1/2 text-[11px] text-zinc-500"
-                    style={{ top }}
+                    className="absolute left-0 right-0 -translate-y-1/2 text-[11px]"
+                    style={{ top, color: "var(--muted)" }}
                   >
                     {formatHourLabel(hour)}
                   </div>
@@ -223,22 +228,20 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
             {dayCells.map((day) => (
               <div
                 key={day.date}
-                className="relative rounded-md border border-zinc-200 bg-white"
-                style={{ height: `${timelineHeight}px` }}
+                className="relative rounded-md border"
+                style={{ height: `${timelineHeight}px`, borderColor: "var(--border)", background: "var(--surface-1)" }}
               >
                 {hourTicks.map((hour) => {
                   const top = (hour * 60 - timelineStart) * PIXELS_PER_MINUTE;
-                  return (
-                    <div key={hour} className="absolute left-0 right-0 border-t border-zinc-300" style={{ top }} />
-                  );
+                  return <div key={hour} className="absolute left-0 right-0 border-t" style={{ top, borderColor: "var(--border)" }} />;
                 })}
                 {hourTicks.slice(0, -1).map((hour) => {
-                  const top = ((hour * 60 + 30) - timelineStart) * PIXELS_PER_MINUTE;
+                  const top = (hour * 60 + 30 - timelineStart) * PIXELS_PER_MINUTE;
                   return (
                     <div
                       key={`half-${hour}`}
-                      className="absolute left-0 right-0 border-t border-dashed border-zinc-200"
-                      style={{ top }}
+                      className="absolute left-0 right-0 border-t border-dashed"
+                      style={{ top, borderColor: "var(--border)" }}
                     />
                   );
                 })}
@@ -249,9 +252,9 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
                   const occupiedStatus = occupiedSlot ? getOccupiedStatusLabel(occupiedSlot) : "";
                   const baseClass =
                     cell.state === "blocked"
-                      ? "border-red-300 bg-red-100 text-red-900"
+                      ? "border-[var(--error-border)] bg-[var(--error-bg)] text-[#fca5a5]"
                       : cell.state === "available"
-                        ? "border-zinc-300 bg-zinc-200 text-zinc-700"
+                        ? "border-[var(--border)] bg-[var(--surface-3)] text-[var(--muted)]"
                         : occupiedClass;
 
                   return (
@@ -286,7 +289,9 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
                     >
                       <div
                         className={`h-full w-full overflow-hidden rounded-md border px-1.5 py-1 text-left text-[10px] ${baseClass} ${
-                          occupiedSlot && occupiedSlot.slot_key === selectedSlot?.slot_key ? "ring-1 ring-zinc-900" : ""
+                          occupiedSlot && occupiedSlot.slot_key === selectedSlot?.slot_key
+                            ? "ring-1 ring-[var(--misu)]"
+                            : ""
                         }`}
                       >
                         {occupiedSlot ? (
@@ -311,7 +316,10 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
                             </div>
                           </>
                         ) : cell.state === "blocked" ? (
-                          <span className="inline-flex rounded-full border border-red-300 bg-red-200 px-1.5 py-0.5 text-[9px] font-semibold text-red-900">
+                          <span
+                            className="inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-semibold"
+                            style={{ borderColor: "var(--error-border)", background: "var(--error-bg)", color: "#fca5a5" }}
+                          >
                             Ausencia
                           </span>
                         ) : null}
@@ -324,24 +332,29 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
           </div>
         </div>
 
-        <aside className="sticky top-4 self-start rounded-xl border border-zinc-300 bg-white p-3">
+        <aside className="card sticky top-4 self-start p-3">
           {selectedItem ? (
             <>
-              <h3 className="text-sm font-semibold text-zinc-900">Detalle de clase</h3>
+              <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                Detalle de clase
+              </h3>
               {selectedSlot && selectedSlot.bookings.length > 1 ? (
                 <div className="mt-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">Alumnos en este horario</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                    Alumnos en este horario
+                  </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {selectedSlot.bookings.map((booking) => (
                       <button
                         key={booking.id}
                         type="button"
                         onClick={() => setSelectedBookingId(booking.id)}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                        className="rounded-full border px-2.5 py-1 text-xs font-medium"
+                        style={
                           selectedBookingId === booking.id
-                            ? "border-zinc-900 bg-zinc-900 text-white"
-                            : "border-zinc-300 bg-white text-zinc-700"
-                        }`}
+                            ? { borderColor: "var(--misu)", background: "var(--misu)", color: "#fff" }
+                            : { borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }
+                        }
                       >
                         {booking.alumno_name}
                       </button>
@@ -354,7 +367,9 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
               </div>
             </>
           ) : (
-            <p className="text-sm text-zinc-600">Selecciona una clase del calendario para ver su detalle.</p>
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              Seleccioná una clase del calendario para ver su detalle.
+            </p>
           )}
         </aside>
       </div>
