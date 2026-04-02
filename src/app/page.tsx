@@ -107,7 +107,8 @@ export default function LandingPage() {
               className="text-5xl font-black leading-none tracking-tighter sm:text-7xl"
               style={{ color: "var(--foreground)" }}
             >
-              Tu agenda,{" "}
+              Menos vueltas,
+              <br />
               <span
                 style={{
                   background: "linear-gradient(135deg, var(--misu) 0%, var(--misu-light) 100%)",
@@ -116,7 +117,7 @@ export default function LandingPage() {
                   backgroundClip: "text",
                 }}
               >
-                sin el caos.
+                más juego.
               </span>
             </h1>
 
@@ -124,73 +125,24 @@ export default function LandingPage() {
               className="mt-6 max-w-xl text-lg leading-relaxed"
               style={{ color: "var(--muted)" }}
             >
-              misu es la plataforma pensada para profesores de tenis y pádel que quieren
-              organizarse sin perder tiempo. Clases, reservas y cobros en un solo lugar.
+              Todo el deporte en un solo lugar.
             </p>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link href="/register" className="btn-primary" style={{ padding: "0.8rem 1.75rem", fontSize: "1rem" }}>
-                Empezar gratis
+                Crear cuenta
               </Link>
               <Link href="/login" className="btn-secondary" style={{ padding: "0.8rem 1.75rem", fontSize: "1rem" }}>
                 Ya tengo cuenta
               </Link>
             </div>
 
-            <p className="mt-4 text-xs" style={{ color: "var(--muted-2)" }}>
-              Sin tarjeta de crédito · Creá tu cuenta hoy
-            </p>
+
           </div>
         </section>
 
 
-        {/* Features */}
-        <section className="mx-auto max-w-5xl px-5 py-20 sm:px-8 sm:py-24">
-          <div className="mb-12 text-center">
-            <p
-              className="pill mb-3 inline-flex"
-              style={{
-                background: "var(--misu-subtle)",
-                border: "1px solid var(--border-misu)",
-                color: "var(--misu-light)",
-              }}
-            >
-              Todo en un lugar
-            </p>
-            <h2
-              className="text-3xl font-black tracking-tight sm:text-4xl"
-              style={{ color: "var(--foreground)" }}
-            >
-              Lo que necesitás,{" "}
-              <span style={{ color: "var(--misu)" }}>sin lo que no.</span>
-            </h2>
-            <p className="mx-auto mt-4 max-w-md text-sm" style={{ color: "var(--muted)" }}>
-              Herramientas simples y directas para profesores que quieren más tiempo en la cancha.
-            </p>
-          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {features.map((f) => (
-              <div key={f.title} className="card p-6 sm:p-7">
-                <div
-                  className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl text-xl"
-                  style={{
-                    background: "var(--misu-subtle)",
-                    border: "1px solid var(--border-misu)",
-                  }}
-                >
-                  {f.icon}
-                </div>
-                <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-                  {f.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-                  {f.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
 
         {/* Roles */}
         <section
@@ -307,67 +259,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* CTA Final */}
-        <section
-          style={{ borderTop: "1px solid var(--border)" }}
-          className="px-5 sm:px-8"
-        >
-          <div className="mx-auto max-w-5xl py-20 sm:py-24">
-            <div
-              className="relative overflow-hidden rounded-2xl p-8 text-center sm:p-16"
-              style={{
-                background: "linear-gradient(135deg, var(--surface-2) 0%, var(--surface-3) 100%)",
-                border: "1px solid var(--border-misu)",
-              }}
-            >
-              {/* Decoración de fondo */}
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12) 0%, transparent 60%)",
-                  pointerEvents: "none",
-                }}
-              />
-
-              <div className="relative">
-                <p
-                  className="text-xs font-bold uppercase tracking-widest"
-                  style={{ color: "var(--misu)" }}
-                >
-                  misu
-                </p>
-                <h2
-                  className="mt-4 text-3xl font-black tracking-tight sm:text-4xl"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  Empezá hoy,{" "}
-                  <span style={{ color: "var(--misu)" }}>gratis.</span>
-                </h2>
-                <p
-                  className="mx-auto mt-4 max-w-md text-sm leading-relaxed"
-                  style={{ color: "var(--muted)" }}
-                >
-                  Creá tu cuenta en menos de un minuto y empezá a organizar tus clases
-                  sin planillas ni WhatsApps.
-                </p>
-                <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                  <Link
-                    href="/register"
-                    className="btn-primary"
-                    style={{ padding: "0.85rem 2rem", fontSize: "1rem" }}
-                  >
-                    Crear cuenta gratis
-                  </Link>
-                  <Link href="/login" className="btn-secondary" style={{ padding: "0.85rem 2rem", fontSize: "1rem" }}>
-                    Iniciar sesión
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
 
       {/* Footer */}
@@ -380,7 +271,7 @@ export default function LandingPage() {
           <span className="font-bold" style={{ color: "var(--misu)" }}>
             misu
           </span>
-          {" "}· Hecho para profesores de tenis y pádel en Argentina.
+          {" "}·
         </p>
       </footer>
     </div>

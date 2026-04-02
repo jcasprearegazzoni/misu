@@ -78,7 +78,7 @@ export function RegisterForm() {
         className="btn-primary mt-2 w-full"
         style={{ padding: "0.75rem", fontSize: "0.9375rem", justifyContent: "center" }}
       >
-        {isPending ? "Creando cuenta..." : "Crear cuenta gratis"}
+        {isPending ? "Creando cuenta..." : "Crear cuenta"}
       </button>
 
       <p className="text-center text-xs" style={{ color: "var(--muted-2)" }}>

@@ -39,20 +39,18 @@ export default function RegisterPage() {
             className="text-2xl font-bold leading-snug tracking-tight"
             style={{ color: "var(--foreground)" }}
           >
-            Primer mes{" "}
-            <span style={{ color: "var(--misu)" }}>completamente gratis.</span>
+            Menos vueltas,{" "}
+            <span style={{ color: "var(--misu)" }}>más juego.</span>
           </h2>
           <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-            Creá tu cuenta en menos de un minuto y empezá a organizar tus clases
-            al instante. Sin tarjeta de crédito requerida.
+            Creá tu cuenta en menos de un minuto y empezá a organizar.
           </p>
 
           <ul className="mt-7 grid gap-3">
             {[
-              "Agenda semanal automática",
-              "Reservas desde el celular",
-              "Cobros y paquetes integrados",
-              "Notificaciones sin hacer nada",
+              "Planifica tus clases como profesor",
+              "Reserva canchas como jugador",
+              "Gestiona tus cobros",
             ].map((item) => (
               <li
                 key={item}
