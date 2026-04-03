@@ -1,28 +1,5 @@
 import Link from "next/link";
 
-const features = [
-  {
-    icon: "📅",
-    title: "Agenda semanal",
-    description: "Configurá tu disponibilidad una vez. misu genera los turnos automáticamente.",
-  },
-  {
-    icon: "⚡",
-    title: "Reservas en segundos",
-    description: "Tus alumnos reservan desde el celular sin llamadas ni mensajes de WhatsApp.",
-  },
-  {
-    icon: "💰",
-    title: "Cobros y paquetes",
-    description: "Registrá pagos, cargá paquetes de clases y controlá deudas sin planillas.",
-  },
-  {
-    icon: "🔔",
-    title: "Notificaciones automáticas",
-    description: "Cancelaciones y confirmaciones llegan sin que tengas que hacer nada.",
-  },
-];
-
 export default function LandingPage() {
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
@@ -45,16 +22,10 @@ export default function LandingPage() {
             misu
           </span>
           <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="btn-ghost text-sm"
-            >
-              Iniciar sesión
+            <Link href="/login" className="btn-ghost text-sm">
+              Iniciar sesion
             </Link>
-            <Link
-              href="/register"
-              className="btn-primary text-sm"
-            >
+            <Link href="/register" className="btn-primary text-sm">
               Registrarme
             </Link>
           </div>
@@ -63,7 +34,7 @@ export default function LandingPage() {
 
       <main>
         {/* Hero */}
-        <section className="relative mx-auto max-w-5xl px-5 pb-24 pt-20 sm:px-8 sm:pt-32 overflow-hidden">
+        <section className="relative mx-auto max-w-5xl overflow-hidden px-5 pb-24 pt-20 sm:px-8 sm:pt-32">
           {/* Glow de fondo decorativo */}
           <div
             aria-hidden
@@ -100,7 +71,7 @@ export default function LandingPage() {
                   animation: "pulse-misu 2s infinite",
                 }}
               />
-              Tenis & Pádel · Argentina
+              Tenis & Padel · Argentina
             </div>
 
             <h1
@@ -111,13 +82,14 @@ export default function LandingPage() {
               <br />
               <span
                 style={{
-                  background: "linear-gradient(135deg, var(--misu) 0%, var(--misu-light) 100%)",
+                  background:
+                    "linear-gradient(135deg, var(--misu) 0%, var(--misu-light) 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
                 }}
               >
-                más juego.
+                mas juego.
               </span>
             </h1>
 
@@ -129,25 +101,26 @@ export default function LandingPage() {
             </p>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link href="/register" className="btn-primary" style={{ padding: "0.8rem 1.75rem", fontSize: "1rem" }}>
+              <Link
+                href="/register"
+                className="btn-primary"
+                style={{ padding: "0.8rem 1.75rem", fontSize: "1rem" }}
+              >
                 Crear cuenta
               </Link>
-              <Link href="/login" className="btn-secondary" style={{ padding: "0.8rem 1.75rem", fontSize: "1rem" }}>
+              <Link
+                href="/login"
+                className="btn-secondary"
+                style={{ padding: "0.8rem 1.75rem", fontSize: "1rem" }}
+              >
                 Ya tengo cuenta
               </Link>
             </div>
-
-
           </div>
         </section>
 
-
-
-
         {/* Roles */}
-        <section
-          style={{ borderTop: "1px solid var(--border)" }}
-        >
+        <section style={{ borderTop: "1px solid var(--border)" }}>
           <div className="mx-auto max-w-5xl px-5 py-20 sm:px-8 sm:py-24">
             <div className="mb-12 text-center">
               <h2
@@ -164,7 +137,7 @@ export default function LandingPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               {/* Profesor */}
               <div
-                className="card p-7 relative overflow-hidden"
+                className="card relative overflow-hidden p-7"
                 style={{ borderColor: "var(--border-misu)" }}
               >
                 <div
@@ -197,13 +170,21 @@ export default function LandingPage() {
                   Control total de tu negocio
                 </h3>
                 <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-                  Agenda semanal, confirmación de reservas, cobros, deudas y paquetes.
+                  Agenda semanal, confirmacion de reservas, cobros, deudas y paquetes.
                   Todo sin salir de la app.
                 </p>
                 <ul className="mt-5 grid gap-2">
-                  {["Configurá tu disponibilidad", "Confirmá o cancelá reservas", "Registrá cobros y paquetes"].map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
-                      <span style={{ color: "var(--misu)", fontWeight: 700 }}>✓</span>
+                  {[
+                    "Configura tu disponibilidad",
+                    "Confirma o cancela reservas",
+                    "Registra cobros y paquetes",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-2 text-sm"
+                      style={{ color: "var(--muted)" }}
+                    >
+                      <span style={{ color: "var(--misu)", fontWeight: 700 }}>OK</span>
                       {item}
                     </li>
                   ))}
@@ -233,16 +214,24 @@ export default function LandingPage() {
                   className="mt-4 text-2xl font-bold tracking-tight"
                   style={{ color: "var(--foreground)" }}
                 >
-                  Reservá en segundos
+                  Reserva en segundos
                 </h3>
                 <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-                  Entrá al perfil de tu profesor, elegí un horario y confirmá la reserva.
+                  Entra al perfil de tu profesor, elegi un horario y confirma la reserva.
                   Sin llamadas, sin mensajes, sin confusiones.
                 </p>
                 <ul className="mt-5 grid gap-2">
-                  {["Elegí día y horario", "Gestioná tus clases", "Seguí tus créditos de paquete"].map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
-                      <span style={{ color: "var(--foreground)", fontWeight: 700 }}>✓</span>
+                  {[
+                    "Elegi dia y horario",
+                    "Gestiona tus clases",
+                    "Segui tus creditos de paquete",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-2 text-sm"
+                      style={{ color: "var(--muted)" }}
+                    >
+                      <span style={{ color: "var(--foreground)", fontWeight: 700 }}>OK</span>
                       {item}
                     </li>
                   ))}
@@ -256,9 +245,45 @@ export default function LandingPage() {
                 </Link>
               </div>
             </div>
+
+            <div
+              className="mt-5 relative overflow-hidden rounded-xl border p-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5"
+              style={{ borderColor: "var(--border-misu)", background: "var(--misu-subtle)" }}
+            >
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  top: "-30px",
+                  right: "-30px",
+                  width: "220px",
+                  height: "220px",
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(249,115,22,0.10) 0%, transparent 70%)",
+                  pointerEvents: "none",
+                }}
+              />
+              <div className="relative">
+                <p className="pill" style={{ background: "var(--misu-subtle)", border: "1px solid var(--border-misu)", color: "var(--misu-light)", marginBottom: "0.5rem" }}>
+                  Clubes
+                </p>
+                <p className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
+                  ¿Tenés un club de tenis o pádel?
+                </p>
+                <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+                  Sumá tu club a misu y gestioná profesores, canchas y reservas en un solo lugar.
+                </p>
+              </div>
+              <Link
+                href="/unirse"
+                className="btn-primary shrink-0"
+                style={{ whiteSpace: "nowrap" }}
+              >
+                Sumar mi club
+              </Link>
+            </div>
           </div>
         </section>
-
       </main>
 
       {/* Footer */}
@@ -267,11 +292,11 @@ export default function LandingPage() {
         className="px-5 py-8 text-center"
       >
         <p className="text-xs" style={{ color: "var(--muted-2)" }}>
-          © {new Date().getFullYear()}{" "}
+          (c) {new Date().getFullYear()}{" "}
           <span className="font-bold" style={{ color: "var(--misu)" }}>
             misu
-          </span>
-          {" "}·
+          </span>{" "}
+          ·
         </p>
       </footer>
     </div>

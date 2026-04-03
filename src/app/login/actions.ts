@@ -1,11 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getUserRole } from "@/lib/auth/get-user-role";
 import { translateAuthError } from "@/lib/auth/translate-auth-error";
 import { getSafeInternalRedirectPath } from "@/lib/navigation/safe-redirect";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { loginSchema } from "@/lib/validation/auth.schema";
+import { ROLE_VALUES, type Role } from "@/types/role";
 
 export type LoginActionState = {
   error: string | null;
@@ -48,7 +48,16 @@ export async function loginAction(
     };
   }
 
-  const role = await getUserRole(data.user.id);
+  const { data: roleData, error: roleError } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("user_id", data.user.id)
+    .single();
+
+  const role =
+    !roleError && roleData?.role && ROLE_VALUES.includes(roleData.role as Role)
+      ? (roleData.role as Role)
+      : null;
 
   if (!role) {
     return {
@@ -59,11 +68,17 @@ export async function loginAction(
   if (role === "alumno") {
     const { data: alumnoProfile } = await supabase
       .from("profiles")
-      .select("category")
+      .select("sport, category_padel, category_tenis")
       .eq("user_id", data.user.id)
       .single();
 
-    if (!alumnoProfile?.category) {
+    const sport = alumnoProfile?.sport;
+    const requiresPadel = sport === "padel" || sport === "ambos" || !sport;
+    const requiresTenis = sport === "tenis" || sport === "ambos";
+    const hasPadelCategory = Boolean(alumnoProfile?.category_padel);
+    const hasTenisCategory = Boolean(alumnoProfile?.category_tenis);
+
+    if ((requiresPadel && !hasPadelCategory) || (requiresTenis && !hasTenisCategory)) {
       if (safeRedirectTo) {
         redirect(`/dashboard/alumno/perfil?redirectTo=${encodeURIComponent(safeRedirectTo)}`);
       }
@@ -77,6 +92,14 @@ export async function loginAction(
 
   if (role === "profesor") {
     redirect("/dashboard/profesor");
+  }
+
+  if (role === "club") {
+    redirect("/dashboard/club");
+  }
+
+  if (role === "admin") {
+    redirect("/admin/leads");
   }
 
   redirect("/dashboard/alumno");

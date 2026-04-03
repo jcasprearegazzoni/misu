@@ -41,9 +41,6 @@ export async function saveProfesorPriceSettingsAction(
     price_dobles: formData.get("price_dobles"),
     price_trio: formData.get("price_trio"),
     price_grupal: formData.get("price_grupal"),
-    court_cost_mode: formData.get("court_cost_mode"),
-    court_cost_per_hour: formData.get("court_cost_per_hour"),
-    court_percentage_per_student: formData.get("court_percentage_per_student"),
   });
 
   if (!parsed.success) {
@@ -60,15 +57,6 @@ export async function saveProfesorPriceSettingsAction(
       price_dobles: parsed.data.price_dobles ?? null,
       price_trio: parsed.data.price_trio ?? null,
       price_grupal: parsed.data.price_grupal ?? null,
-      court_cost_mode: parsed.data.court_cost_mode,
-      court_cost_per_hour:
-        parsed.data.court_cost_mode === "fixed_per_hour"
-          ? parsed.data.court_cost_per_hour ?? null
-          : null,
-      court_percentage_per_student:
-        parsed.data.court_cost_mode === "per_student_percentage"
-          ? parsed.data.court_percentage_per_student ?? null
-          : null,
     })
     .eq("user_id", user.id);
 

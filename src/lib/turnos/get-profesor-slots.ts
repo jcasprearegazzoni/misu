@@ -9,6 +9,8 @@ type AvailabilityRow = {
   start_time: string;
   end_time: string;
   slot_duration_minutes: number;
+  club_id?: number | null;
+  club_nombre?: string | null;
 };
 
 type BlockedDateRow = {
@@ -38,6 +40,7 @@ export type ProfesorSlotItem = {
   startTime: string;
   endTime: string;
   timeLabel: string;
+  clubNombre: string | null;
   slotInfoLabel: string;
   fixedType: SlotType | null;
 };
@@ -139,6 +142,7 @@ function groupSlotsByDay(
     endTimeKey: string;
     startLabel: string;
     endLabel: string;
+    clubNombre: string | null;
   }>,
   weekDates: string[],
   slotOccupancyMap: Map<string, OccupancyRow>,
@@ -166,6 +170,7 @@ function groupSlotsByDay(
       startTime: slot.startTimeKey,
       endTime: slot.endTimeKey,
       timeLabel: `${slot.startLabel} - ${slot.endLabel}`,
+      clubNombre: slot.clubNombre ?? null,
       slotInfoLabel,
       fixedType: occupancy?.type ?? null,
     });
@@ -233,6 +238,7 @@ export async function getProfesorSlotsByWeek(params: {
       endTimeKey: slot.endTimeKey,
       startLabel: slot.startLabel,
       endLabel: slot.endLabel,
+      clubNombre: slot.clubNombre ?? null,
     })),
     weekDates,
     slotOccupancyMap,

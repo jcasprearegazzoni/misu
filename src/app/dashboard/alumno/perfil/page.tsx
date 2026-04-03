@@ -35,22 +35,33 @@ export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPag
           successMessage={resolvedSearchParams?.updated === "1" ? "Perfil actualizado correctamente." : null}
           initialValues={{
             name: profile.name,
-            category:
-              profile.category === "Principiante" ||
-              profile.category === "8va" ||
-              profile.category === "7ma" ||
-              profile.category === "6ta" ||
-              profile.category === "5ta" ||
-              profile.category === "4ta" ||
-              profile.category === "3ra" ||
-              profile.category === "2da" ||
-              profile.category === "1ra"
-                ? profile.category
-                : "Principiante",
+            sport:
+              profile.sport === "tenis" || profile.sport === "padel" || profile.sport === "ambos"
+                ? profile.sport
+                : "padel",
+            category_padel:
+              profile.category_padel === "Principiante" ||
+              profile.category_padel === "8va" ||
+              profile.category_padel === "7ma" ||
+              profile.category_padel === "6ta" ||
+              profile.category_padel === "5ta" ||
+              profile.category_padel === "4ta" ||
+              profile.category_padel === "3ra" ||
+              profile.category_padel === "2da" ||
+              profile.category_padel === "1ra"
+                ? profile.category_padel
+                : null,
+            category_tenis:
+              profile.category_tenis === "Principiante" ||
+              profile.category_tenis === "Intermedio" ||
+              profile.category_tenis === "Avanzado"
+                ? profile.category_tenis
+                : null,
             branch: profile.branch === "Dama" ? "Dama" : "Caballero",
             provincia: profile.provincia ?? "",
             municipio: profile.zone ?? "",
-            has_equipment: profile.has_equipment,
+            has_paleta: profile.has_paleta ?? false,
+            has_raqueta: profile.has_raqueta ?? false,
           }}
         />
       </section>

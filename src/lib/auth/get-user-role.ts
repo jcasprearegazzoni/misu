@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Role } from "@/types/role";
+import { ROLE_VALUES, type Role } from "@/types/role";
 
 export async function getUserRole(userId: string): Promise<Role | null> {
   const supabase = await createSupabaseServerClient();
@@ -14,7 +14,7 @@ export async function getUserRole(userId: string): Promise<Role | null> {
     return null;
   }
 
-  if (data.role !== "profesor" && data.role !== "alumno") {
+  if (!ROLE_VALUES.includes(data.role as Role)) {
     return null;
   }
 

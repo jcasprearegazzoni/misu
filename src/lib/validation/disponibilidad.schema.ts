@@ -33,6 +33,10 @@ export const availabilitySchema = z
       .number()
       .int("La duracion debe ser un numero entero.")
       .positive("La duracion debe ser mayor a 0."),
+    club_id: z.preprocess(
+      (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+      z.number().int().positive().nullable(),
+    ),
   })
   .refine((data) => timeToMinutes(data.start_time) < timeToMinutes(data.end_time), {
     message: "La hora de inicio debe ser menor que la hora de fin.",

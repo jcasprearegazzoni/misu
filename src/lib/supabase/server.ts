@@ -32,9 +32,5 @@ export async function createSupabaseServerClient() {
         });
       },
     },
-    auth: {
-      // Evita persistencia automatica de sesion para reducir inconsistencias en SSR.
-      persistSession: false,
-    },
   });
 }

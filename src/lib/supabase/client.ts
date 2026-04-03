@@ -14,10 +14,5 @@ function getSupabaseEnv() {
 export function createSupabaseBrowserClient() {
   const { url, anonKey } = getSupabaseEnv();
 
-  return createBrowserClient(url, anonKey, {
-    auth: {
-      // Evita persistencia automatica de sesion para reducir inconsistencias en SSR.
-      persistSession: false,
-    },
-  });
+  return createBrowserClient(url, anonKey);
 }

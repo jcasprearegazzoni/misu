@@ -32,10 +32,6 @@ export async function updateSession(request: NextRequest) {
         });
       },
     },
-    auth: {
-      // Evita persistencia automatica de sesion para reducir inconsistencias en SSR.
-      persistSession: false,
-    },
   });
 
   const {

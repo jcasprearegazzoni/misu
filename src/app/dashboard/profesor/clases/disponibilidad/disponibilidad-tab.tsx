@@ -4,10 +4,13 @@ type AvailabilityRow = {
   start_time: string;
   end_time: string;
   slot_duration_minutes: number;
+  club_id: number | null;
+  club_nombre: string | null;
 };
 
 type DisponibilidadTabProps = {
   availability: AvailabilityRow[];
+  clubs: Array<{ id: number; nombre: string }>;
 };
 
 const dayNames = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
@@ -99,9 +102,20 @@ export function DisponibilidadTab({ availability }: DisponibilidadTabProps) {
                           }
                         >
                           {isStartCell ? (
-                            <span className="inline-block rounded-md px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ background: "#15803d" }}>
-                              {activeBlock.start_time.slice(0, 5)}-{activeBlock.end_time.slice(0, 5)}
-                            </span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="inline-block rounded-md px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ background: "#15803d" }}>
+                                {activeBlock.start_time.slice(0, 5)}-{activeBlock.end_time.slice(0, 5)}
+                              </span>
+                              {activeBlock.club_nombre ? (
+                                <span className="text-[9px] font-medium truncate max-w-full" style={{ color: "#86efac" }}>
+                                  {activeBlock.club_nombre}
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-medium" style={{ color: "#86efac" }}>
+                                  Particulares
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             " "
                           )}

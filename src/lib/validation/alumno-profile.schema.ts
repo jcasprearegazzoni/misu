@@ -1,25 +1,42 @@
 import { z } from "zod";
 
-const categorySchema = z.enum(
-  ["Principiante", "8va", "7ma", "6ta", "5ta", "4ta", "3ra", "2da", "1ra"],
-  "Selecciona una categoria valida.",
+const categoryPadelSchema = z.preprocess(
+  (v) => (v === "" || v === null || v === undefined ? null : v),
+  z.enum(["Principiante", "8va", "7ma", "6ta", "5ta", "4ta", "3ra", "2da", "1ra"]).nullable(),
 );
 
-const branchSchema = z.enum(["Caballero", "Dama"], "Selecciona una rama valida.");
-
-// El checkbox envía "on" cuando está marcado y null cuando no lo está.
-const hasEquipmentSchema = z.preprocess(
-  (val) => val === "on" || val === "si",
-  z.boolean(),
+const categoryTenisSchema = z.preprocess(
+  (v) => (v === "" || v === null || v === undefined ? null : v),
+  z.enum(["Principiante", "Intermedio", "Avanzado"]).nullable(),
 );
 
-export const alumnoProfileSchema = z.object({
-  name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres."),
-  category: categorySchema,
-  branch: branchSchema,
-  provincia: z.string().trim().min(1, "Seleccioná una provincia."),
-  municipio: z.string().trim().min(1, "Seleccioná un municipio."),
-  has_equipment: hasEquipmentSchema,
-});
+export const alumnoProfileSchema = z
+  .object({
+    name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres."),
+    sport: z.enum(["tenis", "padel", "ambos"], { message: "Seleccioná un deporte válido." }),
+    category_padel: categoryPadelSchema,
+    category_tenis: categoryTenisSchema,
+    branch: z.enum(["Caballero", "Dama"], { message: "Seleccioná una rama válida." }),
+    provincia: z.string().trim().min(1, "Seleccioná una provincia."),
+    municipio: z.string().trim().min(1, "Seleccioná un municipio."),
+    has_paleta: z.preprocess((val) => val === "on" || val === "si", z.boolean()),
+    has_raqueta: z.preprocess((val) => val === "on" || val === "si", z.boolean()),
+  })
+  .superRefine((data, ctx) => {
+    if ((data.sport === "padel" || data.sport === "ambos") && data.category_padel === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["category_padel"],
+        message: "Seleccioná tu categoría de pádel.",
+      });
+    }
+    if ((data.sport === "tenis" || data.sport === "ambos") && data.category_tenis === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["category_tenis"],
+        message: "Seleccioná tu categoría de tenis.",
+      });
+    }
+  });
 
 export type AlumnoProfileInput = z.infer<typeof alumnoProfileSchema>;

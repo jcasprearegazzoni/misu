@@ -40,11 +40,14 @@ export async function saveAlumnoProfileAction(
 
   const parsed = alumnoProfileSchema.safeParse({
     name: formData.get("name"),
-    category: formData.get("category"),
+    sport: formData.get("sport"),
+    category_padel: formData.get("category_padel"),
+    category_tenis: formData.get("category_tenis"),
     branch: formData.get("branch"),
     provincia: formData.get("provincia"),
     municipio: formData.get("municipio"),
-    has_equipment: formData.get("has_equipment"),
+    has_paleta: formData.get("has_paleta"),
+    has_raqueta: formData.get("has_raqueta"),
   });
 
   if (!parsed.success) {
@@ -58,11 +61,14 @@ export async function saveAlumnoProfileAction(
     .from("profiles")
     .update({
       name: parsed.data.name,
-      category: parsed.data.category,
+      sport: parsed.data.sport,
+      category_padel: parsed.data.category_padel ?? null,
+      category_tenis: parsed.data.category_tenis ?? null,
       branch: parsed.data.branch,
       provincia: parsed.data.provincia,
       zone: parsed.data.municipio,
-      has_equipment: parsed.data.has_equipment,
+      has_paleta: parsed.data.has_paleta,
+      has_raqueta: parsed.data.has_raqueta,
     })
     .eq("user_id", user.id);
 

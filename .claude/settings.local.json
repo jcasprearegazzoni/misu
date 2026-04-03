@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -l \"availability\\\\|blocked_dates\\\\|solo_decisions\" /c/Users/JuanchiUser/Desktop/misu/supabase/migrations/*.sql)",
+      "Bash(grep -l \"category\\\\|branch\\\\|zona\\\\|equipment\" /c/Users/JuanchiUser/Desktop/misu/supabase/migrations/*.sql)",
+      "Bash(grep -A 5 \"alter table public.profiles\" /c/Users/JuanchiUser/Desktop/misu/supabase/migrations/0*.sql)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

@@ -48,6 +48,7 @@ export async function saveAvailabilityAction(
     start_time: formData.get("start_time"),
     end_time: formData.get("end_time"),
     slot_duration_minutes: formData.get("slot_duration_minutes"),
+    club_id: formData.get("club_id"),
   });
 
   if (!parsed.success) {
@@ -64,6 +65,7 @@ export async function saveAvailabilityAction(
     start_time: parsed.data.start_time,
     end_time: parsed.data.end_time,
     slot_duration_minutes: parsed.data.slot_duration_minutes,
+    club_id: parsed.data.club_id,
   };
 
   if (parsed.data.id) {

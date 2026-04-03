@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfesorSettingsForm } from "@/app/dashboard/profesor/configuracion/settings-form";
+import { ClubsManager } from "./clubs-manager";
 import { PerfilForm } from "./perfil-form";
+import { InvitacionesManager } from "./invitaciones-manager";
 
 type PerfilProfesorPageProps = {
   searchParams?: Promise<{ updated?: string }>;
@@ -15,6 +17,53 @@ type ChecklistItem = {
   done: boolean;
   href: string;
   cta: string;
+};
+
+type Club = {
+  id: number;
+  nombre: string;
+  direccion: string | null;
+  deporte: "tenis" | "padel" | "ambos";
+  is_placeholder: boolean;
+  court_cost_mode: "fixed_per_hour" | "per_student_percentage";
+  court_cost_per_hour: number | null;
+  court_percentage_per_student: number | null;
+  cp_status: "pendiente" | "activo" | "inactivo";
+};
+
+type ClubJoinRow = {
+  club_id: number;
+  court_cost_mode: "fixed_per_hour" | "per_student_percentage";
+  court_cost_per_hour: number | null;
+  court_percentage_per_student: number | null;
+  status: "pendiente" | "activo" | "inactivo";
+  clubs:
+    | {
+        id: number;
+        nombre: string;
+        direccion: string | null;
+        deporte: "tenis" | "padel" | "ambos";
+        is_placeholder: boolean;
+      }
+    | null
+    | Array<{
+        id: number;
+        nombre: string;
+        direccion: string | null;
+        deporte: "tenis" | "padel" | "ambos";
+        is_placeholder: boolean;
+      }>;
+};
+
+type Invitacion = {
+  id: number;
+  club: { nombre: string; direccion: string | null };
+  invited_at: string;
+};
+
+type ClubPropio = {
+  id: number;
+  nombre: string;
 };
 
 export default async function PerfilProfesorPage({ searchParams }: PerfilProfesorPageProps) {
@@ -34,6 +83,83 @@ export default async function PerfilProfesorPage({ searchParams }: PerfilProfeso
     .from("availability")
     .select("id", { count: "exact", head: true })
     .eq("profesor_id", profile.user_id);
+
+  // Invitaciones pendientes con datos del club
+  const { data: invitacionesData } = await supabase
+    .from("club_profesores")
+    .select("id, invited_at, clubs!club_profesores_club_id_fkey(nombre, direccion)")
+    .eq("profesor_id", profile.user_id)
+    .eq("status", "pendiente");
+
+
+  const invitaciones: Invitacion[] = (invitacionesData ?? [])
+    .map((row) => {
+      const clubData = Array.isArray(row.clubs) ? row.clubs[0] ?? null : row.clubs;
+      if (!clubData) return null;
+      return {
+        id: row.id as number,
+        invited_at: row.invited_at as string,
+        club: {
+          nombre: clubData.nombre,
+          direccion: clubData.direccion ?? null,
+        },
+      };
+    })
+    .filter((row): row is Invitacion => row !== null);
+
+  // Clubs placeholder del profesor
+  const { data: clubsPropiosData } = await supabase
+    .from("clubs")
+    .select("id, nombre")
+    .eq("created_by_profesor_id", profile.user_id)
+    .eq("is_placeholder", true);
+
+  const clubsPropios: ClubPropio[] = (clubsPropiosData ?? []).map((row) => ({
+    id: row.id as number,
+    nombre: row.nombre as string,
+  }));
+
+  // Obtener clubes del profesor via la tabla de relación.
+  const { data: clubsData, error: clubsError } = await supabase
+    .from("club_profesores")
+    .select(`
+      club_id,
+      court_cost_mode,
+      court_cost_per_hour,
+      court_percentage_per_student,
+      status,
+      clubs!club_profesores_club_id_fkey (
+        id,
+        nombre,
+        direccion,
+        deporte,
+        is_placeholder
+      )
+    `)
+    .eq("profesor_id", profile.user_id)
+    .eq("status", "activo");
+
+  const clubs: Club[] = ((clubsData ?? []) as ClubJoinRow[])
+    .map((row) => {
+      const clubData = Array.isArray(row.clubs) ? row.clubs[0] ?? null : row.clubs;
+
+      if (!clubData) {
+        return null;
+      }
+
+      return {
+        id: clubData.id,
+        nombre: clubData.nombre,
+        direccion: clubData.direccion,
+        deporte: clubData.deporte,
+        is_placeholder: clubData.is_placeholder,
+        court_cost_mode: row.court_cost_mode,
+        court_cost_per_hour: row.court_cost_per_hour,
+        court_percentage_per_student: row.court_percentage_per_student,
+        cp_status: row.status,
+      };
+    })
+    .filter((row): row is Club => row !== null);
 
   const hasDisponibilidad = (availabilityCount ?? 0) > 0;
   const hasPrecios =
@@ -169,6 +295,39 @@ export default async function PerfilProfesorPage({ searchParams }: PerfilProfeso
                   : String(profile.solo_decision_deadline_minutes),
             }}
           />
+        </div>
+      </section>
+
+      <section id="invitaciones" className="mb-8">
+        <div className="card p-4">
+          <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+            Invitaciones
+          </h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+            Respondé invitaciones de clubes y vinculá tus clases si corresponde.
+          </p>
+          <div className="mt-4">
+            <InvitacionesManager invitaciones={invitaciones} clubsPropios={clubsPropios} />
+          </div>
+        </div>
+      </section>
+
+      <section id="clubes" className="mb-8">
+        <div className="card p-4">
+          <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+            Clubes
+          </h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+            Administrá los clubes donde das clases y las condiciones de costo de cancha.
+          </p>
+
+          {clubsError ? (
+            <p className="alert-error mt-4">
+              No se pudieron cargar los clubes en este momento. Intentá nuevamente.
+            </p>
+          ) : (
+            <ClubsManager clubs={clubs} />
+          )}
         </div>
       </section>
     </main>

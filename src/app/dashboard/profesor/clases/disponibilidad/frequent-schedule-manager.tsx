@@ -13,10 +13,12 @@ type AvailabilityRow = {
   start_time: string;
   end_time: string;
   slot_duration_minutes: number;
+  club_id: number | null;
 };
 
 type FrequentScheduleManagerProps = {
   availability: AvailabilityRow[];
+  clubs: Array<{ id: number; nombre: string }>;
 };
 
 const dayOptions = [
@@ -62,9 +64,36 @@ function suggestEnd(startTime: string) {
 
 type RowFormProps = {
   item: AvailabilityRow;
+  clubs: Array<{ id: number; nombre: string }>;
 };
 
-function FrequentRangeRow({ item }: RowFormProps) {
+function ClubSelector({
+  defaultValue,
+  clubs,
+  disabled,
+}: {
+  defaultValue: number | null;
+  clubs: Array<{ id: number; nombre: string }>;
+  disabled: boolean;
+}) {
+  return (
+    <select
+      name="club_id"
+      defaultValue={defaultValue ?? ""}
+      className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)] min-w-[120px]"
+      disabled={disabled}
+    >
+      <option value="">Particulares</option>
+      {clubs.map((club) => (
+        <option key={club.id} value={club.id}>
+          {club.nombre}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function FrequentRangeRow({ item, clubs }: RowFormProps) {
   const [state, formAction, isPending] = useActionState(saveAvailabilityAction, initialState);
   const [startTime, setStartTime] = useState(item.start_time.slice(0, 5));
   const [endTime, setEndTime] = useState(item.end_time.slice(0, 5));
@@ -95,6 +124,7 @@ function FrequentRangeRow({ item }: RowFormProps) {
       <input type="hidden" name="id" value={item.id} />
       <input type="hidden" name="day_of_week" value={item.day_of_week} />
       <div className="flex flex-wrap items-center gap-1.5">
+        <ClubSelector defaultValue={item.club_id} clubs={clubs} disabled={isPending} />
         <select
           name="start_time"
           value={startTime}
@@ -168,9 +198,10 @@ function FrequentRangeRow({ item }: RowFormProps) {
 type DaySectionProps = {
   day: (typeof dayOptions)[number];
   dayRanges: AvailabilityRow[];
+  clubs: Array<{ id: number; nombre: string }>;
 };
 
-function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
+function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
   const [isCreating, startTransition] = useTransition();
   const [createState, setCreateState] = useState<DisponibilidadActionState>(initialState);
   const [isAdding, setIsAdding] = useState(false);
@@ -210,7 +241,7 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
       ) : (
         <div className="mt-2 grid gap-2">
           {dayRanges.map((item) => (
-            <FrequentRangeRow key={item.id} item={item} />
+            <FrequentRangeRow key={item.id} item={item} clubs={clubs} />
           ))}
         </div>
       )}
@@ -250,6 +281,7 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
         >
           <input type="hidden" name="day_of_week" value={day.value} />
           <div className="flex flex-wrap items-center gap-1.5">
+            <ClubSelector defaultValue={null} clubs={clubs} disabled={isCreating} />
             <select
               name="start_time"
               value={newStart}
@@ -321,7 +353,7 @@ function DayScheduleSection({ day, dayRanges }: DaySectionProps) {
   );
 }
 
-export function FrequentScheduleManager({ availability }: FrequentScheduleManagerProps) {
+export function FrequentScheduleManager({ availability, clubs }: FrequentScheduleManagerProps) {
   const initialSelectedDays = useMemo(() => {
     const fromAvailability = Array.from(new Set(availability.map((item) => item.day_of_week)));
     if (fromAvailability.length > 0) {
@@ -393,7 +425,12 @@ export function FrequentScheduleManager({ availability }: FrequentScheduleManage
         {dayOptions
           .filter((day) => selectedDays.includes(day.value))
           .map((day) => (
-            <DayScheduleSection key={day.value} day={day} dayRanges={rangesByDay.get(day.value) ?? []} />
+            <DayScheduleSection
+              key={day.value}
+              day={day}
+              dayRanges={rangesByDay.get(day.value) ?? []}
+              clubs={clubs}
+            />
           ))}
       </div>
     </div>

@@ -12,6 +12,8 @@ type AvailabilityRow = {
   start_time: string;
   end_time: string;
   slot_duration_minutes: number;
+  club_id: number | null;
+  club_nombre: string | null;
 };
 
 type BlockedDateRow = {
@@ -19,6 +21,20 @@ type BlockedDateRow = {
   start_at: string;
   end_at: string;
   reason: string | null;
+};
+
+type ClubOptionRow = {
+  club_id: number;
+  clubs:
+    | {
+        id: number;
+        nombre: string;
+      }
+    | null
+    | Array<{
+        id: number;
+        nombre: string;
+      }>;
 };
 
 function resolveTab(tab?: string): DisponibilidadTabKey {
@@ -56,7 +72,7 @@ export default async function DisponibilidadClasesPage({ searchParams }: Disponi
 
   const { data: availabilityData } = await supabase
     .from("availability")
-    .select("id, day_of_week, start_time, end_time, slot_duration_minutes")
+    .select("id, day_of_week, start_time, end_time, slot_duration_minutes, club_id")
     .eq("profesor_id", profile.user_id)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true });
@@ -67,8 +83,33 @@ export default async function DisponibilidadClasesPage({ searchParams }: Disponi
     .eq("profesor_id", profile.user_id)
     .order("start_at", { ascending: true });
 
-  const availability = (availabilityData ?? []) as AvailabilityRow[];
+  // Clubs activos del profesor (para el selector en disponibilidad).
+  const { data: clubProfData } = await supabase
+    .from("club_profesores")
+    .select("club_id, clubs(id, nombre)")
+    .eq("profesor_id", profile.user_id)
+    .eq("status", "activo");
+
   const blockedDates = (blockedDatesData ?? []) as BlockedDateRow[];
+  const clubs = ((clubProfData ?? []) as ClubOptionRow[])
+    .map((row) => {
+      const clubData = Array.isArray(row.clubs) ? row.clubs[0] ?? null : row.clubs;
+
+      if (!clubData) {
+        return null;
+      }
+
+      return {
+        id: clubData.id,
+        nombre: clubData.nombre,
+      };
+    })
+    .filter((row): row is { id: number; nombre: string } => row !== null);
+  const clubsById = new Map(clubs.map((club) => [club.id, club.nombre]));
+  const availability = ((availabilityData ?? []) as Array<Omit<AvailabilityRow, "club_nombre">>).map((item) => ({
+    ...item,
+    club_nombre: item.club_id ? clubsById.get(item.club_id) ?? null : null,
+  }));
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-3 py-6 sm:px-4 sm:py-8">
@@ -83,8 +124,8 @@ export default async function DisponibilidadClasesPage({ searchParams }: Disponi
 
       <TabsNav activeTab={activeTab} />
 
-      {activeTab === "disponibilidad" ? <DisponibilidadTab availability={availability} /> : null}
-      {activeTab === "frecuente" ? <HorarioFrecuenteTab availability={availability} /> : null}
+      {activeTab === "disponibilidad" ? <DisponibilidadTab availability={availability} clubs={clubs} /> : null}
+      {activeTab === "frecuente" ? <HorarioFrecuenteTab availability={availability} clubs={clubs} /> : null}
       {activeTab === "ausencias" ? <AusenciasTab blockedDates={blockedDates} /> : null}
     </main>
   );

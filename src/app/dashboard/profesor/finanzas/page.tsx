@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { buildDebtSummaryByStudent, buildPendingDebtBookings } from "@/lib/finanzas/debt-helpers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { PriceSettingsForm } from "./price-settings-form";
 
 type BookingRow = {
   id: number;
@@ -323,7 +322,7 @@ export default async function ProfesorFinanzasPage() {
             <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
               Costo de cancha estimado
             </p>
-            <p className="mt-2 text-2xl font-black leading-none" style={{ color: "var(--warning)" }}>
+            <p className="mt-2 text-2xl font-black leading-none" style={{ color: "var(--muted)" }}>
               {formatAmount(costoCanchaMesActual)}
             </p>
           </article>
@@ -332,7 +331,10 @@ export default async function ProfesorFinanzasPage() {
             <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
               Ingreso neto (mes actual)
             </p>
-            <p className="mt-2 text-2xl font-black leading-none" style={{ color: "var(--misu-light)" }}>
+            <p
+              className="mt-2 text-2xl font-black leading-none"
+              style={{ color: ingresosNetosMesActual < 0 ? "var(--error)" : "var(--success)" }}
+            >
               {formatAmount(ingresosNetosMesActual)}
             </p>
           </article>
@@ -366,7 +368,10 @@ export default async function ProfesorFinanzasPage() {
               <p className="text-xs" style={{ color: "var(--muted)" }}>
                 Neto
               </p>
-              <p className="text-xl font-black" style={{ color: "var(--success)" }}>
+              <p
+                className="text-xl font-black"
+                style={{ color: ingresosNetosMesActual < 0 ? "var(--error)" : "var(--success)" }}
+              >
                 {formatAmount(ingresosNetosMesActual)}
               </p>
             </div>
@@ -390,7 +395,10 @@ export default async function ProfesorFinanzasPage() {
               <p className="text-xs" style={{ color: "var(--muted)" }}>
                 Neto
               </p>
-              <p className="text-xl font-black" style={{ color: "var(--foreground)" }}>
+              <p
+                className="text-xl font-black"
+                style={{ color: ingresosNetosMesAnterior < 0 ? "var(--error)" : "var(--success)" }}
+              >
                 {formatAmount(ingresosNetosMesAnterior)}
               </p>
             </div>
@@ -484,33 +492,6 @@ export default async function ProfesorFinanzasPage() {
         </div>
       </section>
 
-      <section className="mt-6 mb-8">
-        <div className="card p-4">
-          <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-            Parámetros financieros
-          </h2>
-          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-            Definí precios y costo de cancha para mantener cálculos consistentes.
-          </p>
-          <div className="mt-4">
-            <PriceSettingsForm
-              initialValues={{
-                price_individual: profile.price_individual === null ? "" : String(profile.price_individual),
-                price_dobles: profile.price_dobles === null ? "" : String(profile.price_dobles),
-                price_trio: profile.price_trio === null ? "" : String(profile.price_trio),
-                price_grupal: profile.price_grupal === null ? "" : String(profile.price_grupal),
-                court_cost_mode: profile.court_cost_mode,
-                court_cost_per_hour:
-                  profile.court_cost_per_hour === null ? "" : String(profile.court_cost_per_hour),
-                court_percentage_per_student:
-                  profile.court_percentage_per_student === null
-                    ? ""
-                    : String(profile.court_percentage_per_student),
-              }}
-            />
-          </div>
-        </div>
-      </section>
     </main>
   );
 }

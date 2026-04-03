@@ -13,15 +13,6 @@ const optionalPriceSchema = z.preprocess(
   z.coerce.number().min(0, "El precio no puede ser negativo.").optional(),
 );
 
-const optionalPercentageSchema = z.preprocess(
-  emptyToUndefined,
-  z.coerce
-    .number()
-    .min(0, "El porcentaje no puede ser negativo.")
-    .max(100, "El porcentaje maximo es 100.")
-    .optional(),
-);
-
 const optionalHoursSchema = z.preprocess(
   emptyToUndefined,
   z.coerce
@@ -47,9 +38,6 @@ export const profesorPriceSettingsSchema = z.object({
   price_dobles: optionalPriceSchema,
   price_trio: optionalPriceSchema,
   price_grupal: optionalPriceSchema,
-  court_cost_mode: z.enum(["fixed_per_hour", "per_student_percentage"], "Selecciona un modo valido."),
-  court_cost_per_hour: optionalPriceSchema,
-  court_percentage_per_student: optionalPercentageSchema,
 });
 
 export const profesorOperationalSettingsSchema = z.object({

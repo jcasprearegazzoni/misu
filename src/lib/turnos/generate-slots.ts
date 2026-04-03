@@ -7,6 +7,8 @@ type AvailabilityRow = {
   start_time: string;
   end_time: string;
   slot_duration_minutes: number;
+  club_id?: number | null;
+  club_nombre?: string | null;
 };
 
 type BlockedDateRow = {
@@ -31,6 +33,7 @@ export type GeneratedSlot = {
   dateKey: string;
   startTimeKey: string;
   endTimeKey: string;
+  clubNombre: string | null;
 };
 
 function getArgentinaDateParts(date: Date) {
@@ -210,6 +213,7 @@ export function generateSlots(params: {
             dateKey,
             startTimeKey: slotStartTimeKey,
             endTimeKey: slotEndTimeKey,
+            clubNombre: availability.club_nombre ?? null,
           });
         }
 
