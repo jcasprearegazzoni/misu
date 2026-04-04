@@ -13,7 +13,7 @@ type Cancha = {
   id: number;
   club_id: number;
   nombre: string;
-  deporte: "tenis" | "padel" | "futbol" | "otro";
+  deporte: "tenis" | "padel" | "futbol";
   pared: "blindex" | "muro" | "mixto" | null;
   superficie:
     | "sintetico"
@@ -23,8 +23,7 @@ type Cancha = {
     | "f5"
     | "f7"
     | "f8"
-    | "f11"
-    | "otro";
+    | "f11";
   techada: boolean;
   iluminacion: boolean;
   activa: boolean;
@@ -47,10 +46,10 @@ const initialState: CanchaActionState = {
 };
 
 function formatDeporte(value: Cancha["deporte"]) {
-  if (value === "padel") return "Pádel";
+  if (value === "padel") return "Padel";
   if (value === "tenis") return "Tenis";
   if (value === "futbol") return "Fútbol";
-  return "Otro";
+  return "Sin dato";
 }
 
 function formatCaracteristica(value: Cancha["superficie"]) {
@@ -62,7 +61,7 @@ function formatCaracteristica(value: Cancha["superficie"]) {
   if (value === "f7") return "F7";
   if (value === "f8") return "F8";
   if (value === "f11") return "F11";
-  return "Otro";
+  return "Sin dato";
 }
 
 function formatPared(value: Cancha["pared"]) {
@@ -77,7 +76,7 @@ function InfoPill({
   tone = "neutral",
 }: {
   label: string;
-  tone?: "neutral" | "tenis" | "padel" | "futbol" | "otro";
+  tone?: "neutral" | "tenis" | "padel" | "futbol";
 }) {
   const toneStyles =
     tone === "tenis"
@@ -92,6 +91,31 @@ function InfoPill({
     <span className="pill" style={toneStyles}>
       {label}
     </span>
+  );
+}
+
+function CompactCheckbox({
+  name,
+  label,
+  checked,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-sm" style={{ color: "var(--foreground)" }}>
+      <input
+        type="checkbox"
+        name={name}
+        checked={checked}
+        onChange={onChange}
+        className="h-4 w-4 shrink-0 rounded border border-[var(--border)] bg-[var(--surface-1)] accent-orange-500"
+      />
+      <span>{label}</span>
+    </label>
   );
 }
 
@@ -117,28 +141,51 @@ function useCaracteristicasOptions(deporte: Cancha["deporte"]) {
         { value: "f11", label: "F11" },
       ];
     }
-    return [{ value: "otro", label: "Otro" }];
+    return [{ value: "cemento", label: "Cemento" }];
   }, [deporte]);
 }
 
-function CreateCanchaForm() {
+type ParedSelectValue = NonNullable<Cancha["pared"]> | "";
+
+function getNextAutoCourtName(
+  deporte: Cancha["deporte"] | "",
+  canchas: Array<Pick<Cancha, "nombre" | "deporte">>,
+) {
+  if (deporte === "") return "";
+  const max = canchas.reduce((acc, cancha) => {
+    if (cancha.deporte !== deporte) return acc;
+    const match = /^cancha\s+(\d+)$/i.exec(cancha.nombre.trim());
+    if (!match) return acc;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value)) return acc;
+    return value > acc ? value : acc;
+  }, 0);
+  return `Cancha ${max + 1}`;
+}
+
+function CreateCanchaForm({ existingCanchas }: { existingCanchas: Cancha[] }) {
   const [state, formAction, isPending] = useActionState(createCanchaAction, initialState);
   const [nombre, setNombre] = useState("");
   const [deporte, setDeporte] = useState<Cancha["deporte"] | "">("");
-  const caracteristicas = useCaracteristicasOptions(deporte === "" ? "otro" : deporte);
+  const [autoName, setAutoName] = useState(true);
+  const caracteristicas = useCaracteristicasOptions(deporte === "" ? "tenis" : deporte);
   const [superficie, setSuperficie] = useState<Cancha["superficie"] | "">("");
-  const [pared, setPared] = useState<NonNullable<Cancha["pared"]>>("blindex");
+  const [pared, setPared] = useState<ParedSelectValue>("");
   const [techada, setTechada] = useState(false);
   const [iluminacion, setIluminacion] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const autoNamePreview = useMemo(
+    () => getNextAutoCourtName(deporte, existingCanchas),
+    [deporte, existingCanchas],
+  );
 
   useEffect(() => {
     if (state.invalidField === "nombre") setNombre("");
     if (state.invalidField === "superficie") {
-      setSuperficie(caracteristicas[0]?.value ?? "otro");
+      setSuperficie(deporte === "padel" ? "" : (caracteristicas[0]?.value ?? "cemento"));
     }
     if (state.invalidField === "pared" && deporte === "padel") {
-      setPared("blindex");
+      setPared("");
     }
   }, [state.invalidField, caracteristicas, deporte]);
 
@@ -146,8 +193,9 @@ function CreateCanchaForm() {
     if (submitted && !isPending && !state.error) {
       setNombre("");
       setDeporte("");
+      setAutoName(true);
       setSuperficie("");
-      setPared("blindex");
+      setPared("");
       setTechada(false);
       setIluminacion(false);
       setSubmitted(false);
@@ -156,15 +204,24 @@ function CreateCanchaForm() {
 
   return (
     <form action={formAction} className="mt-4 grid gap-4" onSubmit={() => setSubmitted(true)}>
+      <CompactCheckbox
+        name="nombre_auto"
+        checked={autoName}
+        onChange={() => setAutoName((prev) => !prev)}
+        label="Crear con orden numerico automatico"
+      />
+
       <label className="label">
         <span>Nombre</span>
         <input
           type="text"
           name="nombre"
           className="input"
-          value={nombre}
+          value={autoName ? autoNamePreview : nombre}
           onChange={(event) => setNombre(event.target.value)}
-          required
+          readOnly={autoName}
+          required={!autoName}
+          placeholder={autoName ? "Seleccionar deporte" : undefined}
         />
       </label>
 
@@ -182,26 +239,16 @@ function CreateCanchaForm() {
                 setSuperficie("");
                 return;
               }
-              const nextValue =
-                next === "padel"
-                  ? "cemento"
-                  : next === "tenis"
-                    ? "polvo_ladrillo"
-                    : next === "futbol"
-                      ? "f5"
-                      : "otro";
-              setSuperficie(nextValue);
-              if (next === "padel") setPared("blindex");
+              setSuperficie("");
+              if (next === "padel") setPared("");
             }}
           >
             <option value="" disabled hidden>
               Seleccionar deporte
             </option>
             <option value="tenis">Tenis</option>
-            <option value="padel">Pádel</option>
-            <option value="futbol">Fútbol</option>
-            <option value="otro">Otro</option>
-          </select>
+            <option value="padel">Padel</option>
+            <option value="futbol">Fútbol</option>          </select>
         </label>
 
         {deporte === "padel" ? (
@@ -211,10 +258,10 @@ function CreateCanchaForm() {
               name="pared"
               className="select"
               value={pared}
-              onChange={(event) => setPared(event.target.value as NonNullable<Cancha["pared"]>)}
+              onChange={(event) => setPared(event.target.value as ParedSelectValue)}
             >
               <option value="" disabled hidden>
-                Seleccionar pared
+                Elegir muro
               </option>
               <option value="blindex">Blindex</option>
               <option value="muro">Muro</option>
@@ -233,7 +280,7 @@ function CreateCanchaForm() {
             disabled={deporte === ""}
           >
             <option value="" disabled hidden>
-              Seleccionar superficie
+              Elegir superficie
             </option>
             {caracteristicas.map((item) => (
               <option key={item.value} value={item.value}>
@@ -245,26 +292,20 @@ function CreateCanchaForm() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--foreground)" }}>
-          <input type="checkbox" name="techada" checked={techada} onChange={() => setTechada(!techada)} />
-          Techada
-        </label>
-        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--foreground)" }}>
-          <input
-            type="checkbox"
-            name="iluminacion"
-            checked={iluminacion}
-            onChange={() => setIluminacion(!iluminacion)}
-          />
-          Iluminación
-        </label>
+        <CompactCheckbox name="techada" checked={techada} onChange={() => setTechada(!techada)} label="Techada" />
+        <CompactCheckbox
+          name="iluminacion"
+          checked={iluminacion}
+          onChange={() => setIluminacion(!iluminacion)}
+          label="Iluminación"
+        />
       </div>
 
       {state.error ? <p className="alert-error">{state.error}</p> : null}
 
       <div className="flex justify-end">
         <button type="submit" disabled={isPending} className="btn-primary w-full justify-center sm:w-auto">
-          {isPending ? "Guardando..." : "Agregar cancha"}
+          {isPending ? "Guardando" : "Agregar cancha"}
         </button>
       </div>
     </form>
@@ -276,18 +317,18 @@ function EditCanchaForm({ cancha }: { cancha: Cancha }) {
   const [nombre, setNombre] = useState(cancha.nombre);
   const [deporte, setDeporte] = useState<Cancha["deporte"]>(cancha.deporte);
   const caracteristicas = useCaracteristicasOptions(deporte);
-  const [superficie, setSuperficie] = useState<Cancha["superficie"]>(cancha.superficie);
-  const [pared, setPared] = useState<NonNullable<Cancha["pared"]>>(cancha.pared ?? "blindex");
+  const [superficie, setSuperficie] = useState<Cancha["superficie"] | "">(cancha.superficie);
+  const [pared, setPared] = useState<ParedSelectValue>(cancha.pared ?? "");
   const [techada, setTechada] = useState(cancha.techada);
   const [iluminacion, setIluminacion] = useState(cancha.iluminacion);
 
   useEffect(() => {
     if (state.invalidField === "nombre") setNombre("");
     if (state.invalidField === "superficie") {
-      setSuperficie(caracteristicas[0]?.value ?? "otro");
+      setSuperficie(deporte === "padel" ? "" : (caracteristicas[0]?.value ?? "cemento"));
     }
     if (state.invalidField === "pared" && deporte === "padel") {
-      setPared("blindex");
+      setPared("");
     }
   }, [state.invalidField, caracteristicas, deporte]);
 
@@ -316,23 +357,13 @@ function EditCanchaForm({ cancha }: { cancha: Cancha }) {
             onChange={(event) => {
               const next = event.target.value as Cancha["deporte"];
               setDeporte(next);
-              const nextValue =
-                next === "padel"
-                  ? "cemento"
-                  : next === "tenis"
-                    ? "polvo_ladrillo"
-                    : next === "futbol"
-                      ? "f5"
-                      : "otro";
-              setSuperficie(nextValue);
-              if (next === "padel") setPared("blindex");
+              setSuperficie("");
+              if (next === "padel") setPared("");
             }}
           >
             <option value="tenis">Tenis</option>
-            <option value="padel">Pádel</option>
-            <option value="futbol">Fútbol</option>
-            <option value="otro">Otro</option>
-          </select>
+            <option value="padel">Padel</option>
+            <option value="futbol">Fútbol</option>          </select>
         </label>
 
         {deporte === "padel" ? (
@@ -342,8 +373,11 @@ function EditCanchaForm({ cancha }: { cancha: Cancha }) {
               name="pared"
               className="select"
               value={pared}
-              onChange={(event) => setPared(event.target.value as NonNullable<Cancha["pared"]>)}
+              onChange={(event) => setPared(event.target.value as ParedSelectValue)}
             >
+              <option value="" disabled hidden>
+                Elegir muro
+              </option>
               <option value="blindex">Blindex</option>
               <option value="muro">Muro</option>
               <option value="mixto">Mixto</option>
@@ -359,6 +393,9 @@ function EditCanchaForm({ cancha }: { cancha: Cancha }) {
             value={superficie}
             onChange={(event) => setSuperficie(event.target.value as Cancha["superficie"])}
           >
+            <option value="" disabled hidden>
+              Elegir superficie
+            </option>
             {caracteristicas.map((item) => (
               <option key={item.value} value={item.value}>
                 {item.label}
@@ -369,19 +406,13 @@ function EditCanchaForm({ cancha }: { cancha: Cancha }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--foreground)" }}>
-          <input type="checkbox" name="techada" checked={techada} onChange={() => setTechada(!techada)} />
-          Techada
-        </label>
-        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--foreground)" }}>
-          <input
-            type="checkbox"
-            name="iluminacion"
-            checked={iluminacion}
-            onChange={() => setIluminacion(!iluminacion)}
-          />
-          Iluminación
-        </label>
+        <CompactCheckbox name="techada" checked={techada} onChange={() => setTechada(!techada)} label="Techada" />
+        <CompactCheckbox
+          name="iluminacion"
+          checked={iluminacion}
+          onChange={() => setIluminacion(!iluminacion)}
+          label="Iluminación"
+        />
       </div>
 
       {state.error ? <p className="alert-error">{state.error}</p> : null}
@@ -389,14 +420,20 @@ function EditCanchaForm({ cancha }: { cancha: Cancha }) {
 
       <div className="flex justify-end">
         <button type="submit" disabled={isPending} className="btn-secondary w-full justify-center sm:w-auto">
-          {isPending ? "Guardando..." : "Guardar cambios"}
+          {isPending ? "Guardando" : "Guardar cambios"}
         </button>
       </div>
     </form>
   );
 }
 
-function CanchaCard({ cancha, showSport }: { cancha: Cancha; showSport: boolean }) {
+function CanchaCard({
+  cancha,
+  showSport,
+}: {
+  cancha: Cancha;
+  showSport: boolean;
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const actionTone = cancha.activa ? "text-[var(--foreground)]" : "text-[var(--muted)]";
   const confirmDelete = () =>
@@ -449,8 +486,8 @@ function CanchaCard({ cancha, showSport }: { cancha: Cancha; showSport: boolean 
               type="submit"
               aria-label={cancha.activa ? "Desactivar cancha" : "Activar cancha"}
               title={cancha.activa ? "Desactivar cancha" : "Activar cancha"}
-              className="flex h-7 w-7 items-center justify-center rounded-full border"
-              style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+              className="flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95"
+              style={{ borderColor: "var(--border)", color: "var(--muted)", background: "var(--surface-1)" }}
             >
               <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 {cancha.activa ? (
@@ -477,8 +514,8 @@ function CanchaCard({ cancha, showSport }: { cancha: Cancha; showSport: boolean 
           type="button"
           aria-label={isEditing ? "Cerrar edición" : "Editar cancha"}
           title={isEditing ? "Cerrar edición" : "Editar cancha"}
-          className={`flex h-7 w-7 items-center justify-center rounded-full border ${actionTone}`}
-          style={{ borderColor: "var(--border)" }}
+          className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95 ${actionTone}`}
+          style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
           onClick={() => setIsEditing((prev) => !prev)}
         >
           <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -499,8 +536,8 @@ function CanchaCard({ cancha, showSport }: { cancha: Cancha; showSport: boolean 
             type="submit"
             aria-label="Eliminar cancha"
             title="Eliminar cancha"
-            className="flex h-7 w-7 items-center justify-center rounded-full border"
-            style={{ borderColor: "var(--border)", color: "var(--error)" }}
+            className="flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95"
+            style={{ borderColor: "var(--border)", color: "var(--error)", background: "var(--surface-1)" }}
           >
             <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path
@@ -528,10 +565,11 @@ export function CanchasManager({ canchas }: CanchasManagerProps) {
       tenis: [] as Cancha[],
       padel: [] as Cancha[],
       futbol: [] as Cancha[],
-      otro: [] as Cancha[],
     };
     canchas.forEach((cancha) => {
-      base[cancha.deporte].push(cancha);
+      if (cancha.deporte === "tenis" || cancha.deporte === "padel" || cancha.deporte === "futbol") {
+        base[cancha.deporte].push(cancha);
+      }
     });
     return base;
   }, [canchas]);
@@ -542,7 +580,7 @@ export function CanchasManager({ canchas }: CanchasManagerProps) {
         <div className="alert-info">Todavía no cargaste canchas.</div>
       ) : (
         <div className="grid gap-4">
-          {(["tenis", "padel", "futbol", "otro"] as const).map((sport) => {
+          {(["tenis", "padel", "futbol"] as const).map((sport) => {
             const list = grouped[sport];
             if (list.length === 0) return null;
             return (
@@ -550,7 +588,6 @@ export function CanchasManager({ canchas }: CanchasManagerProps) {
                 key={sport}
                 className="group rounded-xl border p-3"
                 style={{ borderColor: "var(--border)" }}
-                open
               >
                 <summary className="flex cursor-pointer items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
@@ -559,8 +596,11 @@ export function CanchasManager({ canchas }: CanchasManagerProps) {
                       {list.length} {list.length === 1 ? "cancha" : "canchas"}
                     </span>
                   </div>
-                  <span className="transition-transform group-open:rotate-180" style={{ color: "var(--muted)" }}>
-                    <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <span
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-200 group-open:rotate-180"
+                    style={{ color: "var(--muted)", borderColor: "var(--border)", background: "var(--surface-1)" }}
+                  >
+                    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path
                         fillRule="evenodd"
                         d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.7a.75.75 0 1 1 1.06 1.06l-4.24 4.25a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
@@ -591,18 +631,24 @@ export function CanchasManager({ canchas }: CanchasManagerProps) {
             </p>
           </div>
           <span className="transition-transform group-open:rotate-180" style={{ color: "var(--muted)" }}>
-            <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <span
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border"
+              style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+            >
+            <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path
                 fillRule="evenodd"
                 d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.7a.75.75 0 1 1 1.06 1.06l-4.24 4.25a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
                 clipRule="evenodd"
               />
             </svg>
+            </span>
           </span>
         </summary>
 
-        <CreateCanchaForm />
+        <CreateCanchaForm existingCanchas={canchas} />
       </details>
     </div>
   );
 }
+

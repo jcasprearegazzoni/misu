@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireClub } from "@/lib/auth/require-club";
 import { clubPerfilSchema } from "@/lib/validation/club-perfil.schema";
+import { generateUniqueUsername } from "@/lib/utils/generate-username";
 
 export type ClubPerfilActionState = {
   error: string | null;
@@ -36,11 +37,26 @@ export async function updateClubPerfilAction(
   }
 
   const supabase = await createSupabaseServerClient();
+
+  // Auto-generar username si no se proporcionó
+  let username = parsed.data.username ?? null;
+  if (!username) {
+    username = await generateUniqueUsername(parsed.data.nombre, async (candidate) => {
+      const { data } = await supabase
+        .from("clubs")
+        .select("user_id")
+        .eq("username", candidate)
+        .neq("user_id", club.user_id)
+        .maybeSingle();
+      return !!data;
+    });
+  }
+
   const { error } = await supabase
     .from("clubs")
     .update({
       nombre: parsed.data.nombre,
-      username: parsed.data.username ?? null,
+      username,
       direccion: parsed.data.direccion ?? null,
       telefono: parsed.data.telefono ?? null,
       email_contacto: parsed.data.email_contacto ?? null,

@@ -16,9 +16,11 @@ export async function createCanchaAction(
   formData: FormData,
 ): Promise<CanchaActionState> {
   const club = await requireClub();
+  const autoNameEnabled = String(formData.get("nombre_auto")) === "on";
 
   const parsed = canchaSchema.safeParse({
-    nombre: formData.get("nombre"),
+    // Si el nombre es automatico, validamos con un placeholder.
+    nombre: autoNameEnabled ? "Cancha" : formData.get("nombre"),
     deporte: formData.get("deporte"),
     pared: formData.get("pared"),
     superficie: formData.get("superficie"),
@@ -36,12 +38,36 @@ export async function createCanchaAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  let nombreFinal = parsed.data.nombre;
+
+  if (autoNameEnabled) {
+    const { data: existingNames, error: namesError } = await supabase
+      .from("canchas")
+      .select("nombre")
+      .eq("club_id", club.id)
+      .eq("deporte", parsed.data.deporte);
+
+    if (namesError) {
+      return { error: "No se pudo preparar el nombre automatico.", success: null };
+    }
+
+    const maxNumber = (existingNames ?? []).reduce((max, row) => {
+      const match = /^cancha\s+(\d+)$/i.exec(row.nombre?.trim() ?? "");
+      if (!match) return max;
+      const value = Number(match[1]);
+      if (!Number.isFinite(value)) return max;
+      return value > max ? value : max;
+    }, 0);
+
+    nombreFinal = `Cancha ${maxNumber + 1}`;
+  }
+
   const { data: existing } = await supabase
     .from("canchas")
     .select("id")
     .eq("club_id", club.id)
     .eq("deporte", parsed.data.deporte)
-    .ilike("nombre", parsed.data.nombre)
+    .ilike("nombre", nombreFinal)
     .maybeSingle();
 
   if (existing) {
@@ -54,7 +80,7 @@ export async function createCanchaAction(
 
   const { error } = await supabase.from("canchas").insert({
     club_id: club.id,
-    nombre: parsed.data.nombre,
+    nombre: nombreFinal,
     deporte: parsed.data.deporte,
     pared: parsed.data.deporte === "padel" ? parsed.data.pared ?? null : null,
     superficie: parsed.data.superficie,

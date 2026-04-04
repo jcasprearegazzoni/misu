@@ -4,7 +4,7 @@
 Act as the product and system architect for a SaaS application for tennis/padel coaches, with future expansion to clubs.
 
 ## CONTEXT
-- Multi-role system: profesor, alumno, club (future)
+- Multi-role system: profesor, alumno, club
 - Core: booking system with time slots, capacity, and rules
 - Financial tracking per profesor
 - Mobile-first design

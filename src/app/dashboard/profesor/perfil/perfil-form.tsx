@@ -47,19 +47,17 @@ export function PerfilForm({ initialValues, successMessage }: PerfilFormProps) {
       <ZonaSelector defaultProvincia={initialValues.provincia} defaultMunicipio={initialValues.municipio} />
 
       <label className="label">
-        <span>
-          Username <span style={{ color: "var(--muted-2)", fontWeight: 400 }}>(opcional)</span>
-        </span>
-        <span className="text-xs" style={{ color: "var(--muted-2)" }}>
-          Se usa para tu link público. Permitido: letras, números y guiones bajos.
-        </span>
+        <span>Username</span>
         <input
           type="text"
           name="username"
           defaultValue={initialValues.username}
           className="input"
-          placeholder="ej: profe_juan"
+          placeholder={initialValues.username || "Se genera automáticamente"}
         />
+        <small style={{ color: "var(--muted)" }}>
+          Tu URL pública: misu.app/p/<strong>{initialValues.username || "usuario"}</strong>. Si lo dejás vacío se genera a partir del nombre.
+        </small>
       </label>
 
       <label className="label">

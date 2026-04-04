@@ -28,16 +28,16 @@ export function ClubPerfilForm({ club }: ClubPerfilFormProps) {
           </label>
 
           <label className="label">
-            <span>Usuario publico</span>
+            <span>Usuario público</span>
             <input
               type="text"
               name="username"
               defaultValue={club.username ?? ""}
               className="input"
-              placeholder="mi-club"
+              placeholder={club.username ?? "Se genera automáticamente"}
             />
             <small style={{ color: "var(--muted)" }}>
-              Usado en tu URL publica: misu.app/clubes/usuario
+              Tu URL pública: misu.app/clubes/<strong>{club.username ?? "usuario"}</strong>. Si lo dejás vacío se genera a partir del nombre.
             </small>
           </label>
 

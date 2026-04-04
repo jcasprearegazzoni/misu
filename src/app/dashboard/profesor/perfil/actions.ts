@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { profesorProfileSchema } from "@/lib/validation/profesor-profile.schema";
+import { generateUniqueUsername } from "@/lib/utils/generate-username";
 
 export type PerfilProfesorActionState = {
   error: string | null;
@@ -53,11 +54,25 @@ export async function saveProfesorProfileAction(
     };
   }
 
+  // Auto-generar username si no se proporcionó
+  let username = parsed.data.username ?? null;
+  if (!username) {
+    username = await generateUniqueUsername(parsed.data.name, async (candidate) => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("username", candidate)
+        .neq("user_id", user.id)
+        .maybeSingle();
+      return !!data;
+    });
+  }
+
   const { error } = await supabase
     .from("profiles")
     .update({
       name: parsed.data.name,
-      username: parsed.data.username ?? null,
+      username,
       bio: parsed.data.bio ?? null,
       sport: parsed.data.sport,
       provincia: parsed.data.provincia,

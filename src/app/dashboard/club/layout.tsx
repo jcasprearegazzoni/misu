@@ -36,6 +36,12 @@ export default async function ClubDashboardLayout({ children }: { children: Reac
               <Link href="/dashboard/club/canchas" className="btn-ghost text-sm">
                 Canchas
               </Link>
+              <Link href="/dashboard/club/calendario" className="btn-ghost text-sm">
+                Calendario
+              </Link>
+              <Link href="/dashboard/club/configuracion" className="btn-ghost text-sm">
+                Configuracion
+              </Link>
             </div>
           </div>
 

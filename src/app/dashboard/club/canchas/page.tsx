@@ -6,9 +6,9 @@ type CanchaRow = {
   id: number;
   club_id: number;
   nombre: string;
-  deporte: "tenis" | "padel" | "futbol" | "otro";
+  deporte: "tenis" | "padel" | "futbol";
   pared: "blindex" | "muro" | "mixto" | null;
-  superficie: "sintetico" | "polvo_ladrillo" | "cemento" | "blindex" | "f5" | "f7" | "f8" | "f11" | "otro";
+  superficie: "sintetico" | "polvo_ladrillo" | "cemento" | "blindex" | "f5" | "f7" | "f8" | "f11";
   techada: boolean;
   iluminacion: boolean;
   activa: boolean;
