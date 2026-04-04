@@ -14,6 +14,7 @@ export const createBookingSchema = z.object({
     .number()
     .int("Selecciona una cantidad de semanas valida.")
     .refine((value) => [1, 4, 8].includes(value), "Selecciona 1, 4 o 8 semanas."),
+  sport: z.enum(["tenis", "padel"]).optional().nullable(),
 });
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;

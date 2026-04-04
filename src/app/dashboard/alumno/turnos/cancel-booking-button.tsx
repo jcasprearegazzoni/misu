@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { cancelAlumnoBookingAction } from "./actions";
 
@@ -22,6 +22,7 @@ export function CancelBookingButton({ bookingId }: Props) {
           borderColor: "var(--error-border)",
           background: "var(--error-bg)",
           color: "#fca5a5",
+          cursor: "pointer",
         }}
       >
         Cancelar clase

@@ -10,6 +10,7 @@ type ReserveSlotFormProps = {
   startTime: string;
   endTime: string;
   fixedType: "individual" | "dobles" | "trio" | "grupal" | null;
+  sport: "tenis" | "padel" | null;
 };
 
 const typeLabel: Record<Exclude<ReserveSlotFormProps["fixedType"], null>, string> = {
@@ -25,6 +26,7 @@ export function ReserveSlotForm({
   startTime,
   endTime,
   fixedType,
+  sport,
 }: ReserveSlotFormProps) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(reserveSlotAction, {
@@ -50,6 +52,7 @@ export function ReserveSlotForm({
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="start_time" value={startTime} />
       <input type="hidden" name="end_time" value={endTime} />
+      {sport ? <input type="hidden" name="sport" value={sport} /> : null}
       {fixedType ? (
         <>
           <input type="hidden" name="type" value={fixedType} />

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { markAllNotificationsAsReadAction, markNotificationAsReadAction } from "@/app/dashboard/notificaciones/actions";
@@ -28,7 +28,11 @@ const profesorLinks: NavItem[] = [
   { href: '/dashboard/profesor/perfil', label: 'Perfil' },
 ];
 
-const alumnoLinks: NavItem[] = [{ href: "/dashboard/alumno/turnos", label: "Clases" }];
+const alumnoLinks: NavItem[] = [
+  { href: "/dashboard/alumno", label: "Inicio" },
+  { href: "/dashboard/alumno/turnos", label: "Clases" },
+  { href: "/dashboard/alumno/clubes", label: "Clubes" },
+];
 
 async function signOutAction() {
   "use server";

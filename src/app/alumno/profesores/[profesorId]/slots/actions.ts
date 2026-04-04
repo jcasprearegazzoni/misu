@@ -27,6 +27,7 @@ export async function reserveSlotAction(
     end_time: formData.get("end_time"),
     type: formData.get("type"),
     weeks_count: formData.get("weeks_count"),
+    sport: formData.get("sport") || null,
   });
 
   if (!parsed.success) {
@@ -75,6 +76,17 @@ export async function reserveSlotAction(
     if (error) {
       failedDates.push({ date: targetDate, reason: error.message });
       continue;
+    }
+
+    // Si hay sport definido, actualizar el booking recien creado.
+    if (parsed.data.sport) {
+      await supabase
+        .from("bookings")
+        .update({ sport: parsed.data.sport })
+        .eq("alumno_id", user.id)
+        .eq("profesor_id", parsed.data.profesor_id)
+        .eq("date", targetDate)
+        .eq("start_time", parsed.data.start_time);
     }
 
     reservedDates.push(targetDate);

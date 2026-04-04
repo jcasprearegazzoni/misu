@@ -153,6 +153,12 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
   const pendingDecisionsCount = decisions.length;
   const now = new Date().getTime();
 
+  // Primera clase futura (pendiente o confirmada) para el bloque "Próxima clase"
+  const proximaClase = bookings.find((b) => {
+    const start = new Date(`${b.date}T${b.start_time.slice(0, 8)}-03:00`);
+    return start.getTime() > now;
+  }) ?? null;
+
   const tabs: Array<{ key: AlumnoTab; label: string; badge?: number }> = [
     { key: "reservar", label: "Reservar" },
     { key: "mis-clases", label: "Mis clases" },
@@ -274,6 +280,60 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
 
       {activeTab === "mis-clases" ? (
         <section className="mt-6 grid gap-4">
+
+          {/* Bloque: próxima clase */}
+          {proximaClase ? (() => {
+            const profesor = profesorMap.get(proximaClase.profesor_id);
+            return (
+              <div
+                className="rounded-2xl p-5"
+                style={{
+                  background: "var(--misu-subtle)",
+                  border: "1px solid var(--border-misu)",
+                }}
+              >
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--misu)" }}>
+                  Próxima clase
+                </p>
+                <p className="mt-2 text-2xl font-black tracking-tight" style={{ color: "var(--foreground)" }}>
+                  {proximaClase.start_time.slice(0, 5)}
+                  <span className="text-base font-semibold" style={{ color: "var(--muted)" }}>
+                    {" "}- {proximaClase.end_time.slice(0, 5)}
+                  </span>
+                </p>
+                <p className="mt-1 text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                  {formatUserDate(proximaClase.date)}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: "var(--muted)" }}>
+                    {profesor ? <span>Prof: <strong>{profesor.name}</strong></span> : null}
+                    <span>{typeLabel[proximaClase.type]}</span>
+                    <span
+                      className={proximaClase.status === "confirmado" ? "badge-confirmed" : "badge-pending"}
+                    >
+                      {statusLabel[proximaClase.status]}
+                    </span>
+                  </div>
+                  {(() => {
+                    const cancelWindowHours = Number(profesor?.cancel_without_charge_hours ?? 0);
+                    const bookingStart = new Date(`${proximaClase.date}T${proximaClase.start_time.slice(0, 8)}-03:00`);
+                    const minCancelDate = new Date(bookingStart.getTime() - cancelWindowHours * 60 * 60 * 1000);
+                    const canCancelByWindow = cancelWindowHours <= 0 || new Date() <= minCancelDate;
+                    const canCancelStatus = proximaClase.status === "pendiente" || proximaClase.status === "confirmado";
+                    if (!canCancelStatus) return null;
+                    if (!canCancelByWindow) {
+                      return (
+                        <p className="text-xs" style={{ color: "var(--muted-2)" }}>
+                          Ya pasó el plazo de cancelación.
+                        </p>
+                      );
+                    }
+                    return <CancelBookingButton bookingId={proximaClase.id} />;
+                  })()}
+                </div>
+              </div>
+            );
+          })() : null}
           {studentPackages.length > 0 ? (
             <div className="rounded-xl p-4" style={{ background: "var(--success-bg)", border: "1px solid var(--success-border)" }}>
               <p className="text-sm font-semibold" style={{ color: "var(--success)" }}>

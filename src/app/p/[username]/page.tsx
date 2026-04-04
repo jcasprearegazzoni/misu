@@ -262,6 +262,7 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
                           startTime={item.startTime}
                           endTime={item.endTime}
                           fixedType={item.fixedType}
+                          sport={profesor.sport === "ambos" ? null : (profesor.sport ?? null)}
                         />
                       ) : (
                         <p
