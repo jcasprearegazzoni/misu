@@ -1,8 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { formatUserDate } from "@/lib/format/date";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { buildDebtSummaryByStudent, buildPendingDebtBookings } from "@/lib/finanzas/debt-helpers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { DebtChargeForm } from "../deudas/debt-charge-form";
+import { PaymentForm } from "../pagos/payment-form";
 
 type BookingRow = {
   id: number;
@@ -33,6 +35,41 @@ type PaymentRow = {
 type AlumnoNameRow = {
   alumno_id: string;
   alumno_name: string | null;
+};
+
+type FullBookingRow = {
+  id: number;
+  alumno_id: string;
+  alumno_name: string | null;
+  date: string;
+  start_time: string;
+  end_time: string;
+  type: "individual" | "dobles" | "trio" | "grupal";
+  status: "pendiente" | "confirmado" | "cancelado";
+};
+
+type FullPaymentRow = {
+  id: number;
+  alumno_id: string;
+  booking_id: number | null;
+  amount: number;
+  method: "efectivo" | "transferencia_directa";
+  type: "clase" | "paquete" | "seña" | "diferencia_cobro" | "reembolso";
+  note: string | null;
+  created_at: string;
+};
+
+const methodLabel: Record<FullPaymentRow["method"], string> = {
+  efectivo: "Efectivo",
+  transferencia_directa: "Transferencia directa",
+};
+
+const paymentTypeLabel: Record<FullPaymentRow["type"], string> = {
+  clase: "Clase",
+  paquete: "Paquete",
+  ["seña"]: "Seña",
+  diferencia_cobro: "Diferencia de cobro",
+  reembolso: "Reembolso",
 };
 
 function getMonthRange(monthOffset: number) {
@@ -157,6 +194,7 @@ export default async function ProfesorFinanzasPage() {
     assignedStudentPackagesCountResult,
     paidStudentPackagesCountResult,
     studentPackagesWithCreditsCountResult,
+    allPaymentsResult,
   ] = await Promise.all([
     supabase
       .from("payments")
@@ -217,6 +255,11 @@ export default async function ProfesorFinanzasPage() {
       .select("id", { count: "exact", head: true })
       .eq("profesor_id", profile.user_id)
       .gt("classes_remaining", 0),
+    supabase
+      .from("payments")
+      .select("id, alumno_id, booking_id, amount, method, type, note, created_at")
+      .eq("profesor_id", profile.user_id)
+      .order("created_at", { ascending: false }),
   ]);
 
   const hasLoadError = Boolean(
@@ -284,20 +327,52 @@ export default async function ProfesorFinanzasPage() {
     withCreditsStudentPackages: studentPackagesWithCreditsCountResult.count ?? 0,
   };
 
+  const allPayments = (allPaymentsResult.data ?? []) as FullPaymentRow[];
+  const allBookings = (alumnoNamesRpcResult.data ?? []) as FullBookingRow[];
+
+  // Bookings cubiertos por algún payment válido (para el formulario de pago).
+  const allCoveredBookingIds = new Set(
+    allPayments
+      .filter(
+        (p) =>
+          p.booking_id !== null &&
+          (p.type === "clase" || p.type === "seña" || p.type === "diferencia_cobro"),
+      )
+      .map((p) => p.booking_id as number),
+  );
+
+  // Alumnos únicos para el selector del formulario de pago.
+  const alumnos = Array.from(
+    new Map(
+      allBookings.map((b) => [
+        b.alumno_id,
+        { user_id: b.alumno_id, label: b.alumno_name?.trim() || "Alumno" },
+      ]),
+    ).values(),
+  );
+
+  // Bookings disponibles para asociar a un pago (no cancelados, no ya cubiertos).
+  const bookingOptions = allBookings
+    .filter((b) => b.status !== "cancelado" && !allCoveredBookingIds.has(b.id))
+    .map((b) => ({
+      id: b.id,
+      alumno_id: b.alumno_id,
+      alumno_name: b.alumno_name?.trim() || "Alumno",
+      date: b.date,
+      start_time: b.start_time,
+      end_time: b.end_time,
+      type: b.type,
+    }));
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-3 py-6 sm:px-4 sm:py-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
-            Finanzas
-          </h1>
-          <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
-            Controlá ingresos, deudas y estado de cobros en una sola vista.
-          </p>
-        </div>
-        <Link href="/dashboard/profesor/pagos" className="btn-primary w-full sm:w-auto">
-          Registrar pago
-        </Link>
+      <header>
+        <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
+          Finanzas
+        </h1>
+        <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
+          Controlá ingresos, deudas y estado de cobros en una sola vista.
+        </p>
       </header>
 
       {hasLoadError ? (
@@ -492,6 +567,143 @@ export default async function ProfesorFinanzasPage() {
         </div>
       </section>
 
+      {/* ── DEUDAS ────────────────────────────────────────────────────────── */}
+      <section className="mt-8">
+        <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+          Detalle de deudas pendientes
+        </h2>
+
+        <div className="mt-3">
+          <h3 className="mb-2 text-sm font-medium" style={{ color: "var(--muted)" }}>
+            Resumen por alumno
+          </h3>
+          {debtSummary.length === 0 ? (
+            <p className="card px-4 py-3 text-sm" style={{ color: "var(--muted)" }}>
+              No hay saldo pendiente.
+            </p>
+          ) : (
+            <div className="card overflow-hidden">
+              <table className="table-dark">
+                <thead>
+                  <tr>
+                    <th>Alumno</th>
+                    <th>Clases pendientes</th>
+                    <th>Monto estimado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {debtSummary.map((item) => (
+                    <tr key={item.alumno_id}>
+                      <td className="font-medium">{item.alumno_name}</td>
+                      <td>{item.bookings_count}</td>
+                      <td className="font-semibold" style={{ color: "var(--warning)" }}>
+                        {formatAmount(item.estimated_total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4">
+          <h3 className="mb-2 text-sm font-medium" style={{ color: "var(--muted)" }}>
+            Detalle por clase
+          </h3>
+          {pendingDebtBookings.length === 0 ? (
+            <p className="card px-4 py-3 text-sm" style={{ color: "var(--muted)" }}>
+              No hay clases pendientes de cobro.
+            </p>
+          ) : (
+            <div className="card overflow-x-auto">
+              <table className="table-dark">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Horario</th>
+                    <th>Alumno</th>
+                    <th>Tipo</th>
+                    <th>Paquete</th>
+                    <th>Estado</th>
+                    <th>Monto</th>
+                    <th>Cobrar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingDebtBookings.map((booking) => (
+                    <tr key={booking.id}>
+                      <td>{formatUserDate(booking.date)}</td>
+                      <td>{booking.start_time.slice(0, 5)} - {booking.end_time.slice(0, 5)}</td>
+                      <td>{booking.alumno_name}</td>
+                      <td>{booking.type}</td>
+                      <td>{booking.package_consumed ? "Sí" : "No"}</td>
+                      <td>{booking.financial_status}</td>
+                      <td style={{ color: "var(--warning)" }}>{formatAmount(booking.estimated_amount)}</td>
+                      <td>
+                        <DebtChargeForm
+                          bookingId={booking.id}
+                          alumnoId={booking.alumno_id}
+                          estimatedAmount={booking.estimated_amount}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── PAGOS ─────────────────────────────────────────────────────────── */}
+      <section className="mt-8">
+        <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+          Registrar cobro
+        </h2>
+        {alumnos.length === 0 ? (
+          <p className="card mt-3 px-4 py-3 text-sm" style={{ color: "var(--muted)" }}>
+            No hay clases confirmadas de alumnos. Confirmá una reserva primero.
+          </p>
+        ) : (
+          <div className="card mt-3 p-4">
+            <PaymentForm
+              alumnos={alumnos}
+              bookings={bookingOptions}
+              priceIndividual={profile.price_individual}
+              priceDobles={profile.price_dobles}
+              priceTrio={profile.price_trio}
+              priceGrupal={profile.price_grupal}
+            />
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+          Historial de pagos
+        </h2>
+        {allPayments.length === 0 ? (
+          <p className="card mt-3 px-4 py-3 text-sm" style={{ color: "var(--muted)" }}>
+            Aún no registraste pagos.
+          </p>
+        ) : (
+          <ul className="mt-3 grid gap-2">
+            {allPayments.map((payment) => (
+              <li key={payment.id} className="card px-4 py-3 text-sm">
+                <p className="font-medium" style={{ color: "var(--foreground)" }}>
+                  {formatAmount(Number(payment.amount))} · {paymentTypeLabel[payment.type]}
+                </p>
+                <p style={{ color: "var(--muted)" }}>Alumno: {alumnoNameMap.get(payment.alumno_id) ?? "Alumno"}</p>
+                <p style={{ color: "var(--muted)" }}>Método: {methodLabel[payment.method]}</p>
+                <p style={{ color: "var(--muted)" }}>Fecha: {formatUserDate(payment.created_at)}</p>
+                {payment.booking_id ? <p style={{ color: "var(--muted)" }}>Clase asociada: #{payment.booking_id}</p> : null}
+                {payment.note ? <p style={{ color: "var(--muted)" }}>Nota: {payment.note}</p> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }

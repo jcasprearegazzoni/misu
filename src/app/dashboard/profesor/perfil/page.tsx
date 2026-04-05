@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfesorSettingsForm } from "@/app/dashboard/profesor/configuracion/settings-form";
+import { PriceSettingsForm } from "@/app/dashboard/profesor/finanzas/price-settings-form";
 import { ClubsManager } from "./clubs-manager";
 import { PerfilForm } from "./perfil-form";
 import { InvitacionesManager } from "./invitaciones-manager";
@@ -186,10 +187,10 @@ export default async function PerfilProfesorPage({ searchParams }: PerfilProfeso
     },
     {
       id: "precios",
-      label: "Definir precios en Finanzas",
+      label: "Definir precios",
       done: hasPrecios,
-      href: "/dashboard/profesor/finanzas",
-      cta: "Ir a Finanzas",
+      href: "#precios",
+      cta: "Configurar precios",
     },
   ];
 
@@ -206,7 +207,7 @@ export default async function PerfilProfesorPage({ searchParams }: PerfilProfeso
         </p>
       </header>
 
-      <section className="card mt-6 p-4">
+      {doneCount < checklist.length ? <section className="card mt-6 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
             Onboarding
@@ -249,7 +250,7 @@ export default async function PerfilProfesorPage({ searchParams }: PerfilProfeso
             </li>
           ))}
         </ul>
-      </section>
+      </section> : null}
 
       <section id="datos" className="mt-6">
         <div className="card p-4">
@@ -270,6 +271,27 @@ export default async function PerfilProfesorPage({ searchParams }: PerfilProfeso
               municipio: profile.zone ?? "",
             }}
           />
+        </div>
+      </section>
+
+      <section id="precios" className="mt-6">
+        <div className="card p-4">
+          <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+            Precios
+          </h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+            Precio por tipo de clase. Se usa para calcular montos estimados y deudas.
+          </p>
+          <div className="mt-4">
+            <PriceSettingsForm
+              initialValues={{
+                price_individual: profile.price_individual !== null ? String(profile.price_individual) : "",
+                price_dobles: profile.price_dobles !== null ? String(profile.price_dobles) : "",
+                price_trio: profile.price_trio !== null ? String(profile.price_trio) : "",
+                price_grupal: profile.price_grupal !== null ? String(profile.price_grupal) : "",
+              }}
+            />
+          </div>
         </div>
       </section>
 

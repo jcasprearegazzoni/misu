@@ -1,7 +1,7 @@
 # Misu — Instrucciones del proyecto
 
 ## Objetivo
-Construir una app SaaS web/PWA para profesores de tenis y pádel en Argentina.
+Construir una app SaaS web/PWA para profesores de tenis y pádel y clubes.
 
 ---
 
@@ -12,7 +12,6 @@ Construir una app SaaS web/PWA para profesores de tenis y pádel en Argentina.
 - Supabase
 - Zod
 - Vitest
-- PWA más adelante, no en la primera etapa
 
 ---
 

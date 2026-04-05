@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { useActionState } from "react";
 import { cancelBookingAction, confirmBookingAction } from "@/app/dashboard/profesor/bookings/actions";
 import { createDebtChargeQuickAction } from "@/app/dashboard/profesor/deudas/actions";
 import { CalendarBookingItem } from "./types";
@@ -26,6 +27,9 @@ const statusStyle: Record<CalendarBookingItem["status"], CSSProperties> = {
 };
 
 export function BookingDetailContent({ item, availabilityRanges }: BookingDetailContentProps) {
+  const [confirmState, confirmAction, confirmPending] = useActionState(confirmBookingAction, { error: null });
+  const [cancelState, cancelAction, cancelPending] = useActionState(cancelBookingAction, { error: null });
+
   const displayStatus = item.is_finalized ? "Finalizada" : statusLabel[item.status];
   const displayStatusStyle = item.is_finalized
     ? { borderColor: "var(--info-border)", background: "var(--info-bg)", color: "var(--info)" }
@@ -69,28 +73,58 @@ export function BookingDetailContent({ item, availabilityRanges }: BookingDetail
       </div>
 
       {item.status === "pendiente" ? (
-        <div className="grid grid-cols-2 gap-2">
-          <form action={confirmBookingAction}>
-            <input type="hidden" name="booking_id" value={item.id} />
-            <button className="w-full rounded-md px-3 py-2 text-xs font-semibold text-white" style={{ background: "var(--success)" }}>
-              Confirmar
-            </button>
-          </form>
-          <form action={cancelBookingAction}>
-            <input type="hidden" name="booking_id" value={item.id} />
-            <button className="w-full rounded-md px-3 py-2 text-xs font-semibold text-white" style={{ background: "var(--error)" }}>
-              Cancelar
-            </button>
-          </form>
+        <div className="grid gap-2">
+          {confirmState.error ? (
+            <p className="rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--error-border)", background: "var(--error-bg)", color: "var(--error)" }}>
+              {confirmState.error}
+            </p>
+          ) : null}
+          {cancelState.error ? (
+            <p className="rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--error-border)", background: "var(--error-bg)", color: "var(--error)" }}>
+              {cancelState.error}
+            </p>
+          ) : null}
+          <div className="grid grid-cols-2 gap-2">
+            <form action={confirmAction}>
+              <input type="hidden" name="booking_id" value={item.id} />
+              <button
+                disabled={confirmPending || cancelPending}
+                className="w-full rounded-md px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                style={{ background: "var(--success)" }}
+              >
+                {confirmPending ? "Confirmando..." : "Confirmar"}
+              </button>
+            </form>
+            <form action={cancelAction}>
+              <input type="hidden" name="booking_id" value={item.id} />
+              <button
+                disabled={confirmPending || cancelPending}
+                className="w-full rounded-md px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                style={{ background: "var(--error)" }}
+              >
+                {cancelPending ? "Cancelando..." : "Cancelar"}
+              </button>
+            </form>
+          </div>
         </div>
       ) : null}
 
       {item.status === "confirmado" ? (
-        <div className="grid grid-cols-2 gap-2">
-          <form action={cancelBookingAction}>
+        <div className="grid gap-2">
+          {cancelState.error ? (
+            <p className="rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--error-border)", background: "var(--error-bg)", color: "var(--error)" }}>
+              {cancelState.error}
+            </p>
+          ) : null}
+          <div className="grid grid-cols-2 gap-2">
+          <form action={cancelAction}>
             <input type="hidden" name="booking_id" value={item.id} />
-            <button className="w-full rounded-md px-3 py-2 text-xs font-semibold text-white" style={{ background: "var(--error)" }}>
-              Cancelar
+            <button
+              disabled={cancelPending}
+              className="w-full rounded-md px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              style={{ background: "var(--error)" }}
+            >
+              {cancelPending ? "Cancelando..." : "Cancelar"}
             </button>
           </form>
 
@@ -111,6 +145,7 @@ export function BookingDetailContent({ item, availabilityRanges }: BookingDetail
               Cobrado
             </div>
           )}
+          </div>
         </div>
       ) : null}
 

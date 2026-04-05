@@ -46,19 +46,27 @@ export function PerfilForm({ initialValues, successMessage }: PerfilFormProps) {
 
       <ZonaSelector defaultProvincia={initialValues.provincia} defaultMunicipio={initialValues.municipio} />
 
-      <label className="label">
-        <span>Username</span>
-        <input
-          type="text"
-          name="username"
-          defaultValue={initialValues.username}
-          className="input"
-          placeholder={initialValues.username || "Se genera automáticamente"}
-        />
-        <small style={{ color: "var(--muted)" }}>
-          Tu URL pública: misu.app/p/<strong>{initialValues.username || "usuario"}</strong>. Si lo dejás vacío se genera a partir del nombre.
-        </small>
-      </label>
+      {initialValues.username ? (
+        <div className="label">
+          <span>Username</span>
+          <p
+            className="input"
+            style={{ color: "var(--muted)", cursor: "default", userSelect: "all" }}
+          >
+            {initialValues.username}
+          </p>
+          <small style={{ color: "var(--muted-2)" }}>
+            Tu URL pública: misu.app/p/<strong>{initialValues.username}</strong>. Se genera automáticamente y no se puede cambiar.
+          </small>
+        </div>
+      ) : (
+        <div className="label">
+          <span>Username</span>
+          <p className="input" style={{ color: "var(--muted-2)", cursor: "default" }}>
+            Se generará automáticamente al guardar el perfil.
+          </p>
+        </div>
+      )}
 
       <label className="label">
         <span>

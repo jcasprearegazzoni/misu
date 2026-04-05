@@ -123,10 +123,8 @@ export async function createDebtChargeAction(
     };
   }
 
-  revalidatePath("/dashboard/profesor/deudas");
-  revalidatePath("/dashboard/profesor/reservas");
+  revalidatePath("/dashboard/profesor/finanzas");
   revalidatePath("/dashboard/profesor/calendario");
-  revalidatePath("/dashboard/profesor/pagos");
 
   return {
     error: null,

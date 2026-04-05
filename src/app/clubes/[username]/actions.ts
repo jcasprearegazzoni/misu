@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { reservaCanchaSchema } from "@/lib/validation/reserva-cancha.schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { sendAlquilerConfirmacionEmail } from "@/lib/email/send-alquiler-confirmacion";
 
 export type ReservarCanchaActionState = {
   error: string | null;
@@ -118,7 +119,6 @@ export async function reservarCanchaAction(
     .single();
 
   if (reservaError || !reservaData) {
-    console.error("[reservar-cancha] insert error:", reservaError);
     return {
       error: `No se pudo crear la reserva. ${reservaError?.message ?? ""}`.trim(),
       success: null,
@@ -144,11 +144,34 @@ export async function reservarCanchaAction(
     };
   }
 
-  // Placeholder de envio por mail hasta tener dominio final.
+  // Enviar email de confirmación si el participante proporcionó email.
+  // El fallo del email no bloquea la reserva.
   if (parsed.data.email) {
-    console.log(
-      `[reserva-cancha] Pendiente envio de email a ${parsed.data.email} para reserva ${reservaData.id}`,
-    );
+    try {
+      const { data: clubData } = await supabaseAdmin
+        .from("clubs")
+        .select("nombre, telefono, email_contacto")
+        .eq("id", parsed.data.club_id)
+        .single();
+
+      const canchaNombre = String(formData.get("cancha_nombre") ?? "").trim() || null;
+
+      await sendAlquilerConfirmacionEmail({
+        to: parsed.data.email,
+        nombre: parsed.data.nombre,
+        clubNombre: clubData?.nombre ?? "el club",
+        canchaNombre,
+        deporte: parsed.data.deporte,
+        fecha: parsed.data.fecha,
+        horaInicio: parsed.data.hora_inicio,
+        duracionMinutos: parsed.data.duracion_minutos,
+        estado,
+        clubTelefono: clubData?.telefono ?? null,
+        clubEmailContacto: clubData?.email_contacto ?? null,
+      });
+    } catch (emailErr) {
+      console.warn("[reservarCanchaAction] No se pudo enviar el email de confirmación:", emailErr);
+    }
   }
 
   return {
@@ -165,6 +188,10 @@ export async function reservarCanchaFormAction(formData: FormData): Promise<void
   const clubUsername = String(formData.get("club_username") ?? "");
   const deporte = String(formData.get("deporte") ?? "");
   const fecha = String(formData.get("fecha") ?? "");
+  const horaInicio = String(formData.get("hora_inicio") ?? "");
+  const duracionMinutos = String(formData.get("duracion_minutos") ?? "");
+  const canchaId = String(formData.get("cancha_id") ?? "");
+  const canchaNombre = String(formData.get("cancha_nombre") ?? "");
 
   const result = await reservarCanchaAction(
     { error: null, success: null, reservaId: null },
@@ -172,10 +199,23 @@ export async function reservarCanchaFormAction(formData: FormData): Promise<void
   );
 
   const base = `/clubes/${clubUsername}`;
-  const backParams = new URLSearchParams({ deporte, fecha });
+  const backParams = new URLSearchParams({ deporte, fecha, hora: horaInicio, duracion: duracionMinutos });
+  if (canchaId) {
+    backParams.set("cancha", canchaId);
+  }
 
   if (result.reservaId) {
-    redirect(`${base}?reserva_ok=1`);
+    const okParams = new URLSearchParams({
+      reserva_ok: "1",
+      deporte,
+      fecha,
+      hora: horaInicio,
+      duracion: duracionMinutos,
+    });
+    if (canchaNombre) {
+      okParams.set("cancha_nombre", canchaNombre);
+    }
+    redirect(`${base}?${okParams.toString()}`);
   }
 
   // Si falló, volver a la página con el error codificado

@@ -1,9 +1,18 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { AlumnoPerfilForm } from "./perfil-form";
 
 type AlumnoPerfilPageProps = {
   searchParams?: Promise<{ redirectTo?: string; updated?: string }>;
+};
+
+type ChecklistItem = {
+  id: string;
+  label: string;
+  done: boolean;
+  href: string;
+  cta: string;
 };
 
 export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPageProps) {
@@ -18,6 +27,30 @@ export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPag
     redirect("/dashboard/profesor/perfil");
   }
 
+  const hasPerfilBase = Boolean(profile.name?.trim()) && Boolean(profile.provincia?.trim());
+  const hasDeporteYCategoria =
+    profile.sport !== null &&
+    (Boolean(profile.category_padel?.trim()) || Boolean(profile.category_tenis?.trim()));
+
+  const checklist: ChecklistItem[] = [
+    {
+      id: "perfil",
+      label: "Completar datos básicos",
+      done: hasPerfilBase,
+      href: "#datos",
+      cta: "Completar perfil",
+    },
+    {
+      id: "deporte",
+      label: "Definir deporte y categoría",
+      done: hasDeporteYCategoria,
+      href: "#datos",
+      cta: "Definir deporte",
+    },
+  ];
+
+  const doneCount = checklist.filter((item) => item.done).length;
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-3 py-6 sm:px-4 sm:py-8">
       <header>
@@ -29,7 +62,54 @@ export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPag
         </p>
       </header>
 
-      <section className="card mt-6 p-4">
+      {doneCount < checklist.length ? (
+        <section className="card mt-6 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+              Para empezar
+            </h2>
+            <span className="text-xs font-medium" style={{ color: "var(--muted)" }}>
+              {doneCount}/{checklist.length} completados
+            </span>
+          </div>
+          <ul className="mt-3 grid gap-2">
+            {checklist.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
+                style={{
+                  borderColor: item.done ? "var(--success-border)" : "var(--border)",
+                  background: item.done ? "var(--success-bg)" : "var(--surface-2)",
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold"
+                    style={{
+                      background: item.done ? "rgba(34, 197, 94, 0.2)" : "var(--surface-3)",
+                      color: item.done ? "var(--success)" : "var(--muted)",
+                    }}
+                  >
+                    {item.done ? "\u2713" : "\u2022"}
+                  </span>
+                  <span style={{ color: "var(--foreground)" }}>{item.label}</span>
+                </div>
+                {!item.done ? (
+                  <Link href={item.href} className="btn-secondary" style={{ padding: "0.4rem 0.7rem" }}>
+                    {item.cta}
+                  </Link>
+                ) : (
+                  <span className="text-xs font-medium" style={{ color: "var(--success)" }}>
+                    Completo
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section id="datos" className="card mt-6 p-4">
         <AlumnoPerfilForm
           redirectTo={resolvedSearchParams?.redirectTo ?? null}
           successMessage={resolvedSearchParams?.updated === "1" ? "Perfil actualizado correctamente." : null}

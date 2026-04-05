@@ -21,11 +21,10 @@ type NotificationRow = {
 };
 
 const profesorLinks: NavItem[] = [
-  { href: '/dashboard/profesor/turnos', label: 'Clases' },
-  { href: '/dashboard/profesor/clases/disponibilidad', label: 'Disponibilidad' },
-  { href: '/dashboard/profesor/paquetes', label: 'Paquetes' },
-  { href: '/dashboard/profesor/finanzas', label: 'Finanzas' },
-  { href: '/dashboard/profesor/perfil', label: 'Perfil' },
+  { href: "/dashboard/profesor", label: "Inicio" },
+  { href: "/dashboard/profesor/turnos", label: "Clases" },
+  { href: "/dashboard/profesor/finanzas", label: "Finanzas" },
+  { href: "/dashboard/profesor/ajustes", label: "Ajustes" },
 ];
 
 const alumnoLinks: NavItem[] = [
@@ -79,11 +78,46 @@ function MenuIcon() {
   );
 }
 
+function PublicNavbar() {
+  return (
+    <header
+      style={{
+        borderBottom: "1px solid var(--border)",
+        background: "rgba(12, 12, 14, 0.9)",
+        backdropFilter: "blur(16px)",
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+      }}
+    >
+      <nav className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 sm:px-5">
+        <Link href="/" className="flex shrink-0 items-center">
+          <span
+            className="text-base font-black tracking-tighter logo-glow"
+            style={{ color: "var(--misu)" }}
+          >
+            misu
+          </span>
+        </Link>
+
+        <div className="ml-auto flex items-center gap-2">
+          <Link href="/login" className="btn-ghost text-sm" style={{ padding: "0.35rem 0.75rem" }}>
+            Iniciá sesión
+          </Link>
+          <Link href="/register" className="btn-primary text-sm" style={{ padding: "0.35rem 0.75rem" }}>
+            Registrarse
+          </Link>
+        </div>
+      </nav>
+    </header>
+  );
+}
+
 export async function AppNavbar() {
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return null;
+    return <PublicNavbar />;
   }
 
   const links = profile.role === "profesor" ? profesorLinks : alumnoLinks;
@@ -120,7 +154,7 @@ export async function AppNavbar() {
       <nav className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 sm:px-5">
         {/* Logo */}
         <Link
-          href={profile.role === "profesor" ? "/dashboard/profesor/turnos" : "/dashboard/alumno/turnos"}
+          href={profile.role === "profesor" ? "/dashboard/profesor" : "/dashboard/alumno/turnos"}
           className="flex shrink-0 items-center"
         >
           <span

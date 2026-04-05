@@ -27,7 +27,7 @@ export async function saveProfesorProfileAction(
 
   const { data: currentProfile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, username")
     .eq("user_id", user.id)
     .single();
 
@@ -40,7 +40,6 @@ export async function saveProfesorProfileAction(
 
   const parsed = profesorProfileSchema.safeParse({
     name: formData.get("name"),
-    username: formData.get("username"),
     bio: formData.get("bio"),
     sport: formData.get("sport"),
     provincia: formData.get("provincia"),
@@ -54,8 +53,8 @@ export async function saveProfesorProfileAction(
     };
   }
 
-  // Auto-generar username si no se proporcionó
-  let username = parsed.data.username ?? null;
+  // Preservar username existente. Si no tiene, auto-generar desde el nombre.
+  let username = currentProfile.username ?? null;
   if (!username) {
     username = await generateUniqueUsername(parsed.data.name, async (candidate) => {
       const { data } = await supabase

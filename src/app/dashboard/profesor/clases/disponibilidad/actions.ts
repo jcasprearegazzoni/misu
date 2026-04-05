@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createNotification } from "@/lib/notifications/create-notification";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { availabilitySchema, blockedDateSchema } from "@/lib/validation/disponibilidad.schema";
 
@@ -143,66 +142,19 @@ export async function addBlockedDateAction(
     };
   }
 
-  // Cancelar reservas futuras que solapan con el bloqueo y notificar alumnos.
-  const startDate = blockedStartAt.toISOString().slice(0, 10);
-  const endDate = blockedEndAt.toISOString().slice(0, 10);
+  // Cancelar reservas que solapan con el bloqueo en una transacción atómica.
+  // La RPC maneja la restauración de créditos de paquetes y las notificaciones.
+  const { error: rpcError } = await supabase.rpc("cancel_bookings_for_blocked_range", {
+    p_profesor_id: profesorId,
+    p_start_at: blockedStartAt.toISOString(),
+    p_end_at: blockedEndAt.toISOString(),
+  });
 
-  const { data: overlappingBookings } = await supabase
-    .from("bookings")
-    .select("id, alumno_id, date, start_time, end_time, status, package_consumed, consumed_student_package_id")
-    .eq("profesor_id", profesorId)
-    .in("status", ["pendiente", "confirmado"])
-    .gte("date", startDate)
-    .lte("date", endDate);
-
-  if (overlappingBookings && overlappingBookings.length > 0) {
-    // Filtrar los que efectivamente solapan en tiempo (Argentina UTC-3).
-    const toCancel = overlappingBookings.filter((booking) => {
-      const bookingStart = new Date(`${booking.date}T${booking.start_time.slice(0, 8)}-03:00`);
-      const bookingEnd = new Date(`${booking.date}T${booking.end_time.slice(0, 8)}-03:00`);
-      return bookingStart < blockedEndAt && bookingEnd > blockedStartAt;
-    });
-
-    for (const booking of toCancel) {
-      const { error: cancelErr } = await supabase
-        .from("bookings")
-        .update({ status: "cancelado" })
-        .eq("id", booking.id)
-        .in("status", ["pendiente", "confirmado"]);
-
-      if (cancelErr) {
-        continue;
-      }
-
-      // Restaurar crédito de paquete si correspondía.
-      if (booking.package_consumed && booking.consumed_student_package_id) {
-        const { data: pkg } = await supabase
-          .from("student_packages")
-          .select("classes_remaining")
-          .eq("id", booking.consumed_student_package_id)
-          .single();
-
-        if (pkg) {
-          await supabase
-            .from("student_packages")
-            .update({ classes_remaining: pkg.classes_remaining + 1 })
-            .eq("id", booking.consumed_student_package_id);
-        }
-
-        await supabase
-          .from("bookings")
-          .update({ package_consumed: false, consumed_student_package_id: null })
-          .eq("id", booking.id);
-      }
-
-      // Notificar al alumno.
-      await createNotification({
-        userId: booking.alumno_id,
-        type: "booking_cancelled",
-        title: "Clase cancelada por ausencia del profesor",
-        message: `Tu clase del ${booking.date} de ${booking.start_time.slice(0, 5)} a ${booking.end_time.slice(0, 5)} fue cancelada porque el profesor registró una ausencia.`,
-      });
-    }
+  if (rpcError) {
+    return {
+      error: "Fecha bloqueada guardada, pero no se pudieron cancelar las clases solapadas.",
+      success: null,
+    };
   }
 
   revalidateDisponibilidadPages();

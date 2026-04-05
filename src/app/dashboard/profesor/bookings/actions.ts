@@ -7,14 +7,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { bookingStatusUpdateSchema } from "@/lib/validation/booking-status.schema";
 import { createSoloDecisionSchema } from "@/lib/validation/solo-decision.schema";
 
-async function updateBookingStatus(formData: FormData, status: "confirmado" | "cancelado") {
+type BookingActionState = { error: string | null };
+
+async function updateBookingStatus(
+  _prevState: BookingActionState,
+  formData: FormData,
+  status: "confirmado" | "cancelado",
+): Promise<BookingActionState> {
   const parsed = bookingStatusUpdateSchema.safeParse({
     bookingId: formData.get("booking_id"),
     status,
   });
 
   if (!parsed.success) {
-    return;
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -23,7 +29,7 @@ async function updateBookingStatus(formData: FormData, status: "confirmado" | "c
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return;
+    return { error: "No autenticado." };
   }
 
   const { data: bookingContext } = await supabase
@@ -34,18 +40,26 @@ async function updateBookingStatus(formData: FormData, status: "confirmado" | "c
     .single();
 
   // Actualiza solo el campo status.
-  await supabase
+  const { error: updateError } = await supabase
     .from("bookings")
     .update({ status: parsed.data.status })
     .eq("id", parsed.data.bookingId)
     .eq("profesor_id", user.id);
 
+  if (updateError) {
+    return { error: "No se pudo actualizar el estado de la clase." };
+  }
+
   if (status === "confirmado") {
     // Descuenta 1 credito si el alumno tiene paquete activo y pagado.
-    await supabase.rpc("consume_student_package_credit_on_booking_confirm", {
+    const { error: packageError } = await supabase.rpc("consume_student_package_credit_on_booking_confirm", {
       p_booking_id: parsed.data.bookingId,
       p_profesor_id: user.id,
     });
+
+    if (packageError) {
+      return { error: "Clase confirmada, pero no se pudo descontar el crédito del paquete." };
+    }
   }
 
   if (bookingContext) {
@@ -75,18 +89,24 @@ async function updateBookingStatus(formData: FormData, status: "confirmado" | "c
   }
 
   revalidatePath("/dashboard/profesor/bookings");
-  revalidatePath("/dashboard/profesor/reservas");
   revalidatePath("/dashboard/profesor/calendario");
-  revalidatePath("/dashboard/profesor/slots");
   revalidatePath("/dashboard/alumno/bookings");
+
+  return { error: null };
 }
 
-export async function confirmBookingAction(formData: FormData) {
-  return updateBookingStatus(formData, "confirmado");
+export async function confirmBookingAction(
+  prevState: BookingActionState,
+  formData: FormData,
+): Promise<BookingActionState> {
+  return updateBookingStatus(prevState, formData, "confirmado");
 }
 
-export async function cancelBookingAction(formData: FormData) {
-  return updateBookingStatus(formData, "cancelado");
+export async function cancelBookingAction(
+  prevState: BookingActionState,
+  formData: FormData,
+): Promise<BookingActionState> {
+  return updateBookingStatus(prevState, formData, "cancelado");
 }
 
 export async function createSoloDecisionAction(formData: FormData) {

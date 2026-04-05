@@ -16,7 +16,7 @@ export function DebtChargeForm({ bookingId, alumnoId, estimatedAmount }: DebtCha
   });
 
   return (
-    <form action={formAction} className="flex min-w-[320px] flex-col gap-2">
+    <form action={formAction} className="flex min-w-[280px] flex-col gap-2">
       <input type="hidden" name="booking_id" value={bookingId} />
       <input type="hidden" name="alumno_id" value={alumnoId} />
 
@@ -28,13 +28,13 @@ export function DebtChargeForm({ bookingId, alumnoId, estimatedAmount }: DebtCha
           step="0.01"
           defaultValue={estimatedAmount > 0 ? estimatedAmount : undefined}
           placeholder="Monto"
-          className="w-28 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900"
+          className="input w-28 px-2 py-1 text-xs"
           required
         />
         <select
           name="method"
           defaultValue="efectivo"
-          className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900"
+          className="select px-2 py-1 text-xs"
         >
           <option value="efectivo">Efectivo</option>
           <option value="transferencia_directa">Transferencia</option>
@@ -42,7 +42,7 @@ export function DebtChargeForm({ bookingId, alumnoId, estimatedAmount }: DebtCha
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+          className="btn-primary px-3 py-1.5 text-xs disabled:opacity-60"
         >
           {isPending ? "Cobrando..." : "Cobrar"}
         </button>
@@ -52,11 +52,11 @@ export function DebtChargeForm({ bookingId, alumnoId, estimatedAmount }: DebtCha
         type="text"
         name="note"
         placeholder="Nota opcional"
-        className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900"
+        className="input px-2 py-1 text-xs"
       />
 
-      {state.error ? <p className="text-xs text-red-700">{state.error}</p> : null}
-      {state.success ? <p className="text-xs text-emerald-700">{state.success}</p> : null}
+      {state.error ? <p className="text-xs" style={{ color: "var(--error)" }}>{state.error}</p> : null}
+      {state.success ? <p className="text-xs" style={{ color: "var(--success)" }}>{state.success}</p> : null}
     </form>
   );
 }

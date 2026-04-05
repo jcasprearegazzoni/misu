@@ -116,7 +116,7 @@ export async function createPaymentAction(
     };
   }
 
-  revalidatePath("/dashboard/profesor/pagos");
+  revalidatePath("/dashboard/profesor/finanzas");
 
   return {
     error: null,

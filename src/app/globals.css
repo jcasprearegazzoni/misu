@@ -484,3 +484,20 @@ details summary::-webkit-details-marker {
 [class~="text-zinc-500"] {
   color: var(--muted) !important;
 }
+
+/* Fix de alineacion para date input en formularios compactos */
+.date-input-fix {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.2;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+.date-input-fix::-webkit-date-and-time-value {
+  text-align: left;
+}
+.date-input-fix::-webkit-datetime-edit {
+  padding: 0;
+}
+
