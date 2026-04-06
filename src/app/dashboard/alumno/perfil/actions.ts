@@ -46,6 +46,8 @@ export async function saveAlumnoProfileAction(
     branch: formData.get("branch"),
     provincia: formData.get("provincia"),
     municipio: formData.get("municipio"),
+    localidad: formData.get("localidad"),
+    celular: formData.get("celular"),
     has_paleta: formData.get("has_paleta"),
     has_raqueta: formData.get("has_raqueta"),
   });
@@ -67,6 +69,8 @@ export async function saveAlumnoProfileAction(
       branch: parsed.data.branch,
       provincia: parsed.data.provincia,
       zone: parsed.data.municipio,
+      localidad: parsed.data.localidad ?? null,
+      celular: parsed.data.celular ?? null,
       has_paleta: parsed.data.has_paleta,
       has_raqueta: parsed.data.has_raqueta,
     })

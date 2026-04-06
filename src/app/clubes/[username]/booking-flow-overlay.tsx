@@ -41,16 +41,6 @@ type ConfirmandoState = {
   horaFin: string;
 } | null;
 
-type CourtSlot = {
-  canchaId: number;
-  canchaNombre: string;
-  duraciones: Array<{
-    duracion: number;
-    precio: number;
-    horaFin: string;
-  }>;
-};
-
 const DEPORTES_VISIBLES: DeporteVisible[] = ["tenis", "padel", "futbol"];
 
 function getDeporteLabel(deporte: DeporteVisible) {
@@ -158,6 +148,7 @@ export function ClubBookingSection({
   const [deporteActivo, setDeporteActivo] = useState<DeporteVisible | null>(null);
   const [semanaOffset, setSemanaOffset] = useState(0);
   const [fechaActiva, setFechaActiva] = useState<string | null>(null);
+  const [duracionActiva, setDuracionActiva] = useState<number | null>(null);
   const [horaActiva, setHoraActiva] = useState<string | null>(null);
   const [slots, setSlots] = useState<SlotRow[]>([]);
   const [confirmando, setConfirmando] = useState<ConfirmandoState>(null);
@@ -275,40 +266,51 @@ export function ClubBookingSection({
     return unique;
   }, [slots, fechaActiva, hoyIso]);
 
+  const slotsVisibles = useMemo(() => {
+    if (fechaActiva !== hoyIso) {
+      return slots;
+    }
+
+    const horaActual = getNowHourArg();
+    return slots.filter((slot) => slot.hora_inicio.slice(0, 5) > horaActual);
+  }, [slots, fechaActiva, hoyIso]);
+
+  const duracionesDisponibles = useMemo(() => {
+    return Array.from(new Set(slotsVisibles.map((slot) => slot.duracion_minutos))).sort((a, b) => a - b);
+  }, [slotsVisibles]);
+
+  useEffect(() => {
+    if (duracionesDisponibles.length === 1) {
+      setDuracionActiva(duracionesDisponibles[0] ?? null);
+      return;
+    }
+
+    if (duracionActiva !== null && duracionesDisponibles.includes(duracionActiva)) {
+      return;
+    }
+
+    setDuracionActiva(null);
+  }, [duracionesDisponibles, duracionActiva]);
+
+  const slotsFiltradosPorDuracion = useMemo(() => {
+    if (duracionActiva === null) {
+      return [];
+    }
+
+    return slotsVisibles
+      .filter((slot) => slot.duracion_minutos === duracionActiva)
+      .sort((a, b) => {
+        const horaA = b.hora_inicio.slice(0, 5).localeCompare(a.hora_inicio.slice(0, 5));
+        if (horaA !== 0) return horaA * -1;
+        return a.cancha_nombre.localeCompare(b.cancha_nombre, "es-AR");
+      });
+  }, [slotsVisibles, duracionActiva]);
+
   useEffect(() => {
     if (!horaActiva) return;
     if (hourOptions.includes(horaActiva)) return;
     setHoraActiva(null);
   }, [hourOptions, horaActiva]);
-
-  const courtSlots = useMemo<CourtSlot[]>(() => {
-    if (!horaActiva) return [];
-
-    const filtered = slots.filter((slot) => slot.hora_inicio.slice(0, 5) === horaActiva);
-    const map = new Map<number, CourtSlot>();
-
-    for (const slot of filtered) {
-      if (!map.has(slot.cancha_id)) {
-        map.set(slot.cancha_id, {
-          canchaId: slot.cancha_id,
-          canchaNombre: slot.cancha_nombre,
-          duraciones: [],
-        });
-      }
-
-      map.get(slot.cancha_id)?.duraciones.push({
-        duracion: slot.duracion_minutos,
-        precio: Number(slot.precio),
-        horaFin: slot.hora_fin.slice(0, 5),
-      });
-    }
-
-    for (const court of map.values()) {
-      court.duraciones.sort((a, b) => a.duracion - b.duracion);
-    }
-
-    return Array.from(map.values());
-  }, [slots, horaActiva]);
 
   return (
     <section className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
@@ -367,6 +369,7 @@ export function ClubBookingSection({
                   }}
                   onClick={() => {
                     setDeporteActivo(deporte);
+                    setDuracionActiva(null);
                     setHoraActiva(null);
                     setConfirmando(null);
                     setErrorLocal(null);
@@ -388,6 +391,7 @@ export function ClubBookingSection({
           style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
           onClick={() => {
             setSemanaOffset((offset) => Math.max(0, offset - 1));
+            setDuracionActiva(null);
             setHoraActiva(null);
             setConfirmando(null);
           }}
@@ -406,6 +410,7 @@ export function ClubBookingSection({
           style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
           onClick={() => {
             setSemanaOffset((offset) => Math.min(3, offset + 1));
+            setDuracionActiva(null);
             setHoraActiva(null);
             setConfirmando(null);
           }}
@@ -424,6 +429,7 @@ export function ClubBookingSection({
               type="button"
               onClick={() => {
                 setFechaActiva(day.iso);
+                setDuracionActiva(null);
                 setHoraActiva(null);
                 setConfirmando(null);
               }}
@@ -452,30 +458,31 @@ export function ClubBookingSection({
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {hourOptions.length === 0 ? (
+            {duracionesDisponibles.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--muted)" }}>
                 Sin disponibilidad para este día.
               </p>
             ) : (
-              hourOptions.map((hour) => {
-                const isActive = horaActiva === hour;
+              duracionesDisponibles.map((duracion) => {
+                const isActive = duracionActiva === duracion;
                 return (
                   <button
-                    key={hour}
+                    key={duracion}
                     type="button"
                     onClick={() => {
-                      setHoraActiva(hour);
+                      setDuracionActiva(duracion);
+                      setHoraActiva(null);
                       setConfirmando(null);
                     }}
                     data-active={isActive}
-                    className="rounded-lg border px-3 py-1.5 text-sm"
+                    className="rounded-full border px-4 py-1 text-sm font-medium"
                     style={{
                       borderColor: isActive ? "var(--misu)" : "var(--border)",
                       background: isActive ? "var(--misu)" : "var(--surface-2)",
-                      color: isActive ? "#ffffff" : "var(--foreground)",
+                      color: isActive ? "#ffffff" : "var(--muted)",
                     }}
                   >
-                    {hour}
+                    {duracion} min
                   </button>
                 );
               })
@@ -484,49 +491,48 @@ export function ClubBookingSection({
         )}
       </div>
 
-      {horaActiva ? (
+      {duracionActiva !== null ? (
         <div className="mt-4 grid gap-3">
-          {courtSlots.length === 0 ? (
+          {slotsFiltradosPorDuracion.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--muted)" }}>
-              No hay canchas para el horario seleccionado.
+              Sin disponibilidad para esta duración.
             </p>
           ) : (
-            courtSlots.map((court) => (
+            slotsFiltradosPorDuracion.map((slot) => (
               <div
-                key={court.canchaId}
+                key={`${slot.cancha_id}-${slot.hora_inicio}-${slot.duracion_minutos}`}
                 className="rounded-xl border p-3"
                 style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
               >
-                <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                    {court.canchaNombre}
+                    {slot.hora_inicio.slice(0, 5)} · {slot.cancha_nombre}
+                  </p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--misu)" }}>
+                    {formatMoney(Number(slot.precio))}
                   </p>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {court.duraciones.map((durationOption) => (
-                    <button
-                      key={`${court.canchaId}-${durationOption.duracion}-${durationOption.horaFin}`}
-                      type="button"
-                      onClick={() =>
-                        setConfirmando({
-                          canchaId: court.canchaId,
-                          canchaNombre: court.canchaNombre,
-                          duracion: durationOption.duracion,
-                          precio: durationOption.precio,
-                          horaFin: durationOption.horaFin,
-                        })
-                      }
-                      className="rounded-lg border px-3 py-1.5 text-sm"
-                      style={{
-                        borderColor: "var(--border)",
-                        background: "var(--surface-1)",
-                        color: "var(--foreground)",
-                      }}
-                    >
-                      {durationOption.duracion} min · {formatMoney(durationOption.precio)}
-                    </button>
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHoraActiva(slot.hora_inicio.slice(0, 5));
+                    setConfirmando({
+                      canchaId: slot.cancha_id,
+                      canchaNombre: slot.cancha_nombre,
+                      duracion: slot.duracion_minutos,
+                      precio: Number(slot.precio),
+                      horaFin: slot.hora_fin.slice(0, 5),
+                    });
+                  }}
+                  className="mt-2 rounded-lg border px-3 py-1.5 text-sm"
+                  style={{
+                    borderColor: "var(--border)",
+                    background: "var(--surface-1)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  Elegir horario
+                </button>
               </div>
             ))
           )}

@@ -50,9 +50,10 @@ export function BuyPackageForm({ packageId, profesorId, packageName, totalClasse
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+        className="w-full rounded-lg px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+        style={{ background: "var(--misu)" }}
       >
-        {isPending ? "Enviando..." : "Solicitar paquete"}
+        {isPending ? "Enviando..." : "Solicitar"}
       </button>
     </form>
   );

@@ -106,19 +106,16 @@ export function parseWeekOffset(value?: string) {
 export function getWeekBounds(weekOffset: number) {
   const now = new Date();
   const local = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const day = local.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const monday = new Date(local);
-  monday.setDate(local.getDate() + mondayOffset);
-  monday.setDate(monday.getDate() + weekOffset * 7);
+  const startDate = new Date(local);
+  startDate.setDate(local.getDate() + weekOffset * 7);
 
-  const nextMonday = new Date(monday);
-  nextMonday.setDate(monday.getDate() + 7);
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 7);
 
   const weekDates: string[] = [];
   for (let i = 0; i < 7; i += 1) {
-    const current = new Date(monday);
-    current.setDate(monday.getDate() + i);
+    const current = new Date(startDate);
+    current.setDate(startDate.getDate() + i);
     const y = current.getFullYear();
     const m = String(current.getMonth() + 1).padStart(2, "0");
     const d = String(current.getDate()).padStart(2, "0");
@@ -126,9 +123,9 @@ export function getWeekBounds(weekOffset: number) {
   }
 
   const start = weekDates[0];
-  const nextY = nextMonday.getFullYear();
-  const nextM = String(nextMonday.getMonth() + 1).padStart(2, "0");
-  const nextD = String(nextMonday.getDate()).padStart(2, "0");
+  const nextY = endDate.getFullYear();
+  const nextM = String(endDate.getMonth() + 1).padStart(2, "0");
+  const nextD = String(endDate.getDate()).padStart(2, "0");
   const endExclusive = `${nextY}-${nextM}-${nextD}`;
 
   return { weekDates, start, endExclusive };

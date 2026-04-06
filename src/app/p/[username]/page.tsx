@@ -13,6 +13,10 @@ type PublicProfesorRow = {
   name: string;
   bio: string | null;
   sport: "tenis" | "padel" | "ambos" | null;
+  price_individual: number | string | null;
+  price_dobles: number | string | null;
+  price_trio: number | string | null;
+  price_grupal: number | string | null;
 };
 
 type PackageRow = {
@@ -27,6 +31,25 @@ type PageProps = {
   params: Promise<{ username: string }>;
   searchParams?: Promise<{ weekOffset?: string; day?: string }>;
 };
+
+const PRECIO_LABELS: Array<{
+  key: keyof Pick<PublicProfesorRow, "price_individual" | "price_dobles" | "price_trio" | "price_grupal">;
+  label: string;
+}> = [
+  { key: "price_individual", label: "Individual" },
+  { key: "price_dobles", label: "Dobles" },
+  { key: "price_trio", label: "Trío" },
+  { key: "price_grupal", label: "Grupal" },
+];
+
+function normalizePrice(value: unknown) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 function getSportLabel(sport: PublicProfesorRow["sport"]) {
   if (sport === "tenis") {
@@ -76,7 +99,6 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
     }
   }
 
-  // Paquetes activos del profesor (visibles para todos los autenticados por RLS).
   const { data: packagesData } = user
     ? await supabase
         .from("packages")
@@ -96,6 +118,13 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
   });
 
   const loginHref = `/login?redirectTo=${encodeURIComponent(`/p/${profesor.username}`)}`;
+  const preciosNormalizados = {
+    price_individual: normalizePrice(profesor.price_individual),
+    price_dobles: normalizePrice(profesor.price_dobles),
+    price_trio: normalizePrice(profesor.price_trio),
+    price_grupal: normalizePrice(profesor.price_grupal),
+  };
+  const preciosVisibles = PRECIO_LABELS.filter(({ key }) => preciosNormalizados[key] !== null);
 
   return (
     <>
@@ -122,6 +151,29 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
           </p>
         </section>
 
+        {preciosVisibles.length > 0 ? (
+          <section
+            className="mt-4 rounded-2xl border p-4"
+            style={{ background: "var(--surface-1)", borderColor: "var(--border)" }}
+          >
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted-2)" }}>
+              Precios por clase
+            </p>
+            <div className="mt-3 grid gap-2">
+              {preciosVisibles.map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between gap-3">
+                  <span className="text-sm" style={{ color: "var(--muted)" }}>
+                    {label}
+                  </span>
+                  <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                    $ {preciosNormalizados[key]!.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {activePackages.length > 0 ? (
           <section
             className="mt-4 rounded-xl border p-4"
@@ -133,7 +185,7 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
             <p className="mt-1 text-xs" style={{ color: "var(--muted-2)" }}>
               Solicitá un paquete y coordiná el pago con el profesor para activar tus créditos.
             </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 items-start gap-3 sm:grid-cols-2 md:grid-cols-3">
               {activePackages.map((pkg) =>
                 userRole === "alumno" ? (
                   <div
@@ -179,9 +231,10 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
                     {!user ? (
                       <Link
                         href={loginHref}
-                        className="btn-primary mt-2 inline-flex rounded-md px-3 py-1.5 text-xs font-medium"
+                        className="mt-3 inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition hover:opacity-90"
+                        style={{ background: "var(--misu)", color: "#fff" }}
                       >
-                        Iniciá sesión para solicitar
+                        Solicitar
                       </Link>
                     ) : (
                       <p className="mt-2 text-xs" style={{ color: "var(--muted-2)" }}>

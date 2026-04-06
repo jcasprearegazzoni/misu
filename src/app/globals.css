@@ -501,3 +501,53 @@ details summary::-webkit-details-marker {
   padding: 0;
 }
 
+/* FullCalendar dark theme */
+.fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--surface-1);
+  --fc-neutral-bg-color: var(--surface-2);
+  --fc-list-event-hover-bg-color: var(--surface-hover);
+  --fc-today-bg-color: rgba(230, 128, 25, 0.08);
+  color: var(--foreground);
+}
+
+.fc .fc-timegrid-slot-label,
+.fc .fc-col-header-cell-cushion,
+.fc .fc-timegrid-axis-cushion {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.fc .fc-timegrid-slot {
+  height: 2.5rem;
+}
+
+.fc .fc-timegrid-col,
+.fc .fc-timegrid-axis,
+.fc .fc-scrollgrid-section > td {
+  background: var(--surface-1);
+}
+
+.fc .fc-event {
+  border: none;
+  border-radius: 8px;
+  padding: 2px 4px;
+  font-size: 0.75rem;
+  line-height: 1.15;
+}
+
+.fc .club-event-confirmada {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.fc .club-event-pendiente {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.fc .club-event-cancelada {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+

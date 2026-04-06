@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 function emptyToUndefined(value: unknown) {
   if (typeof value === "string" && value.trim() === "") {
@@ -14,7 +14,12 @@ const optionalBioSchema = z.preprocess(
 );
 
 export const profesorProfileSchema = z.object({
-  name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres."),
+  name: z
+    .string()
+    .trim()
+    .min(2, "El nombre debe tener al menos 2 caracteres")
+    .max(80, "El nombre es demasiado largo")
+    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s'-]+$/, "El nombre solo puede contener letras y espacios"),
   bio: optionalBioSchema,
   sport: z.enum(["tenis", "padel", "ambos"], "Seleccioná un deporte válido."),
   provincia: z.string().trim().min(1, "Seleccioná una provincia."),

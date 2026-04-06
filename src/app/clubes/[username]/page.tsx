@@ -187,53 +187,65 @@ export default async function PublicClubPage({ params, searchParams }: PageProps
             className="rounded-2xl border p-5"
             style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
           >
-            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted-2)" }}>
-              Club deportivo
-            </p>
-            <h1 className="mt-2 text-3xl font-black" style={{ color: "var(--foreground)" }}>
-              {club.nombre}
-            </h1>
-            {club.direccion ? (
-              <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
-                {club.direccion}
-              </p>
-            ) : null}
-
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              <BookingFlowOverlay
-                clubId={club.id}
-                clubUsername={club.username}
-                clubNombre={club.nombre}
-                nombrePrefill={nombrePrefill}
-                emailPrefill={emailPrefill}
-                initialError={initialError}
-                initialSuccess={initialSuccess}
-              />
-              {profesores.length > 0 ? (
-                <Link
-                  href={`/clubes/${club.username}/profesores`}
-                  className="btn-ghost w-full justify-center rounded-xl border px-4 py-2 text-sm"
-                  style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                >
-                  Ver profesores
-                </Link>
-              ) : (
-                <div />
-              )}
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="min-w-0 text-2xl font-black" style={{ color: "var(--foreground)" }}>
+                {club.nombre}
+              </h1>
               {phoneDigits ? (
                 <a
                   href={`https://wa.me/${phoneDigits}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="btn-ghost rounded-xl border px-3 py-1.5 text-sm"
-                  style={{ borderColor: "var(--border)" }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full sm:h-auto sm:w-auto sm:gap-2 sm:px-4 sm:py-1.5 sm:text-sm sm:font-semibold"
+                  style={{ background: "#22c55e", color: "#ffffff" }}
                 >
-                  WhatsApp
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M20.52 3.48A11.86 11.86 0 0 0 12.06 0C5.5 0 .16 5.33.16 11.9c0 2.1.55 4.14 1.6 5.94L0 24l6.34-1.66a11.86 11.86 0 0 0 5.72 1.47h.01c6.56 0 11.9-5.33 11.9-11.9 0-3.18-1.24-6.18-3.45-8.43ZM12.07 21.8h-.01a9.86 9.86 0 0 1-5.03-1.38l-.36-.22-3.76.98 1-3.67-.24-.38a9.88 9.88 0 0 1-1.5-5.25c0-5.45 4.44-9.9 9.9-9.9 2.65 0 5.13 1.03 7 2.9a9.84 9.84 0 0 1 2.9 7c0 5.45-4.44 9.9-9.9 9.9Zm5.43-7.42c-.3-.15-1.77-.87-2.05-.97-.27-.1-.47-.15-.66.15-.2.3-.76.97-.93 1.16-.17.2-.34.22-.64.08-.3-.15-1.26-.46-2.4-1.47a9.06 9.06 0 0 1-1.67-2.07c-.17-.3-.02-.46.13-.6.13-.13.3-.34.45-.52.15-.17.2-.3.3-.5.1-.2.05-.38-.02-.53-.08-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.53.08-.8.38-.28.3-1.05 1.02-1.05 2.48 0 1.46 1.08 2.88 1.23 3.07.15.2 2.1 3.2 5.08 4.48.71.31 1.27.5 1.7.64.72.23 1.38.2 1.9.12.58-.08 1.77-.72 2.02-1.41.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35Z" />
+                  </svg>
+                  <span className="hidden sm:inline">WhatsApp</span>
                 </a>
               ) : null}
+            </div>
+            {club.direccion ? (
+              <p className="mt-2 flex items-start gap-2 text-sm" style={{ color: "var(--muted)" }}>
+                <span aria-hidden="true" className="mt-0.5 inline-flex">
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 1 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                </span>
+                <span>{club.direccion}</span>
+              </p>
+            ) : null}
+
+            {servicios.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {servicios.map((servicio) => (
+                  <span
+                    key={servicio.key}
+                    className="rounded-full border px-3 py-1 text-sm"
+                    style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
+                  >
+                    {servicio.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap gap-2">
               {club.website ? (
                 <a
                   href={normalizeWebsite(club.website)}
@@ -245,39 +257,37 @@ export default async function PublicClubPage({ params, searchParams }: PageProps
                   Website
                 </a>
               ) : null}
-              {club.email_contacto ? (
-                <a
-                  href={`mailto:${club.email_contacto}`}
+              {profesores.length > 0 ? (
+                <Link
+                  href={`/clubes/${club.username}/profesores`}
                   className="btn-ghost rounded-xl border px-3 py-1.5 text-sm"
                   style={{ borderColor: "var(--border)" }}
                 >
-                  Contacto
-                </a>
+                  Ver profesores
+                </Link>
               ) : null}
             </div>
           </section>
 
-          {servicios.length > 0 ? (
-            <section
-              className="mt-5 rounded-2xl border p-5"
-              style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
-            >
-              <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--muted-2)" }}>
-                Servicios
-              </h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {servicios.map((servicio) => (
-                  <span
-                    key={servicio.key}
-                    className="rounded-lg border px-2.5 py-1 text-sm"
-                    style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
-                  >
-                    {servicio.label}
-                  </span>
-                ))}
-              </div>
-            </section>
-          ) : null}
+          <section
+            className="mt-5 rounded-2xl border p-5"
+            style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+          >
+            <h2 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+              Reservar cancha
+            </h2>
+            <div className="mt-3">
+              <BookingFlowOverlay
+                clubId={club.id}
+                clubUsername={club.username}
+                clubNombre={club.nombre}
+                nombrePrefill={nombrePrefill}
+                emailPrefill={emailPrefill}
+                initialError={initialError}
+                initialSuccess={initialSuccess}
+              />
+            </div>
+          </section>
 
           {canchasResumen.length > 0 ? (
             <section

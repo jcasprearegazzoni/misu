@@ -8,6 +8,7 @@ import {
   cancelSoloDecisionAction,
 } from "@/app/dashboard/alumno/decisiones/actions";
 import { CancelBookingButton } from "./cancel-booking-button";
+import { ReservarTab } from "./reservar-tab";
 
 type AlumnoTab = "reservar" | "mis-clases" | "decisiones";
 
@@ -26,6 +27,7 @@ type ProfesorRow = {
   user_id: string;
   name: string;
   username: string | null;
+  sport: "tenis" | "padel" | "ambos" | null;
   cancel_without_charge_hours: number | null;
 };
 
@@ -87,10 +89,22 @@ function groupBookingsByDate(bookings: BookingRow[]) {
   return Array.from(groupsMap.entries())
     .map(([date, dayBookings]) => ({
       date,
-      label: formatUserDate(date),
+      label: getLabelFecha(date),
       bookings: dayBookings.sort((a, b) => a.start_time.localeCompare(b.start_time)),
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function getLabelFecha(fecha: string): string {
+  const hoy = new Date().toISOString().slice(0, 10);
+  if (fecha === hoy) return "Hoy";
+
+  const [year, month, day] = fecha.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const weekday = date.toLocaleDateString("es-AR", { weekday: "long" });
+  const wd = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+
+  return `${wd} ${day}/${month}`;
 }
 
 type AlumnoTurnosPageProps = {
@@ -113,11 +127,16 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
 
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: profesoresData }, { data: bookingsData }, { data: decisionsData }, { data: studentPackagesData }] =
-    await Promise.all([
+  const [
+    { data: profesoresData },
+    { data: bookingsData },
+    { data: decisionsData },
+    { data: studentPackagesData },
+    { data: misProfesoresData },
+  ] = await Promise.all([
       supabase
         .from("profiles")
-        .select("user_id, name, username, cancel_without_charge_hours")
+        .select("user_id, name, username, sport, cancel_without_charge_hours")
         .eq("role", "profesor")
         .order("name", { ascending: true }),
       supabase
@@ -140,12 +159,19 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
         .eq("alumno_id", profile.user_id)
         .gt("classes_remaining", 0)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("bookings")
+        .select("profesor_id")
+        .eq("alumno_id", profile.user_id)
+        .in("status", ["confirmado", "completado"])
+        .limit(50),
     ]);
 
   const profesores = (profesoresData ?? []) as ProfesorRow[];
   const bookings = (bookingsData ?? []) as BookingRow[];
   const decisions = (decisionsData ?? []) as DecisionRow[];
   const studentPackages = (studentPackagesData ?? []) as StudentPackageRow[];
+  const misProfesoresIds = [...new Set((misProfesoresData ?? []).map((booking) => booking.profesor_id))];
 
   const profesorMap = new Map(profesores.map((row) => [row.user_id, row]));
   const bookingsByDate = groupBookingsByDate(bookings);
@@ -226,57 +252,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
         })}
       </div>
 
-      {activeTab === "reservar" ? (
-        <section className="mt-6 card p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-                Elegir profesor
-              </h2>
-              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                Seleccioná un profesor para ver su semana y reservar una clase.
-              </p>
-            </div>
-          </div>
-
-          {profesores.length === 0 ? (
-            <div className="mt-4 rounded-lg border px-4 py-4 text-sm text-center" style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}>
-              No hay profesores cargados por el momento.
-            </div>
-          ) : (
-            <ul className="mt-4 grid gap-2">
-              {profesores.map((profesor) => (
-                <li
-                  key={profesor.user_id}
-                  className="flex items-center justify-between gap-3 rounded-xl px-4 py-3"
-                  style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-                      style={{ background: "var(--misu-subtle)", border: "1px solid var(--border-misu)", color: "var(--misu)" }}
-                    >
-                      {profesor.name[0]?.toUpperCase()}
-                    </div>
-                    <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                      {profesor.name}
-                    </p>
-                  </div>
-                  {profesor.username ? (
-                    <Link href={`/p/${profesor.username}`} className="btn-primary text-xs" style={{ padding: "0.4rem 0.9rem" }}>
-                      Ver semana
-                    </Link>
-                  ) : (
-                    <span className="text-xs rounded-lg px-3 py-1.5" style={{ background: "var(--surface-3)", border: "1px solid var(--border)", color: "var(--muted-2)" }}>
-                      Sin link público
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ) : null}
+      {activeTab === "reservar" ? <ReservarTab profesores={profesores} misProfesoresIds={misProfesoresIds} /> : null}
 
       {activeTab === "mis-clases" ? (
         <section className="mt-6 grid gap-4">
@@ -380,21 +356,13 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
                     const isFinalized = isFinalizedBooking(booking);
                     const isPaid = booking.package_consumed;
 
-                    const computedStatusLabel = isFinalized
-                      ? isPaid
-                        ? "Finalizada · paquete"
-                        : "Finalizada"
-                      : statusLabel[booking.status];
-
-                    const statusStyle = isFinalized
-                      ? isPaid
-                        ? "badge-confirmed"
-                        : "badge-pending"
-                      : booking.status === "confirmado"
-                        ? "badge-confirmed"
+                    const computedStatusLabel = statusLabel[booking.status];
+                    const statusStyle =
+                      booking.status === "confirmado"
+                        ? { background: "var(--success-bg)", color: "var(--success)" }
                         : booking.status === "pendiente"
-                          ? "badge-pending"
-                          : "badge-cancelled";
+                          ? { background: "var(--warning-bg)", color: "var(--warning)" }
+                          : { background: "var(--surface-2)", color: "var(--muted)" };
 
                     return (
                       <li key={booking.id} className="rounded-xl px-4 py-3 text-sm" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
@@ -402,7 +370,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
                           <p className="font-semibold" style={{ color: "var(--foreground)" }}>
                             {booking.start_time.slice(0, 5)} - {booking.end_time.slice(0, 5)}
                           </p>
-                          <span className={statusStyle}>{computedStatusLabel}</span>
+                          <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={statusStyle}>{computedStatusLabel}</span>
                         </div>
 
                         {isFinalized ? (

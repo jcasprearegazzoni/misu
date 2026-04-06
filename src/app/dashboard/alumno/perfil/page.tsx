@@ -18,6 +18,10 @@ type ChecklistItem = {
 export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPageProps) {
   const profile = await getCurrentProfile();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const profileWithExtras = profile as typeof profile & {
+    localidad?: string | null;
+    celular?: string | null;
+  };
 
   if (!profile) {
     redirect("/login");
@@ -140,6 +144,8 @@ export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPag
             branch: profile.branch === "Dama" ? "Dama" : "Caballero",
             provincia: profile.provincia ?? "",
             municipio: profile.zone ?? "",
+            localidad: profileWithExtras.localidad ?? "",
+            celular: profileWithExtras.celular ?? "",
             has_paleta: profile.has_paleta ?? false,
             has_raqueta: profile.has_raqueta ?? false,
           }}

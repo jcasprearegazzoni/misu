@@ -30,7 +30,7 @@ const profesorLinks: NavItem[] = [
 const alumnoLinks: NavItem[] = [
   { href: "/dashboard/alumno", label: "Inicio" },
   { href: "/dashboard/alumno/turnos", label: "Clases" },
-  { href: "/dashboard/alumno/clubes", label: "Clubes" },
+  { href: "/dashboard/alumno/reservas", label: "Reservas" },
 ];
 
 async function signOutAction() {

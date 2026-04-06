@@ -25,6 +25,8 @@ type AlumnoPerfilFormProps = {
     branch: "Caballero" | "Dama";
     provincia: string;
     municipio: string;
+    localidad: string;
+    celular: string;
     has_paleta: boolean;
     has_raqueta: boolean;
   };
@@ -142,6 +144,17 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
 
       <ZonaSelector defaultProvincia={initialValues.provincia} defaultMunicipio={initialValues.municipio} />
 
+      <label className="label">
+        <span>Localidad</span>
+        <input
+          type="text"
+          name="localidad"
+          defaultValue={initialValues.localidad}
+          placeholder="Ej: Palermo, Recoleta, San Isidro..."
+          className="input"
+        />
+      </label>
+
       {sport === "padel" || sport === "ambos" ? (
         <label
           className="flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3"
@@ -185,6 +198,17 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
           </div>
         </label>
       ) : null}
+
+      <label className="label">
+        <span>Celular</span>
+        <input
+          type="text"
+          name="celular"
+          defaultValue={initialValues.celular}
+          placeholder="Ej: 1134567890"
+          className="input"
+        />
+      </label>
 
       {clientError ? <p className="alert-error">{clientError}</p> : null}
       {state.error ? <p className="alert-error">{state.error}</p> : null}
