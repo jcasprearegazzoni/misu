@@ -186,32 +186,56 @@ export default async function DashboardAlumnoPage() {
 
       {reservaCancha ? (
         <div
-          className="mb-6 rounded-2xl border p-4"
-          style={{ background: "var(--surface-1)", borderColor: "var(--border)" }}
+          className="mb-6 rounded-2xl p-5"
+          style={{ background: "var(--success-bg)", border: "1px solid var(--success-border)" }}
         >
-          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted-2)" }}>
+          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--success)" }}>
             Próxima reserva de cancha
           </p>
-          <p className="mt-2 text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-            {clubNombre} — {reservaCancha.deporte === "padel" ? "Padel" : reservaCancha.deporte === "tenis" ? "Tenis" : "Futbol"}
-          </p>
-          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-            {formatReservaFecha(reservaCancha.fecha, reservaCancha.hora_inicio, reservaCancha.hora_fin)}
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs" style={{ color: "var(--muted)" }}>
-              Estado:
+          <p className="mt-2 text-2xl font-black tracking-tight" style={{ color: "var(--foreground)" }}>
+            {reservaCancha.hora_inicio.slice(0, 5)}
+            <span className="text-base font-semibold" style={{ color: "var(--muted)" }}>
+              {" "}
+              – {reservaCancha.hora_fin.slice(0, 5)}
             </span>
-            <span
-              className="rounded-full px-2 py-0.5 text-xs"
-              style={
-                reservaCancha.estado === "confirmada"
-                  ? { background: "var(--success-bg)", color: "var(--success)" }
-                  : { background: "var(--warning-bg)", color: "var(--warning)" }
-              }
+          </p>
+          <p className="mt-0.5 text-sm" style={{ color: "var(--foreground)" }}>
+            {new Intl.DateTimeFormat("es-AR", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              timeZone: "America/Argentina/Buenos_Aires",
+            }).format(new Date(`${reservaCancha.fecha}T12:00:00-03:00`))}
+          </p>
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-xs" style={{ color: "var(--muted)" }}>
+              {clubNombre}
+              {" · "}
+              <strong>
+                {reservaCancha.deporte === "padel"
+                  ? "Pádel"
+                  : reservaCancha.deporte === "tenis"
+                    ? "Tenis"
+                    : "Fútbol"}
+              </strong>
+              {" · "}
+              <span
+                style={
+                  reservaCancha.estado === "confirmada"
+                    ? { color: "var(--success)" }
+                    : { color: "var(--warning)" }
+                }
+              >
+                {reservaCancha.estado}
+              </span>
+            </p>
+            <Link
+              href="/dashboard/alumno/reservas"
+              className="text-xs font-semibold"
+              style={{ color: "var(--success)" }}
             >
-              {reservaCancha.estado}
-            </span>
+              Ver todas →
+            </Link>
           </div>
         </div>
       ) : null}

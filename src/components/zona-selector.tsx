@@ -4,59 +4,62 @@ import { useState } from "react";
 import { PROVINCIAS, getMunicipiosByProvincia } from "@/lib/geo/argentina";
 
 type ZonaSelectorProps = {
-  defaultProvincia?: string;
-  defaultMunicipio?: string;
+  // Modo controlado
+  provincia: string;
+  municipio: string;
+  onProvinciaChange: (value: string) => void;
+  onMunicipioChange: (value: string) => void;
 };
 
-export function ZonaSelector({ defaultProvincia, defaultMunicipio }: ZonaSelectorProps) {
-  const initialProvincia = defaultProvincia ?? "";
-  const [provinciaId, setProvinciaId] = useState(initialProvincia);
-
-  const municipios = provinciaId ? getMunicipiosByProvincia(provinciaId) : [];
-
-  // Si el municipio guardado no está en la lista de la provincia actual, lo reseteamos.
-  const defaultMunicipioValido = municipios.includes(defaultMunicipio ?? "") ? defaultMunicipio : "";
+export function ZonaSelector({ provincia, municipio, onProvinciaChange, onMunicipioChange }: ZonaSelectorProps) {
+  const municipios = provincia ? getMunicipiosByProvincia(provincia) : [];
 
   function handleProvinciaChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    setProvinciaId(event.target.value);
+    onProvinciaChange(event.target.value);
+    // Al cambiar provincia, resetear municipio
+    onMunicipioChange("");
   }
 
   return (
     <div className="grid gap-4">
+      {/* Input oculto para enviar provincia al formData */}
+      <input type="hidden" name="provincia" value={provincia} />
+      {/* Input oculto para enviar municipio al formData */}
+      <input type="hidden" name="municipio" value={municipio} />
+
       <label className="label">
         <span>Provincia</span>
-        <select name="provincia" value={provinciaId} onChange={handleProvinciaChange} className="select" required>
+        <select value={provincia} onChange={handleProvinciaChange} className="select" required>
           <option value="" disabled>
             Seleccioná una provincia
           </option>
-          {PROVINCIAS.map((provincia) => (
-            <option key={provincia.id} value={provincia.id}>
-              {provincia.nombre}
+          {PROVINCIAS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nombre}
             </option>
           ))}
         </select>
       </label>
 
       <label className="label">
-        <span>Municipio / Partido</span>
-        {provinciaId === "" ? (
+        <span>{provincia === "caba" ? "Barrio" : "Municipio / Partido"}</span>
+        {provincia === "" ? (
           <select disabled className="select cursor-not-allowed opacity-50">
             <option>Primero seleccioná una provincia</option>
           </select>
         ) : (
           <select
-            name="municipio"
-            defaultValue={defaultMunicipioValido}
+            value={municipio}
+            onChange={(e) => onMunicipioChange(e.target.value)}
             className="select"
             required
-            key={provinciaId}
           >
             <option value="" disabled>
-              Seleccioná un municipio
+              {provincia === "caba" ? "Seleccioná un barrio" : "Seleccioná un municipio"}
             </option>
-            {municipios.map((municipio) => (
-              <option key={municipio} value={municipio}>
-                {municipio}
+            {municipios.map((m) => (
+              <option key={m} value={m}>
+                {m}
               </option>
             ))}
           </select>

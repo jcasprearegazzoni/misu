@@ -92,15 +92,15 @@ export function WeekCalendarStrip({
                     style={
                       isActive
                         ? {
-                            borderColor: isBookingTone ? "var(--success)" : "var(--misu)",
-                            background: isBookingTone ? "var(--success)" : "var(--misu)",
-                            color: "#fff",
-                          }
+                          borderColor: isBookingTone ? "var(--success)" : "var(--misu)",
+                          background: isBookingTone ? "var(--success)" : "var(--misu)",
+                          color: "#fff",
+                        }
                         : {
-                            borderColor: "var(--border)",
-                            background: "var(--surface-2)",
-                            color: "var(--foreground)",
-                          }
+                          borderColor: "var(--border)",
+                          background: "var(--surface-2)",
+                          color: "var(--foreground)",
+                        }
                     }
                   >
                     <p
@@ -186,15 +186,15 @@ export function WeekCalendarStrip({
                     style={
                       isActive
                         ? {
-                            borderColor: isBookingTone ? "var(--success)" : "var(--misu)",
-                            background: isBookingTone ? "var(--success)" : "var(--misu)",
-                            color: "#fff",
-                          }
+                          borderColor: isBookingTone ? "var(--success)" : "var(--misu)",
+                          background: isBookingTone ? "var(--success)" : "var(--misu)",
+                          color: "#fff",
+                        }
                         : {
-                            borderColor: "var(--border)",
-                            background: "var(--surface-2)",
-                            color: "var(--foreground)",
-                          }
+                          borderColor: "var(--border)",
+                          background: "var(--surface-2)",
+                          color: "var(--foreground)",
+                        }
                     }
                   >
                     <p
@@ -255,15 +255,15 @@ export function WeekCalendarStrip({
                   style={
                     isActive
                       ? {
-                          borderColor: isBookingTone ? "var(--success)" : "var(--misu)",
-                          background: isBookingTone ? "var(--success)" : "var(--misu)",
-                          color: "#fff",
-                        }
+                        borderColor: isBookingTone ? "var(--success)" : "var(--misu)",
+                        background: isBookingTone ? "var(--success)" : "var(--misu)",
+                        color: "#fff",
+                      }
                       : {
-                          borderColor: "var(--border)",
-                          background: "var(--surface-2)",
-                          color: "var(--foreground)",
-                        }
+                        borderColor: "var(--border)",
+                        background: "var(--surface-2)",
+                        color: "var(--foreground)",
+                      }
                   }
                 >
                   <p

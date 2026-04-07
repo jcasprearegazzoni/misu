@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { ZonaSelector } from "@/components/zona-selector";
 import { saveProfesorProfileAction } from "./actions";
 
@@ -21,6 +21,10 @@ export function PerfilForm({ initialValues, successMessage }: PerfilFormProps) {
     error: null,
     success: null,
   });
+
+  // Estado controlado para provincia y municipio
+  const [provincia, setProvincia] = useState(initialValues.provincia);
+  const [municipio, setMunicipio] = useState(initialValues.municipio);
 
   return (
     <form action={formAction} className="mt-4 grid gap-4">
@@ -44,7 +48,12 @@ export function PerfilForm({ initialValues, successMessage }: PerfilFormProps) {
         </select>
       </label>
 
-      <ZonaSelector defaultProvincia={initialValues.provincia} defaultMunicipio={initialValues.municipio} />
+      <ZonaSelector
+        provincia={provincia}
+        municipio={municipio}
+        onProvinciaChange={setProvincia}
+        onMunicipioChange={setMunicipio}
+      />
 
       {initialValues.username ? (
         <div className="label">

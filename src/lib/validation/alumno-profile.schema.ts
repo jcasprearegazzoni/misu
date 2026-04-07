@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 const categoryPadelSchema = z.preprocess(
   (v) => (v === "" || v === null || v === undefined ? null : v),

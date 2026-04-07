@@ -29,6 +29,12 @@ type ProfesorRow = {
   username: string | null;
   sport: "tenis" | "padel" | "ambos" | null;
   cancel_without_charge_hours: number | null;
+  provincia: string | null;
+  zone: string | null;
+  price_individual: number | null;
+  price_dobles: number | null;
+  price_trio: number | null;
+  price_grupal: number | null;
 };
 
 type DecisionRow = {
@@ -136,7 +142,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
   ] = await Promise.all([
       supabase
         .from("profiles")
-        .select("user_id, name, username, sport, cancel_without_charge_hours")
+        .select("user_id, name, username, sport, cancel_without_charge_hours, provincia, zone, price_individual, price_dobles, price_trio, price_grupal")
         .eq("role", "profesor")
         .order("name", { ascending: true }),
       supabase

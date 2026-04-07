@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useTransition, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ZonaSelector } from "@/components/zona-selector";
 import { saveAlumnoProfileAction } from "./actions";
 
@@ -11,16 +12,16 @@ type AlumnoPerfilFormProps = {
     name: string;
     sport: "tenis" | "padel" | "ambos";
     category_padel:
-      | "Principiante"
-      | "8va"
-      | "7ma"
-      | "6ta"
-      | "5ta"
-      | "4ta"
-      | "3ra"
-      | "2da"
-      | "1ra"
-      | null;
+    | "Principiante"
+    | "8va"
+    | "7ma"
+    | "6ta"
+    | "5ta"
+    | "4ta"
+    | "3ra"
+    | "2da"
+    | "1ra"
+    | null;
     category_tenis: "Principiante" | "Intermedio" | "Avanzado" | null;
     branch: "Caballero" | "Dama";
     provincia: string;
@@ -33,62 +34,95 @@ type AlumnoPerfilFormProps = {
 };
 
 export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: AlumnoPerfilFormProps) {
-  const [state, formAction, isPending] = useActionState(saveAlumnoProfileAction, {
-    error: null,
-    success: null,
-  });
-  const [sport, setSport] = useState<"tenis" | "padel" | "ambos">(initialValues.sport);
-  const [clientError, setClientError] = useState<string | null>(null);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
-  const visibleSuccessMessage = !clientError && !state.error ? successMessage : null;
+  // Estado local de errores y éxito — gestionado 100% en el cliente
+  const [errors, setErrors] = useState<string[]>([]);
+
+  // Estado controlado de todos los campos — inicializado una sola vez desde props
+  const [name, setName] = useState(initialValues.name);
+  const [sport, setSport] = useState<"tenis" | "padel" | "ambos">(initialValues.sport);
+  const [branch, setBranch] = useState<"Caballero" | "Dama">(initialValues.branch);
+  const [categoryPadel, setCategoryPadel] = useState(initialValues.category_padel ?? "");
+  const [categoryTenis, setCategoryTenis] = useState(initialValues.category_tenis ?? "");
+  const [provincia, setProvincia] = useState(initialValues.provincia);
+  const [municipio, setMunicipio] = useState(initialValues.municipio);
+  const [localidad, setLocalidad] = useState(initialValues.localidad);
+  const [celular, setCelular] = useState(initialValues.celular);
+  const [hasPaleta, setHasPaleta] = useState(initialValues.has_paleta);
+  const [hasRaqueta, setHasRaqueta] = useState(initialValues.has_raqueta);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    // Construir FormData con los valores actuales del estado (no del DOM)
+    const formData = new FormData();
+    formData.set("name", name);
+    formData.set("sport", sport);
+    formData.set("branch", branch);
+    formData.set("category_padel", categoryPadel);
+    formData.set("category_tenis", categoryTenis);
+    formData.set("provincia", provincia);
+    formData.set("municipio", municipio);
+    formData.set("localidad", localidad);
+    formData.set("celular", celular);
+    if (hasPaleta) formData.set("has_paleta", "on");
+    if (hasRaqueta) formData.set("has_raqueta", "on");
+    if (redirectTo) formData.set("redirectTo", redirectTo);
+
+    startTransition(async () => {
+      const result = await saveAlumnoProfileAction(formData);
+
+      if (result.errors.length > 0) {
+        // Solo actualizamos los errores — el estado del form NO cambia
+        setErrors(result.errors);
+        return;
+      }
+
+      // Éxito: navegar a la ruta de confirmación
+      setErrors([]);
+      router.push(result.redirectTo ?? "/dashboard/alumno/perfil?updated=1");
+    });
+  }
+
+  const visibleSuccessMessage = errors.length === 0 ? successMessage : null;
 
   return (
-    <form
-      action={formAction}
-      className="grid gap-4"
-      onSubmit={(event) => {
-        const formData = new FormData(event.currentTarget);
-        const categoryPadel = formData.get("category_padel");
-        const categoryTenis = formData.get("category_tenis");
-
-        if ((sport === "padel" || sport === "ambos") && !categoryPadel) {
-          event.preventDefault();
-          setClientError("Seleccioná tu categoría de pádel.");
-          return;
-        }
-
-        if ((sport === "tenis" || sport === "ambos") && !categoryTenis) {
-          event.preventDefault();
-          setClientError("Seleccioná tu categoría de tenis.");
-          return;
-        }
-
-        setClientError(null);
-      }}
-    >
-      {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
-
+    <form onSubmit={handleSubmit} className="grid gap-4">
+      {/* Nombre */}
       <label className="label">
         <span>Nombre</span>
-        <input type="text" name="name" defaultValue={initialValues.name} className="input" required />
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="input"
+        />
       </label>
 
+      {/* Rama */}
       <label className="label">
         <span>Rama</span>
-        <select name="branch" defaultValue={initialValues.branch} className="select">
+        <select
+          value={branch}
+          onChange={(e) => setBranch(e.target.value as "Caballero" | "Dama")}
+          className="select"
+        >
           <option value="Caballero">Caballero</option>
           <option value="Dama">Dama</option>
         </select>
       </label>
 
+      {/* Deporte */}
       <label className="label">
         <span>Deporte</span>
         <select
-          name="sport"
           value={sport}
-          onChange={(event) => {
-            setSport(event.target.value as "tenis" | "padel" | "ambos");
-            setClientError(null);
+          onChange={(e) => {
+            setSport(e.target.value as "tenis" | "padel" | "ambos");
+            setCategoryPadel("");
+            setCategoryTenis("");
           }}
           className="select"
         >
@@ -98,18 +132,16 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
         </select>
       </label>
 
+      {/* Categoría pádel */}
       {sport === "padel" || sport === "ambos" ? (
         <label className="label">
           <span>Categoría pádel</span>
           <select
-            name="category_padel"
-            defaultValue={initialValues.category_padel ?? ""}
+            value={categoryPadel}
+            onChange={(e) => setCategoryPadel(e.target.value)}
             className="select"
-            onChange={() => setClientError(null)}
           >
-            <option value="" disabled hidden>
-              Seleccioná una categoría
-            </option>
+            <option value="">Seleccioná una categoría</option>
             <option value="Principiante">Principiante</option>
             <option value="8va">8va</option>
             <option value="7ma">7ma</option>
@@ -123,18 +155,16 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
         </label>
       ) : null}
 
+      {/* Categoría tenis */}
       {sport === "tenis" || sport === "ambos" ? (
         <label className="label">
           <span>Categoría tenis</span>
           <select
-            name="category_tenis"
-            defaultValue={initialValues.category_tenis ?? ""}
+            value={categoryTenis}
+            onChange={(e) => setCategoryTenis(e.target.value)}
             className="select"
-            onChange={() => setClientError(null)}
           >
-            <option value="" disabled hidden>
-              Seleccioná una categoría
-            </option>
+            <option value="">Seleccioná una categoría</option>
             <option value="Principiante">Principiante</option>
             <option value="Intermedio">Intermedio</option>
             <option value="Avanzado">Avanzado</option>
@@ -142,19 +172,45 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
         </label>
       ) : null}
 
-      <ZonaSelector defaultProvincia={initialValues.provincia} defaultMunicipio={initialValues.municipio} />
+      {/* Zona */}
+      <ZonaSelector
+        provincia={provincia}
+        municipio={municipio}
+        onProvinciaChange={(nuevaProvincia) => {
+          setProvincia(nuevaProvincia);
+          // Al cambiar a CABA, limpiar localidad (ya no aplica)
+          if (nuevaProvincia === "caba") setLocalidad("");
+        }}
+        onMunicipioChange={setMunicipio}
+      />
 
+      {/* Localidad: solo se muestra fuera de CABA (en CABA el barrio lo reemplaza) */}
+      {provincia !== "caba" ? (
+        <label className="label">
+          <span>Localidad</span>
+          <input
+            type="text"
+            value={localidad}
+            onChange={(e) => setLocalidad(e.target.value)}
+            placeholder="Ej: Palermo, Recoleta, San Isidro..."
+            className="input"
+          />
+        </label>
+      ) : null}
+
+      {/* Celular */}
       <label className="label">
-        <span>Localidad</span>
+        <span>Celular</span>
         <input
           type="text"
-          name="localidad"
-          defaultValue={initialValues.localidad}
-          placeholder="Ej: Palermo, Recoleta, San Isidro..."
+          value={celular}
+          onChange={(e) => setCelular(e.target.value)}
+          placeholder="Ej: 1134567890"
           className="input"
         />
       </label>
 
+      {/* Tengo paleta */}
       {sport === "padel" || sport === "ambos" ? (
         <label
           className="flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3"
@@ -162,8 +218,8 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
         >
           <input
             type="checkbox"
-            name="has_paleta"
-            defaultChecked={initialValues.has_paleta}
+            checked={hasPaleta}
+            onChange={(e) => setHasPaleta(e.target.checked)}
             className="mt-0.5 h-4 w-4 rounded accent-orange-500"
           />
           <div>
@@ -177,6 +233,7 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
         </label>
       ) : null}
 
+      {/* Tengo raqueta */}
       {sport === "tenis" || sport === "ambos" ? (
         <label
           className="flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3"
@@ -184,8 +241,8 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
         >
           <input
             type="checkbox"
-            name="has_raqueta"
-            defaultChecked={initialValues.has_raqueta}
+            checked={hasRaqueta}
+            onChange={(e) => setHasRaqueta(e.target.checked)}
             className="mt-0.5 h-4 w-4 rounded accent-orange-500"
           />
           <div>
@@ -199,23 +256,26 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
         </label>
       ) : null}
 
-      <label className="label">
-        <span>Celular</span>
-        <input
-          type="text"
-          name="celular"
-          defaultValue={initialValues.celular}
-          placeholder="Ej: 1134567890"
-          className="input"
-        />
-      </label>
+      {/* Errores */}
+      {errors.length > 0 ? (
+        <div className="alert-error">
+          <p className="mb-1 font-medium">Corregí los siguientes campos:</p>
+          <ul className="list-disc pl-4">
+            {errors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
-      {clientError ? <p className="alert-error">{clientError}</p> : null}
-      {state.error ? <p className="alert-error">{state.error}</p> : null}
       {visibleSuccessMessage ? <p className="alert-success">{visibleSuccessMessage}</p> : null}
 
       <div className="flex justify-end">
-        <button type="submit" disabled={isPending} className="btn-primary w-full justify-center sm:w-auto disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="btn-primary w-full justify-center sm:w-auto disabled:opacity-60"
+        >
           {isPending ? "Guardando..." : "Guardar perfil"}
         </button>
       </div>
