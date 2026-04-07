@@ -1,80 +1,263 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { AjustesShell } from "./ajustes-shell";
 
-type AjusteCard = {
-  title: string;
-  description: string;
-  href: string;
+type AjustesPageProps = {
+  searchParams?: Promise<{ updated?: string }>;
 };
 
-export default async function ProfesorAjustesPage() {
+type ChecklistItem = {
+  id: string;
+  label: string;
+  done: boolean;
+  href: string;
+  cta: string;
+};
+
+type DominioResumen = {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  href: string;
+  cta: string;
+};
+
+type Club = {
+  id: number;
+  nombre: string;
+  direccion: string | null;
+  deporte: "tenis" | "padel" | "ambos";
+  is_placeholder: boolean;
+  court_cost_mode: "fixed_per_hour" | "per_student_percentage";
+  court_cost_per_hour: number | null;
+  court_percentage_per_student: number | null;
+  cp_status: "pendiente" | "activo" | "inactivo";
+};
+
+type ClubJoinRow = {
+  club_id: number;
+  court_cost_mode: "fixed_per_hour" | "per_student_percentage";
+  court_cost_per_hour: number | null;
+  court_percentage_per_student: number | null;
+  status: "pendiente" | "activo" | "inactivo";
+  clubs:
+    | {
+        id: number;
+        nombre: string;
+        direccion: string | null;
+        deporte: "tenis" | "padel" | "ambos";
+        is_placeholder: boolean;
+      }
+    | null
+    | Array<{
+        id: number;
+        nombre: string;
+        direccion: string | null;
+        deporte: "tenis" | "padel" | "ambos";
+        is_placeholder: boolean;
+      }>;
+};
+
+type Invitacion = {
+  id: number;
+  club: { nombre: string; direccion: string | null };
+  invited_at: string;
+};
+
+type ClubPropio = {
+  id: number;
+  nombre: string;
+};
+
+export default async function ProfesorAjustesPage({ searchParams }: AjustesPageProps) {
   const profile = await getCurrentProfile();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   if (!profile) {
     redirect("/login");
   }
 
   if (profile.role !== "profesor") {
-    redirect("/dashboard/alumno/turnos");
+    redirect("/dashboard/alumno");
   }
 
-  const cards: AjusteCard[] = [
+  const supabase = await createSupabaseServerClient();
+  const { count: availabilityCount } = await supabase
+    .from("availability")
+    .select("id", { count: "exact", head: true })
+    .eq("profesor_id", profile.user_id);
+
+  const { data: invitacionesData } = await supabase
+    .from("club_profesores")
+    .select("id, invited_at, clubs!club_profesores_club_id_fkey(nombre, direccion)")
+    .eq("profesor_id", profile.user_id)
+    .eq("status", "pendiente");
+
+  const invitaciones: Invitacion[] = (invitacionesData ?? [])
+    .map((row) => {
+      const clubData = Array.isArray(row.clubs) ? row.clubs[0] ?? null : row.clubs;
+      if (!clubData) return null;
+      return {
+        id: row.id as number,
+        invited_at: row.invited_at as string,
+        club: {
+          nombre: clubData.nombre,
+          direccion: clubData.direccion ?? null,
+        },
+      };
+    })
+    .filter((row): row is Invitacion => row !== null);
+
+  const { data: clubsPropiosData } = await supabase
+    .from("clubs")
+    .select("id, nombre")
+    .eq("created_by_profesor_id", profile.user_id)
+    .eq("is_placeholder", true);
+
+  const clubsPropios: ClubPropio[] = (clubsPropiosData ?? []).map((row) => ({
+    id: row.id as number,
+    nombre: row.nombre as string,
+  }));
+
+  const { data: clubsData, error: clubsError } = await supabase
+    .from("club_profesores")
+    .select(`
+      club_id,
+      court_cost_mode,
+      court_cost_per_hour,
+      court_percentage_per_student,
+      status,
+      clubs!club_profesores_club_id_fkey (
+        id,
+        nombre,
+        direccion,
+        deporte,
+        is_placeholder
+      )
+    `)
+    .eq("profesor_id", profile.user_id)
+    .eq("status", "activo");
+
+  const clubs: Club[] = ((clubsData ?? []) as ClubJoinRow[])
+    .map((row) => {
+      const clubData = Array.isArray(row.clubs) ? row.clubs[0] ?? null : row.clubs;
+
+      if (!clubData) {
+        return null;
+      }
+
+      return {
+        id: clubData.id,
+        nombre: clubData.nombre,
+        direccion: clubData.direccion,
+        deporte: clubData.deporte,
+        is_placeholder: clubData.is_placeholder,
+        court_cost_mode: row.court_cost_mode,
+        court_cost_per_hour: row.court_cost_per_hour,
+        court_percentage_per_student: row.court_percentage_per_student,
+        cp_status: row.status,
+      };
+    })
+    .filter((row): row is Club => row !== null);
+
+  const hasDisponibilidad = (availabilityCount ?? 0) > 0;
+  const hasPrecios =
+    profile.price_individual !== null ||
+    profile.price_dobles !== null ||
+    profile.price_trio !== null ||
+    profile.price_grupal !== null;
+  const hasPerfilBase = Boolean(profile.name?.trim()) && Boolean(profile.provincia?.trim());
+
+  const checklist: ChecklistItem[] = [
     {
-      title: "Perfil",
-      description: "Datos personales y perfil público.",
-      href: "/dashboard/profesor/perfil#datos",
+      id: "perfil",
+      label: "Completar datos básicos del perfil",
+      done: hasPerfilBase,
+      href: "#datos",
+      cta: "Completar perfil",
     },
     {
-      title: "Disponibilidad",
-      description: "Horarios semanales y bloqueos.",
+      id: "disponibilidad",
+      label: "Configurar disponibilidad semanal",
+      done: hasDisponibilidad,
       href: "/dashboard/profesor/clases/disponibilidad",
+      cta: "Ir a Disponibilidad",
     },
     {
+      id: "precios",
+      label: "Definir precios",
+      done: hasPrecios,
+      href: "#precios",
+      cta: "Configurar precios",
+    },
+  ];
+
+  const dominiosResumen: DominioResumen[] = [
+    {
+      id: "disponibilidad",
+      title: "Disponibilidad",
+      description: "Gestioná horarios semanales, ausencias y bloqueos.",
+      status: hasDisponibilidad ? "Configurada" : "Pendiente de configurar",
+      href: "/dashboard/profesor/clases/disponibilidad",
+      cta: "Ir a Disponibilidad",
+    },
+    {
+      id: "paquetes",
       title: "Paquetes",
-      description: "Oferta de paquetes y asignaciones.",
+      description: "Administrá tu oferta de paquetes y asignaciones.",
+      status: "Se gestiona en su módulo dedicado",
       href: "/dashboard/profesor/paquetes",
-    },
-    {
-      title: "Precios",
-      description: "Valores por tipo de clase.",
-      href: "/dashboard/profesor/perfil#precios",
-    },
-    {
-      title: "Configuración",
-      description: "Reglas operativas y decisiones.",
-      href: "/dashboard/profesor/perfil#ajustes",
-    },
-    {
-      title: "Clubes",
-      description: "Gestión de clubes vinculados.",
-      href: "/dashboard/profesor/perfil#clubes",
+      cta: "Ir a Paquetes",
     },
   ];
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-3 py-6 sm:px-4 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-3 py-6 sm:px-4 sm:py-8">
       <header>
         <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
           Ajustes
         </h1>
         <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
-          Centro de configuración del profesor.
+          Gestioná tu configuración integral en un solo lugar.
         </p>
       </header>
 
-      <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => (
-          <Link key={card.title} href={card.href} className="card block p-4 transition-opacity hover:opacity-90">
-            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-              {card.title}
-            </h2>
-            <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-              {card.description}
-            </p>
-          </Link>
-        ))}
-      </section>
+      <AjustesShell
+        successMessage={resolvedSearchParams?.updated === "1" ? "Perfil actualizado correctamente." : null}
+        checklist={checklist}
+        dominiosResumen={dominiosResumen}
+        perfilInitialValues={{
+          name: profile.name,
+          username: profile.username ?? "",
+          bio: profile.bio ?? "",
+          sport: profile.sport ?? "tenis",
+          provincia: profile.provincia ?? "",
+          municipio: profile.zone ?? "",
+        }}
+        priceInitialValues={{
+          price_individual: profile.price_individual !== null ? String(profile.price_individual) : "",
+          price_dobles: profile.price_dobles !== null ? String(profile.price_dobles) : "",
+          price_trio: profile.price_trio !== null ? String(profile.price_trio) : "",
+          price_grupal: profile.price_grupal !== null ? String(profile.price_grupal) : "",
+        }}
+        operationalInitialValues={{
+          cancel_without_charge_hours:
+            profile.cancel_without_charge_hours === null
+              ? ""
+              : String(profile.cancel_without_charge_hours),
+          solo_warning_hours: profile.solo_warning_hours === null ? "" : String(profile.solo_warning_hours),
+          solo_decision_deadline_minutes:
+            profile.solo_decision_deadline_minutes === null
+              ? ""
+              : String(profile.solo_decision_deadline_minutes),
+        }}
+        invitaciones={invitaciones}
+        clubsPropios={clubsPropios}
+        clubs={clubs}
+        clubsError={Boolean(clubsError)}
+      />
     </main>
   );
 }

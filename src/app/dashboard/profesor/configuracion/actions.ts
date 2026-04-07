@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -31,7 +31,7 @@ export async function saveProfesorOperationalSettingsAction(
 
   if (!currentProfile || currentProfile.role !== "profesor") {
     return {
-      error: "Solo los profesores pueden editar esta configuración.",
+      error: "Solo los profesores pueden editar esta configuraciÃ³n.",
       success: null,
     };
   }
@@ -44,7 +44,7 @@ export async function saveProfesorOperationalSettingsAction(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "Datos inválidos para la configuración.",
+      error: parsed.error.issues[0]?.message ?? "Datos invÃ¡lidos para la configuraciÃ³n.",
       success: null,
     };
   }
@@ -65,13 +65,14 @@ export async function saveProfesorOperationalSettingsAction(
     };
   }
 
-  revalidatePath("/dashboard/profesor/perfil");
+  revalidatePath("/dashboard/profesor/ajustes");
   revalidatePath("/dashboard/profesor/configuracion");
   revalidatePath("/dashboard/profesor/bookings");
   revalidatePath("/dashboard/profesor/reservas");
 
   return {
     error: null,
-    success: "Configuración guardada correctamente.",
+    success: "ConfiguraciÃ³n guardada correctamente.",
   };
 }
+

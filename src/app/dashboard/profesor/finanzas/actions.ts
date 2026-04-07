@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -68,10 +68,11 @@ export async function saveProfesorPriceSettingsAction(
   }
 
   revalidatePath("/dashboard/profesor/finanzas");
-  revalidatePath("/dashboard/profesor/perfil");
+  revalidatePath("/dashboard/profesor/ajustes");
 
   return {
     error: null,
     success: "Parametros financieros actualizados correctamente.",
   };
 }
+

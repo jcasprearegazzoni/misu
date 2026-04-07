@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { markAllNotificationsAsReadAction, markNotificationAsReadAction } from "@/app/dashboard/notificaciones/actions";
@@ -102,7 +102,7 @@ function PublicNavbar() {
 
         <div className="ml-auto flex items-center gap-2">
           <Link href="/login" className="btn-ghost text-sm" style={{ padding: "0.35rem 0.75rem" }}>
-            Iniciá sesión
+            IniciÃ¡ sesiÃ³n
           </Link>
           <Link href="/register" className="btn-primary text-sm" style={{ padding: "0.35rem 0.75rem" }}>
             Registrarse
@@ -200,7 +200,7 @@ export async function AppNavbar() {
 
           <UserMenu
             displayName={profile.name.split(" ")[0] || "Usuario"}
-            profileHref={profile.role === "profesor" ? "/dashboard/profesor/perfil" : "/dashboard/alumno/perfil"}
+            profileHref={profile.role === "profesor" ? "/dashboard/profesor/ajustes#datos" : "/dashboard/alumno/perfil"}
             signOutAction={signOutAction}
           />
         </div>
@@ -208,4 +208,5 @@ export async function AppNavbar() {
     </header>
   );
 }
+
 

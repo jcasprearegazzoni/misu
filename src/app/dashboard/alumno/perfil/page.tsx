@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { AlumnoPerfilForm } from "./perfil-form";
@@ -24,7 +24,7 @@ export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPag
   }
 
   if (profile.role !== "alumno") {
-    redirect("/dashboard/profesor/perfil");
+    redirect("/dashboard/profesor/ajustes");
   }
 
   const hasPerfilBase = Boolean(profile.name?.trim()) && Boolean(profile.provincia?.trim());
@@ -35,14 +35,14 @@ export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPag
   const checklist: ChecklistItem[] = [
     {
       id: "perfil",
-      label: "Completar datos básicos",
+      label: "Completar datos bÃ¡sicos",
       done: hasPerfilBase,
       href: "#datos",
       cta: "Completar perfil",
     },
     {
       id: "deporte",
-      label: "Definir deporte y categoría",
+      label: "Definir deporte y categorÃ­a",
       done: hasDeporteYCategoria,
       href: "#datos",
       cta: "Definir deporte",
@@ -58,7 +58,7 @@ export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPag
           Mi perfil
         </h1>
         <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
-          Completá tus datos para que el profesor pueda conocerte antes de la clase.
+          CompletÃ¡ tus datos para que el profesor pueda conocerte antes de la clase.
         </p>
       </header>
 
@@ -150,3 +150,4 @@ export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPag
     </main>
   );
 }
+

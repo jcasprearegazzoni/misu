@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -42,7 +42,7 @@ export async function createPlaceholderClubAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Revisá los datos.", success: null };
+    return { error: parsed.error.issues[0]?.message ?? "RevisÃ¡ los datos.", success: null };
   }
 
   // Crear el club placeholder.
@@ -62,7 +62,7 @@ export async function createPlaceholderClubAction(
     return { error: `No se pudo crear el club: ${clubError?.message ?? "error desconocido"}`, success: null };
   }
 
-  // Crear la relación club-profesor con valores de costo por defecto.
+  // Crear la relaciÃ³n club-profesor con valores de costo por defecto.
   const { error: cpError } = await ctx.supabase.from("club_profesores").insert({
     club_id: club.id,
     profesor_id: ctx.userId,
@@ -71,12 +71,12 @@ export async function createPlaceholderClubAction(
   });
 
   if (cpError) {
-    // Revertir el club si falla la relación.
+    // Revertir el club si falla la relaciÃ³n.
     await ctx.supabase.from("clubs").delete().eq("id", club.id);
-    return { error: `No se pudo crear la relación con el club: ${cpError.message}`, success: null };
+    return { error: `No se pudo crear la relaciÃ³n con el club: ${cpError.message}`, success: null };
   }
 
-  revalidatePath("/dashboard/profesor/perfil");
+  revalidatePath("/dashboard/profesor/ajustes");
   revalidatePath("/dashboard/profesor/clases/disponibilidad");
   return { error: null, success: "Club creado correctamente." };
 }
@@ -89,7 +89,7 @@ export async function updatePlaceholderClubAction(
   if (!ctx) return { error: "Solo los profesores pueden editar clubes.", success: null };
 
   const parsedId = clubIdSchema.safeParse({ club_id: formData.get("club_id") });
-  if (!parsedId.success) return { error: "Club inválido.", success: null };
+  if (!parsedId.success) return { error: "Club invÃ¡lido.", success: null };
 
   const parsed = placeholderClubSchema.safeParse({
     nombre: formData.get("nombre"),
@@ -97,7 +97,7 @@ export async function updatePlaceholderClubAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Revisá los datos.", success: null };
+    return { error: parsed.error.issues[0]?.message ?? "RevisÃ¡ los datos.", success: null };
   }
 
   const { error } = await ctx.supabase
@@ -112,7 +112,7 @@ export async function updatePlaceholderClubAction(
 
   if (error) return { error: "No se pudo actualizar el club.", success: null };
 
-  revalidatePath("/dashboard/profesor/perfil");
+  revalidatePath("/dashboard/profesor/ajustes");
   revalidatePath("/dashboard/profesor/clases/disponibilidad");
   return { error: null, success: "Club actualizado." };
 }
@@ -132,7 +132,7 @@ export async function updateClubCostAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Revisá los datos.", success: null };
+    return { error: parsed.error.issues[0]?.message ?? "RevisÃ¡ los datos.", success: null };
   }
 
   const { error } = await ctx.supabase
@@ -153,7 +153,7 @@ export async function updateClubCostAction(
 
   if (error) return { error: `No se pudo actualizar el costo: ${error.message}`, success: null };
 
-  revalidatePath("/dashboard/profesor/perfil");
+  revalidatePath("/dashboard/profesor/ajustes");
   return { error: null, success: "Costo actualizado." };
 }
 
@@ -162,10 +162,10 @@ export async function abandonarClubAction(
   formData: FormData,
 ): Promise<ClubActionState> {
   const ctx = await requireProfesor();
-  if (!ctx) return { error: "Solo los profesores pueden realizar esta acción.", success: null };
+  if (!ctx) return { error: "Solo los profesores pueden realizar esta acciÃ³n.", success: null };
 
   const parsed = clubIdSchema.safeParse({ club_id: formData.get("club_id") });
-  if (!parsed.success) return { error: "Club inválido.", success: null };
+  if (!parsed.success) return { error: "Club invÃ¡lido.", success: null };
 
   const { error } = await ctx.supabase
     .from("club_profesores")
@@ -175,7 +175,7 @@ export async function abandonarClubAction(
 
   if (error) return { error: "No se pudo abandonar el club.", success: null };
 
-  revalidatePath("/dashboard/profesor/perfil");
+  revalidatePath("/dashboard/profesor/ajustes");
   revalidatePath("/dashboard/profesor/clases/disponibilidad");
   return { error: null, success: "Abandonaste el club." };
 }
@@ -194,6 +194,7 @@ export async function deleteClubAction(formData: FormData) {
     .eq("created_by_profesor_id", ctx.userId)
     .eq("is_placeholder", true);
 
-  revalidatePath("/dashboard/profesor/perfil");
+  revalidatePath("/dashboard/profesor/ajustes");
   revalidatePath("/dashboard/profesor/clases/disponibilidad");
 }
+

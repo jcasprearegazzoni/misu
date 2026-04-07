@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -48,7 +48,7 @@ export async function saveProfesorProfileAction(
 
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "Revisá los datos e intentá nuevamente.",
+      error: parsed.error.issues[0]?.message ?? "RevisÃ¡ los datos e intentÃ¡ nuevamente.",
       success: null,
     };
   }
@@ -81,12 +81,13 @@ export async function saveProfesorProfileAction(
 
   if (error) {
     return {
-      error: "No se pudo guardar el perfil. Revisá los datos e intentá nuevamente.",
+      error: "No se pudo guardar el perfil. RevisÃ¡ los datos e intentÃ¡ nuevamente.",
       success: null,
     };
   }
 
-  revalidatePath("/dashboard/profesor/perfil");
+  revalidatePath("/dashboard/profesor/ajustes");
 
-  redirect("/dashboard/profesor/perfil?updated=1");
+  redirect("/dashboard/profesor/ajustes?updated=1");
 }
+

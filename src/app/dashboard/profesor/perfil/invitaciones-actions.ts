@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -44,7 +44,7 @@ export async function responderInvitacionAction(
   });
 
   if (!parsed.success) {
-    return { error: "Revisá los datos de la invitación.", success: null };
+    return { error: "RevisÃ¡ los datos de la invitaciÃ³n.", success: null };
   }
 
   const { data: invitacion } = await supabase
@@ -56,7 +56,7 @@ export async function responderInvitacionAction(
     .single();
 
   if (!invitacion) {
-    return { error: "No se encontró la invitación.", success: null };
+    return { error: "No se encontrÃ³ la invitaciÃ³n.", success: null };
   }
 
   if (parsed.data.respuesta === "rechazar") {
@@ -66,11 +66,11 @@ export async function responderInvitacionAction(
       .eq("id", invitacion.id);
 
     if (error) {
-      return { error: "No se pudo rechazar la invitación.", success: null };
+      return { error: "No se pudo rechazar la invitaciÃ³n.", success: null };
     }
 
-    revalidatePath("/dashboard/profesor/perfil");
-    return { error: null, success: "Invitación rechazada." };
+    revalidatePath("/dashboard/profesor/ajustes");
+    return { error: null, success: "InvitaciÃ³n rechazada." };
   }
 
   // Validar placeholder antes de hacer cualquier cambio
@@ -84,7 +84,7 @@ export async function responderInvitacionAction(
       .single();
 
     if (!placeholder) {
-      return { error: "El club a vincular no es válido.", success: null };
+      return { error: "El club a vincular no es vÃ¡lido.", success: null };
     }
   }
 
@@ -94,7 +94,7 @@ export async function responderInvitacionAction(
     .eq("id", invitacion.id);
 
   if (acceptError) {
-    return { error: "No se pudo aceptar la invitación.", success: null };
+    return { error: "No se pudo aceptar la invitaciÃ³n.", success: null };
   }
 
   if (parsed.data.merge_club_id) {
@@ -112,6 +112,7 @@ export async function responderInvitacionAction(
     await supabase.from("clubs").delete().eq("id", parsed.data.merge_club_id);
   }
 
-  revalidatePath("/dashboard/profesor/perfil");
-  return { error: null, success: "¡Bienvenido al club!" };
+  revalidatePath("/dashboard/profesor/ajustes");
+  return { error: null, success: "Â¡Bienvenido al club!" };
 }
+
