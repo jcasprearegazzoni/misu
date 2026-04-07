@@ -1,14 +1,10 @@
 ﻿import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CalendarStatusFilter } from "@/components/profesor/calendar/calendar-status-filter";
-import { WeekCalendarStrip } from "@/components/calendar/week-calendar-strip";
 import { MobileAgenda } from "@/components/profesor/calendar/mobile-agenda";
-import { NewManualClassPanel } from "@/components/profesor/calendar/new-manual-class-panel";
-import { WeekTimeline } from "@/components/profesor/calendar/week-timeline";
+import { CalendarClientContainer } from "@/components/profesor/calendar/calendar-client-container";
 import { BookingStatus, CalendarBookingItem } from "@/components/profesor/calendar/types";
 
-type CalendarioFilter = "pendientes" | "confirmadas" | "canceladas" | "todas";
 
 type BookingRow = {
   id: number;
@@ -47,6 +43,11 @@ type CoveragePaymentRow = {
 type AlumnoOptionRow = {
   user_id: string;
   name: string | null;
+  branch: string | null;
+  category_tenis: string | null;
+  category_padel: string | null;
+  has_paleta: boolean | null;
+  has_raqueta: boolean | null;
 };
 type RelatedAlumnoOptionRow = {
   alumno_id: string;
@@ -82,6 +83,14 @@ type ProfesorAlumnoNoteRow = {
   note: string;
 };
 
+type AlumnoProfileFallback = {
+  branch: string | null;
+  category_tenis: string | null;
+  category_padel: string | null;
+  has_paleta: boolean;
+  has_raqueta: boolean;
+};
+
 const typeLabel: Record<BookingRow["type"], string> = {
   individual: "Individual",
   dobles: "Dobles",
@@ -95,11 +104,6 @@ const statusLabel: Record<BookingStatus, string> = {
   cancelado: "Cancelada",
 };
 
-const filterToStatus: Record<Exclude<CalendarioFilter, "todas">, BookingStatus> = {
-  pendientes: "pendiente",
-  confirmadas: "confirmado",
-  canceladas: "cancelado",
-};
 
 function getWeekBounds(weekOffset: number) {
   const now = new Date();
@@ -143,16 +147,19 @@ function getTodayDateIso() {
   return formatter.format(now);
 }
 
+function formatDateIso(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function parseWeekOffset(value?: string) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed)) {
     return 0;
   }
   return Math.min(104, Math.max(-104, parsed));
-}
-
-function isValidFilter(value?: string): value is CalendarioFilter {
-  return value === "pendientes" || value === "confirmadas" || value === "canceladas" || value === "todas";
 }
 
 function getEstimatedAmountByType(
@@ -210,7 +217,6 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
   }
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const activeFilter = isValidFilter(resolvedSearchParams?.filter) ? resolvedSearchParams.filter : "todas";
   const weekOffset = parseWeekOffset(resolvedSearchParams?.weekOffset);
   const todayIso = getTodayDateIso();
 
@@ -243,7 +249,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       .in("type", ["clase", "seña", "diferencia_cobro"]),
     supabase
       .from("profiles")
-      .select("user_id, name")
+      .select("user_id, name, branch, category_tenis, category_padel, has_paleta, has_raqueta")
       .eq("role", "alumno")
       .order("name", { ascending: true }),
     supabase.rpc("get_profesor_alumnos_for_manual_class", {
@@ -292,6 +298,16 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
     }
   }
   const alumnos = Array.from(alumnosMap.values()).sort((a, b) => a.name.localeCompare(b.name, "es-AR"));
+  const alumnosProfilesFallbackMap = new Map<string, AlumnoProfileFallback>();
+  for (const alumno of (alumnosResult.data ?? []) as AlumnoOptionRow[]) {
+    alumnosProfilesFallbackMap.set(alumno.user_id, {
+      branch: alumno.branch ?? null,
+      category_tenis: alumno.category_tenis ?? null,
+      category_padel: alumno.category_padel ?? null,
+      has_paleta: Boolean(alumno.has_paleta),
+      has_raqueta: Boolean(alumno.has_raqueta),
+    });
+  }
   const notes = (notesResult.data ?? []) as ProfesorAlumnoNoteRow[];
   const availability = (availabilityResult.data ?? []) as AvailabilityRow[];
   const blockedRanges = (blockedRangesResult.data ?? []) as BlockedRangeRow[];
@@ -313,21 +329,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
     noteByAlumnoId.set(row.alumno_id, row.note ?? "");
   }
 
-  const filterCounts = {
-    todas: bookings.length,
-    pendientes: bookings.filter((booking) => booking.status === "pendiente").length,
-    confirmadas: bookings.filter((booking) => booking.status === "confirmado").length,
-    canceladas: bookings.filter((booking) => booking.status === "cancelado").length,
-  };
-
-  const baseItems = bookings
-    .filter((booking) => {
-      if (activeFilter === "todas") {
-        return true;
-      }
-      return booking.status === filterToStatus[activeFilter];
-    })
-    .map((booking) => ({
+  const baseItems = bookings.map((booking) => ({
       id: booking.id,
       alumno_id: booking.alumno_id,
       alumno_name: alumnoNameMap.get(booking.alumno_id) ?? "Alumno",
@@ -393,15 +395,21 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
 
   const items: CalendarBookingItem[] = baseItems.map((item) => {
     const detail = detailMap.get(item.id);
+    const fallbackProfile = alumnosProfilesFallbackMap.get(item.alumno_id);
     const nextRows = (nextClassesMap.get(item.alumno_id) ?? []).filter((row) => row.id !== item.id).slice(0, 5);
+    const fallbackCategory = fallbackProfile
+      ? [fallbackProfile.category_tenis, fallbackProfile.category_padel].filter(Boolean).join(" · ")
+      : "";
 
     return {
       ...item,
       alumno_name: detail?.alumno_name?.trim() || item.alumno_name,
-      alumno_category: detail?.alumno_category ?? null,
-      alumno_branch: detail?.alumno_branch ?? null,
+      alumno_category: detail?.alumno_category ?? (fallbackCategory || null),
+      alumno_branch: detail?.alumno_branch ?? fallbackProfile?.branch ?? null,
       alumno_zone: detail?.alumno_zone ?? null,
-      alumno_has_equipment: detail?.alumno_has_equipment ?? false,
+      alumno_has_equipment:
+        detail?.alumno_has_equipment ??
+        Boolean((fallbackProfile?.has_paleta ?? false) || (fallbackProfile?.has_raqueta ?? false)),
       is_finalized: item.is_finalized,
       package_consumed: detail?.package_consumed ?? item.package_consumed,
       consumed_student_package_id: detail?.consumed_student_package_id ?? item.consumed_student_package_id ?? null,
@@ -429,35 +437,27 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
     items: items.filter((item) => item.date === date),
   }));
 
+  const prevHref = `/dashboard/profesor/calendario?weekOffset=${weekOffset - 1}&day=${selectedDay}`;
+  const nextHref = `/dashboard/profesor/calendario?weekOffset=${weekOffset + 1}&day=${selectedDay}`;
+  const dayLinks = weekDates.map((date) => ({
+    date,
+    href: `/dashboard/profesor/calendario?weekOffset=${weekOffset}&day=${date}`,
+  }));
+  const selectedDateObject = new Date(`${selectedDay}T00:00:00-03:00`);
+  const prevDateObject = new Date(selectedDateObject);
+  prevDateObject.setDate(selectedDateObject.getDate() - 1);
+  const nextDateObject = new Date(selectedDateObject);
+  nextDateObject.setDate(selectedDateObject.getDate() + 1);
+  const prevDayIso = formatDateIso(prevDateObject);
+  const nextDayIso = formatDateIso(nextDateObject);
+  const prevDayWeekOffset = weekDates.includes(prevDayIso) ? weekOffset : weekOffset - 1;
+  const nextDayWeekOffset = weekDates.includes(nextDayIso) ? weekOffset : weekOffset + 1;
+  const prevDayHref = `/dashboard/profesor/calendario?weekOffset=${prevDayWeekOffset}&day=${prevDayIso}`;
+  const nextDayHref = `/dashboard/profesor/calendario?weekOffset=${nextDayWeekOffset}&day=${nextDayIso}`;
+
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-3 py-6 sm:px-4 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-3 py-6 sm:px-4 sm:py-8">
       <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>Calendario de clases</h1>
-      <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>Vista operativa semanal con eje horario común.</p>
-
-      <CalendarStatusFilter
-        value={activeFilter}
-        weekOffset={weekOffset}
-        selectedDay={selectedDay}
-        counts={filterCounts}
-      />
-
-      <NewManualClassPanel alumnos={alumnos} availabilityRanges={availability} />
-
-      <WeekCalendarStrip
-        weekDates={weekDates}
-        selectedDay={selectedDay}
-        subtitle="Semana de clases"
-        prevHref={`/dashboard/profesor/calendario?filter=${activeFilter}&weekOffset=${weekOffset - 1}&day=${selectedDay}`}
-        nextHref={`/dashboard/profesor/calendario?filter=${activeFilter}&weekOffset=${weekOffset + 1}&day=${selectedDay}`}
-        dayHrefBuilder={(date) =>
-          `/dashboard/profesor/calendario?filter=${activeFilter}&weekOffset=${weekOffset}&day=${date}`
-        }
-        resetHref={
-          weekOffset !== 0
-            ? `/dashboard/profesor/calendario?filter=${activeFilter}&weekOffset=0&day=${todayIso}`
-            : undefined
-        }
-      />
 
       {hasLoadError ? (
         <p className="alert-error mt-6">
@@ -465,8 +465,24 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
         </p>
       ) : (
         <>
-          <MobileAgenda days={days} selectedDay={selectedDay} availabilityRanges={availability} />
-          <WeekTimeline days={days} availability={availability} blockedRanges={blockedRanges} />
+          <CalendarClientContainer
+            alumnos={alumnos}
+            availabilityRanges={availability}
+            days={days}
+            blockedRanges={blockedRanges}
+            selectedDay={selectedDay}
+            dayLinks={dayLinks}
+            prevHref={prevHref}
+            nextHref={nextHref}
+          />
+          <MobileAgenda
+            days={days}
+            selectedDay={selectedDay}
+            availabilityRanges={availability}
+            dayLinks={dayLinks}
+            prevDayHref={prevDayHref}
+            nextDayHref={nextDayHref}
+          />
         </>
       )}
     </main>

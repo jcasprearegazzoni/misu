@@ -1,5 +1,5 @@
 export const CALENDAR_START_HOUR = 8;
-export const CALENDAR_END_HOUR = 22;
+export const CALENDAR_END_HOUR = 18;
 export const PIXELS_PER_MINUTE = 0.9;
 const DEFAULT_MIN_BLOCK_HEIGHT = 72;
 

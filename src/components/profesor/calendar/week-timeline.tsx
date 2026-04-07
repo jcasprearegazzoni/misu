@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { formatUserDate } from "@/lib/format/date";
 import {
   CALENDAR_END_HOUR,
   CALENDAR_START_HOUR,
@@ -33,6 +33,11 @@ type WeekTimelineProps = {
     start_at: string;
     end_at: string;
   }>;
+  selectedDay: string;
+  dayLinks: Array<{ date: string; href: string }>;
+  prevHref: string;
+  nextHref: string;
+  onCreateSlot?: (slot: { date: string; startTime: string; endTime: string }) => void;
 };
 
 type CalendarCell = {
@@ -68,54 +73,84 @@ function normalizeSlotKey(date: string, startTime: string, endTime: string) {
   return `${date}|${startTime.slice(0, 5)}|${endTime.slice(0, 5)}`;
 }
 
-function getOccupiedBlockClass(slot: NonNullable<CalendarCell["slot"]>) {
+function formatMonthLabel(dateIso: string) {
+  const date = new Date(`${dateIso}T00:00:00-03:00`);
+  const label = new Intl.DateTimeFormat("es-AR", {
+    month: "long",
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(date);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function formatDayChip(dateIso: string) {
+  const date = new Date(`${dateIso}T00:00:00-03:00`);
+  const weekday = new Intl.DateTimeFormat("es-AR", {
+    weekday: "short",
+    timeZone: "America/Argentina/Buenos_Aires",
+  })
+    .format(date)
+    .replace(".", "")
+    .slice(0, 2);
+  const day = new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(date);
+  return {
+    weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1),
+    day,
+  };
+}
+
+function getOccupiedEventVisual(slot: NonNullable<CalendarCell["slot"]>) {
   if (slot.is_finalized) {
     if (slot.has_financial_pending) {
-      return "border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning)]";
+      return {
+        background: "color-mix(in srgb, var(--warning) 22%, var(--surface-1))",
+        color: "var(--warning)",
+        borderLeftColor: "var(--warning)",
+      };
     }
-    return "border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success)]";
+
+    return {
+      background: "color-mix(in srgb, var(--success) 22%, var(--surface-1))",
+      color: "var(--success)",
+      borderLeftColor: "var(--success)",
+    };
   }
 
   if (slot.status === "pendiente") {
-    return "border-[var(--border)] bg-[var(--surface-1)] text-[var(--foreground)]";
+    return {
+      background: "color-mix(in srgb, var(--warning) 22%, var(--surface-1))",
+      color: "var(--warning)",
+      borderLeftColor: "var(--warning)",
+    };
   }
 
   if (slot.occupied_count >= slot.capacity) {
-    return "border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success)]";
+    return {
+      background: "color-mix(in srgb, var(--success) 22%, var(--surface-1))",
+      color: "var(--success)",
+      borderLeftColor: "var(--success)",
+    };
   }
 
-  return "border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning)]";
+  return {
+    background: "color-mix(in srgb, var(--warning) 22%, var(--surface-1))",
+    color: "var(--warning)",
+    borderLeftColor: "var(--warning)",
+  };
 }
 
-function getOccupiedStatusLabel(slot: NonNullable<CalendarCell["slot"]>) {
-  if (slot.is_finalized) {
-    return slot.has_financial_pending ? "Finalizada (pendiente)" : "Finalizada (cobrada)";
-  }
-  if (slot.status === "pendiente") {
-    return "Pendiente";
-  }
-  if (slot.occupied_count >= slot.capacity) {
-    return "Completa";
-  }
-  return "Ocupada parcial";
-}
-
-function getOccupiedStatusBadgeClass(slot: NonNullable<CalendarCell["slot"]>) {
-  if (slot.is_finalized) {
-    return slot.has_financial_pending
-      ? "border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning)]"
-      : "border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success)]";
-  }
-  if (slot.status === "pendiente") {
-    return "border-[var(--border)] bg-[var(--surface-3)] text-[var(--muted)]";
-  }
-  if (slot.occupied_count >= slot.capacity) {
-    return "border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success)]";
-  }
-  return "border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning)]";
-}
-
-export function WeekTimeline({ days, availability, blockedRanges }: WeekTimelineProps) {
+export function WeekTimeline({
+  days,
+  availability,
+  blockedRanges,
+  selectedDay,
+  dayLinks,
+  prevHref,
+  nextHref,
+  onCreateSlot,
+}: WeekTimelineProps) {
   const hourTicks = getHourTicks();
   const timelineHeight = (CALENDAR_END_HOUR * 60 - CALENDAR_START_HOUR * 60) * PIXELS_PER_MINUTE;
   const timelineStart = getTimelineStartMinute();
@@ -130,9 +165,8 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
   const flatSlots = useMemo(() => daySlots.flatMap((day) => day.slots), [daySlots]);
   const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(flatSlots[0]?.slot_key ?? null);
   const selectedSlot = flatSlots.find((slot) => slot.slot_key === selectedSlotKey) ?? flatSlots[0] ?? null;
-  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(
-    selectedSlot?.bookings[0]?.id ?? null,
-  );
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(selectedSlot?.bookings[0]?.id ?? null);
+  const [isDetailOpen, setIsDetailOpen] = useState(true);
 
   const selectedItem =
     selectedSlot?.bookings.find((booking) => booking.id === selectedBookingId) ??
@@ -192,21 +226,67 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
     });
   }, [availability, blockedRanges, daySlots]);
 
+  const monthLabel = formatMonthLabel(days[0]?.date ?? new Date().toISOString().slice(0, 10));
+
   return (
     <section className="mt-6 hidden md:block">
-      <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-3">
-        <div className="card p-3">
+      <div className="card relative p-3">
+        <div className={selectedItem && isDetailOpen ? "pr-[298px]" : ""}>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-3xl font-bold leading-none" style={{ color: "var(--foreground)" }}>
+              {monthLabel}
+            </p>
+            <div className="flex items-center gap-2">
+              <Link
+                href={prevHref}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-base font-semibold transition"
+                style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
+                aria-label="Semana anterior"
+              >
+                {"<"}
+              </Link>
+              <Link
+                href={nextHref}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-base font-semibold transition"
+                style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
+                aria-label="Semana siguiente"
+              >
+                {">"}
+              </Link>
+              {selectedItem ? (
+                <button
+                  type="button"
+                  onClick={() => setIsDetailOpen((prev) => !prev)}
+                  className="inline-flex h-8 items-center rounded-full border px-2.5 text-xs font-semibold transition"
+                  style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}
+                >
+                  {isDetailOpen ? "Ocultar detalle" : "Ver detalle"}
+                </button>
+              ) : null}
+            </div>
+          </div>
+
           <div className="grid grid-cols-[58px_repeat(7,minmax(0,1fr))] gap-2">
             <div />
-            {days.map((day) => (
-              <div
-                key={day.date}
-                className="rounded-md border px-2 py-1 text-center text-xs font-semibold"
-                style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
-              >
-                {formatUserDate(day.date)}
-              </div>
-            ))}
+            {days.map((day) => {
+              const chip = formatDayChip(day.date);
+              return (
+                <div
+                  key={`header-${day.date}`}
+                  className="rounded-lg border px-1 py-0.5 text-center"
+                  style={{
+                    borderColor: "var(--border)",
+                    background: "var(--surface-2)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  <p className="text-[10px] font-medium leading-3" style={{ color: "var(--muted)" }}>
+                    {chip.weekday}
+                  </p>
+                  <p className="mt-0.5 text-[19px] font-semibold leading-4">{chip.day}</p>
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-2 grid grid-cols-[58px_repeat(7,minmax(0,1fr))] gap-2">
@@ -216,7 +296,7 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
                 return (
                   <div
                     key={hour}
-                    className="absolute left-0 right-0 -translate-y-1/2 text-[11px]"
+                    className="absolute left-0 right-0 -translate-y-1/2 text-[11px] leading-none"
                     style={{ top, color: "var(--muted)" }}
                   >
                     {formatHourLabel(hour)}
@@ -248,20 +328,13 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
 
                 {day.cells.map((cell) => {
                   const occupiedSlot = cell.state === "occupied" ? cell.slot : null;
-                  const occupiedClass = occupiedSlot ? getOccupiedBlockClass(occupiedSlot) : "";
-                  const occupiedStatus = occupiedSlot ? getOccupiedStatusLabel(occupiedSlot) : "";
-                  const baseClass =
-                    cell.state === "blocked"
-                      ? "border-[var(--error-border)] bg-[var(--error-bg)] text-[#fca5a5]"
-                      : cell.state === "available"
-                        ? "border-[var(--border)] bg-[var(--surface-3)] text-[var(--muted)]"
-                        : occupiedClass;
+                  const occupiedEventVisual = occupiedSlot ? getOccupiedEventVisual(occupiedSlot) : null;
 
                   return (
                     <button
                       key={cell.key}
                       type="button"
-                      className="absolute left-1 right-1 z-10"
+                      className="absolute left-0 right-0 z-10"
                       style={{
                         top: `${cell.top}px`,
                         height: `${cell.height}px`,
@@ -270,58 +343,74 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
                         if (occupiedSlot) {
                           setSelectedSlotKey(occupiedSlot.slot_key);
                           setSelectedBookingId(occupiedSlot.bookings[0]?.id ?? null);
+                          setIsDetailOpen(true);
                           return;
                         }
 
                         if (cell.state === "available") {
-                          window.dispatchEvent(
-                            new CustomEvent("calendar:create-slot", {
-                              detail: {
-                                date: cell.date,
-                                startTime: cell.start_time.slice(0, 5),
-                                endTime: cell.end_time.slice(0, 5),
-                              },
-                            }),
-                          );
-                          window.scrollTo({ top: 0, behavior: "smooth" });
+                          onCreateSlot?.({
+                            date: cell.date,
+                            startTime: cell.start_time.slice(0, 5),
+                            endTime: cell.end_time.slice(0, 5),
+                          });
                         }
                       }}
                     >
                       <div
-                        className={`h-full w-full overflow-hidden rounded-md border px-1.5 py-1 text-left text-[10px] ${baseClass} ${
-                          occupiedSlot && occupiedSlot.slot_key === selectedSlot?.slot_key
-                            ? "ring-1 ring-[var(--misu)]"
-                            : ""
+                        className={`h-full w-full overflow-hidden text-left ${
+                          occupiedSlot || cell.state === "blocked"
+                            ? "rounded-none border-[2px] px-2 py-1.5"
+                            : "rounded-none border-none"
                         }`}
+                        style={
+                          occupiedSlot
+                            ? {
+                                background:
+                                  occupiedSlot.slot_key === selectedSlot?.slot_key
+                                    ? `color-mix(in srgb, ${occupiedEventVisual?.background ?? "var(--surface-2)"} 78%, var(--foreground) 22%)`
+                                    : occupiedEventVisual?.background,
+                                color: occupiedEventVisual?.color,
+                                borderTopColor:
+                                  occupiedSlot.slot_key === selectedSlot?.slot_key
+                                    ? "color-mix(in srgb, currentColor 80%, var(--foreground) 20%)"
+                                    : "color-mix(in srgb, currentColor 62%, var(--border))",
+                                borderBottomColor:
+                                  occupiedSlot.slot_key === selectedSlot?.slot_key
+                                    ? "color-mix(in srgb, currentColor 80%, var(--foreground) 20%)"
+                                    : "color-mix(in srgb, currentColor 62%, var(--border))",
+                                borderLeftColor: "color-mix(in srgb, currentColor 68%, var(--border))",
+                                borderRightColor: "color-mix(in srgb, currentColor 68%, var(--border))",
+                              }
+                            : cell.state === "blocked"
+                              ? {
+                                  background: "color-mix(in srgb, var(--error) 20%, var(--surface-1))",
+                                  color: "var(--error)",
+                                  borderTopColor: "color-mix(in srgb, var(--error) 62%, var(--border))",
+                                  borderBottomColor: "color-mix(in srgb, var(--error) 62%, var(--border))",
+                                  borderLeftColor: "color-mix(in srgb, var(--error) 68%, var(--border))",
+                                  borderRightColor: "color-mix(in srgb, var(--error) 68%, var(--border))",
+                                }
+                              : {
+                                  background: "transparent",
+                                }
+                        }
                       >
                         {occupiedSlot ? (
                           <>
-                            <p className="truncate font-semibold leading-tight">
-                              {occupiedSlot.type === "individual"
-                                ? occupiedSlot.bookings[0]?.alumno_name ?? "Alumno"
-                                : `${occupiedSlot.occupied_count}/${occupiedSlot.capacity} alumnos`}
-                            </p>
-                            <p className="mt-0.5 truncate">
+                            <p className="truncate text-xs font-semibold leading-snug">
                               {occupiedSlot.type_label}
                               {occupiedSlot.type !== "individual"
                                 ? ` (${occupiedSlot.occupied_count}/${occupiedSlot.capacity})`
                                 : ""}
                             </p>
-                            <div className="mt-0.5">
-                              <span
-                                className={`inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${getOccupiedStatusBadgeClass(occupiedSlot)}`}
-                              >
-                                {occupiedStatus}
-                              </span>
-                            </div>
+                            <p className="mt-0.5 truncate text-[10px] opacity-80">
+                              {occupiedSlot.type === "individual"
+                                ? occupiedSlot.bookings[0]?.alumno_name ?? "Alumno"
+                                : "Clase grupal"}
+                            </p>
                           </>
                         ) : cell.state === "blocked" ? (
-                          <span
-                            className="inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-semibold"
-                            style={{ borderColor: "var(--error-border)", background: "var(--error-bg)", color: "#fca5a5" }}
-                          >
-                            Ausencia
-                          </span>
+                          <p className="text-xs font-semibold leading-snug">Ausencia</p>
                         ) : null}
                       </div>
                     </button>
@@ -331,47 +420,18 @@ export function WeekTimeline({ days, availability, blockedRanges }: WeekTimeline
             ))}
           </div>
         </div>
-
-        <aside className="card sticky top-4 self-start p-3">
-          {selectedItem ? (
-            <>
-              <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                Detalle de clase
-              </h3>
-              {selectedSlot && selectedSlot.bookings.length > 1 ? (
-                <div className="mt-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-                    Alumnos en este horario
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedSlot.bookings.map((booking) => (
-                      <button
-                        key={booking.id}
-                        type="button"
-                        onClick={() => setSelectedBookingId(booking.id)}
-                        className="rounded-full border px-2.5 py-1 text-xs font-medium"
-                        style={
-                          selectedBookingId === booking.id
-                            ? { borderColor: "var(--misu)", background: "var(--misu)", color: "#fff" }
-                            : { borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }
-                        }
-                      >
-                        {booking.alumno_name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <div className="mt-2">
-                <BookingDetailContent item={selectedItem} availabilityRanges={availability} />
-              </div>
-            </>
-          ) : (
-            <p className="text-sm" style={{ color: "var(--muted)" }}>
-              Seleccioná una clase del calendario para ver su detalle.
-            </p>
-          )}
-        </aside>
+        {selectedItem && isDetailOpen ? (
+          <aside className="absolute bottom-3 right-3 top-3 w-[280px] overflow-y-auto pl-3">
+            <BookingDetailContent
+              item={selectedItem}
+              availabilityRanges={availability}
+              timeRange={{ start: selectedItem.start_time, end: selectedItem.end_time }}
+              slotBookings={selectedSlot?.bookings}
+              selectedBookingId={selectedBookingId}
+              onSelectBooking={(bookingId) => setSelectedBookingId(bookingId)}
+            />
+          </aside>
+        ) : null}
       </div>
     </section>
   );

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -13,9 +13,19 @@ type AlumnoOption = {
   name: string;
 };
 
+type ManualPrefill = {
+  date: string;
+  startTime: string;
+  endTime: string;
+};
+
 type NewManualClassPanelProps = {
   alumnos: AlumnoOption[];
   availabilityRanges: AvailabilityRange[];
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  prefill?: ManualPrefill | null;
+  onConsumePrefill?: () => void;
 };
 
 function getTodayIsoDate() {
@@ -35,15 +45,31 @@ function formatDateShort(dateIso: string) {
   return `${day}/${month}/${year.slice(-2)}`;
 }
 
-export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: NewManualClassPanelProps) {
+export function NewManualClassPanel({
+  alumnos: _alumnos,
+  availabilityRanges,
+  isOpen,
+  onOpenChange,
+  prefill,
+  onConsumePrefill,
+}: NewManualClassPanelProps) {
   const datePickerRef = useRef<HTMLInputElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [alumnoNombre, setAlumnoNombre] = useState("");
   const [selectedDate, setSelectedDate] = useState(getTodayIsoDate());
   const [selectedType, setSelectedType] = useState<"individual" | "dobles" | "trio" | "grupal">("individual");
   const [selectedStartTime, setSelectedStartTime] = useState("");
   const [selectedEndTime, setSelectedEndTime] = useState("");
   const [feedback, setFeedback] = useState<{ type: "error" | "success"; message: string } | null>(null);
+
+  const resolvedIsOpen = isOpen ?? internalOpen;
+
+  const setOpen = (nextOpen: boolean) => {
+    onOpenChange?.(nextOpen);
+    if (isOpen === undefined) {
+      setInternalOpen(nextOpen);
+    }
+  };
 
   const minDate = useMemo(() => getTodayIsoDate(), []);
   const startTimeOptions = useMemo(
@@ -72,29 +98,18 @@ export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: N
   }
 
   useEffect(() => {
-    const onCreateSlot = (event: Event) => {
-      const customEvent = event as CustomEvent<{
-        date: string;
-        startTime: string;
-        endTime: string;
-      }>;
-      const payload = customEvent.detail;
-      if (!payload) {
-        return;
-      }
+    if (!prefill) {
+      return;
+    }
 
-      setIsOpen(true);
-      setAlumnoNombre("");
-      setSelectedType("individual");
-      setSelectedDate(payload.date);
-      setSelectedStartTime(payload.startTime);
-      setSelectedEndTime(payload.endTime);
-      setFeedback(null);
-    };
-
-    window.addEventListener("calendar:create-slot", onCreateSlot);
-    return () => window.removeEventListener("calendar:create-slot", onCreateSlot);
-  }, []);
+    setAlumnoNombre("");
+    setSelectedType("individual");
+    setSelectedDate(prefill.date);
+    setSelectedStartTime(prefill.startTime);
+    setSelectedEndTime(prefill.endTime);
+    setFeedback(null);
+    onConsumePrefill?.();
+  }, [prefill, onConsumePrefill]);
 
   const canConfirm =
     alumnoNombre.trim().length > 1 &&
@@ -105,8 +120,8 @@ export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: N
     endTimeOptions.length > 0;
 
   return (
-    <section className="mt-4">
-      <div className="card max-w-6xl p-4">
+    <section className="mt-3">
+      <div className="card w-full p-3 sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
@@ -119,16 +134,16 @@ export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: N
           <button
             type="button"
             onClick={() => {
-              setIsOpen((prev) => !prev);
+              setOpen(!resolvedIsOpen);
               setFeedback(null);
             }}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border transition-opacity hover:opacity-90"
             style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}
-            aria-label={isOpen ? "Plegar formulario" : "Desplegar formulario"}
-            title={isOpen ? "Ocultar" : "Mostrar"}
+            aria-label={resolvedIsOpen ? "Plegar formulario" : "Desplegar formulario"}
+            title={resolvedIsOpen ? "Ocultar" : "Mostrar"}
           >
             <svg
-              className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`}
+              className={`h-4 w-4 transition-transform ${resolvedIsOpen ? "rotate-180" : "rotate-0"}`}
               viewBox="0 0 20 20"
               fill="none"
               stroke="currentColor"
@@ -142,8 +157,7 @@ export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: N
           </button>
         </div>
 
-      {isOpen ? (
-          <>
+        {resolvedIsOpen ? (
           <form
             className="mt-3 grid gap-3"
             onSubmit={(event) => {
@@ -189,7 +203,7 @@ export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: N
                 >
                   <option value="individual">Individual</option>
                   <option value="dobles">Dobles</option>
-                  <option value="trio">Trio</option>
+                  <option value="trio">Trío</option>
                   <option value="grupal">Grupal</option>
                 </select>
               </label>
@@ -295,9 +309,9 @@ export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: N
               <p
                 className="rounded-md border px-3 py-2 text-sm"
                 style={{
-                  borderColor: "var(--warning-border, #f5c26b)",
-                  background: "var(--warning-bg, #fff4db)",
-                  color: "var(--warning, #8a5a00)",
+                  borderColor: "var(--warning-border)",
+                  background: "var(--warning-bg)",
+                  color: "var(--warning)",
                 }}
               >
                 No hay disponibilidad configurada para la fecha elegida.
@@ -310,9 +324,9 @@ export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: N
                 style={
                   feedback.type === "error"
                     ? {
-                        borderColor: "var(--danger-border, #fecaca)",
-                        background: "var(--danger-bg, #fef2f2)",
-                        color: "var(--danger, #b91c1c)",
+                        borderColor: "var(--error-border)",
+                        background: "var(--error-bg)",
+                        color: "var(--error)",
                       }
                     : {
                         borderColor: "var(--success-border)",
@@ -330,7 +344,7 @@ export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: N
                 type="button"
                 onClick={() => {
                   resetForm();
-                  setIsOpen(false);
+                  setOpen(false);
                 }}
                 className="btn-ghost h-9 px-3 text-sm"
               >
@@ -341,10 +355,8 @@ export function NewManualClassPanel({ alumnos: _alumnos, availabilityRanges }: N
               </button>
             </div>
           </form>
-          </>
-      ) : null}
+        ) : null}
       </div>
     </section>
   );
 }
-
