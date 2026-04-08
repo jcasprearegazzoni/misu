@@ -91,24 +91,6 @@ type AlumnoProfileFallback = {
   has_raqueta: boolean;
 };
 
-type ClubData = { id: number; nombre: string };
-type ClubProfesorRow = {
-  clubs: ClubData | null;
-};
-
-type CanchaRow = {
-  id: number;
-  club_id: number;
-  nombre: string;
-  deporte: string;
-};
-
-export type ClubOption = {
-  id: number;
-  nombre: string;
-  canchas: Array<{ id: number; nombre: string; deporte: string }>;
-};
-
 const typeLabel: Record<BookingRow["type"], string> = {
   individual: "Individual",
   dobles: "Dobles",
@@ -450,33 +432,6 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
     };
   });
 
-  // Clubs donde el profesor da clases (para asignar cancha al crear clase manual)
-  const { data: clubProfesoresRaw } = await supabase
-    .from("club_profesores")
-    .select("clubs(id, nombre)")
-    .eq("profesor_id", profile.user_id)
-    .not("invitacion_aceptada_at", "is", null);
-
-  const clubProfesores = (clubProfesoresRaw ?? []) as unknown as ClubProfesorRow[];
-  const clubIds = clubProfesores
-    .map((cp) => cp.clubs?.id)
-    .filter((id): id is number => typeof id === "number");
-
-  const canchasRaw = clubIds.length > 0
-    ? (await supabase.from("canchas").select("id, club_id, nombre, deporte").in("club_id", clubIds)).data ?? []
-    : [];
-  const canchas = canchasRaw as CanchaRow[];
-
-  const clubOptions: ClubOption[] = clubProfesores
-    .filter((cp) => cp.clubs?.id != null)
-    .map((cp) => ({
-      id: cp.clubs!.id,
-      nombre: cp.clubs!.nombre,
-      canchas: canchas
-        .filter((c) => c.club_id === cp.clubs!.id)
-        .map((c) => ({ id: c.id, nombre: c.nombre, deporte: c.deporte })),
-    }));
-
   const days = weekDates.map((date) => ({
     date,
     items: items.filter((item) => item.date === date),
@@ -519,7 +474,6 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
             dayLinks={dayLinks}
             prevHref={prevHref}
             nextHref={nextHref}
-            clubOptions={clubOptions}
           />
           <MobileAgenda
             days={days}

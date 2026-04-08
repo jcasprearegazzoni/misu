@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ClubWeekTimeline } from "@/components/club/calendar/club-week-timeline";
-import type { CalendarEvent } from "./page";
+import type { CalendarCourt, CalendarEvent } from "./page";
 
 type Deporte = "tenis" | "padel" | "futbol";
 type CalendarView = "week" | "day";
@@ -15,6 +15,7 @@ type ClubCalendarClientProps = {
   deportesVisibles: Deporte[];
   days: string[];
   eventos: CalendarEvent[];
+  canchas: CalendarCourt[];
 };
 
 export function ClubCalendarClient({
@@ -24,6 +25,7 @@ export function ClubCalendarClient({
   deportesVisibles,
   days,
   eventos,
+  canchas,
 }: ClubCalendarClientProps) {
   const router = useRouter();
 
@@ -57,6 +59,7 @@ export function ClubCalendarClient({
       deportesVisibles={deportesVisibles}
       fecha={fecha}
       onGoTo={goTo}
+      canchas={canchas}
     />
   );
 }

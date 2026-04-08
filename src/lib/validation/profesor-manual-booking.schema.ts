@@ -15,8 +15,6 @@ export const profesorManualBookingSchema = z
     start_time: z.string().regex(timeRegex, "Selecciona una hora de inicio valida."),
     end_time: z.string().regex(timeRegex, "Selecciona una hora de fin valida."),
     type: z.enum(["individual", "dobles", "trio", "grupal"], "Tipo de clase invalido."),
-    club_id: z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().int().positive().nullable()).optional(),
-    cancha_id: z.preprocess((v) => (v === "" || v == null ? null : Number(v)), z.number().int().positive().nullable()).optional(),
   })
   .refine((data) => timeToMinutes(data.start_time) < timeToMinutes(data.end_time), {
     message: "La hora de inicio debe ser menor que la hora de fin.",

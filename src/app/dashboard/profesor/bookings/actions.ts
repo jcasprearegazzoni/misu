@@ -9,6 +9,14 @@ import { createSoloDecisionSchema } from "@/lib/validation/solo-decision.schema"
 
 type BookingActionState = { error: string | null };
 
+function isMissingConfirmWithCourtRpcError(message: string | undefined) {
+  if (!message) return false;
+  return (
+    message.includes("confirm_booking_with_court") &&
+    (message.toLowerCase().includes("does not exist") || message.toLowerCase().includes("no existe"))
+  );
+}
+
 async function updateBookingStatus(
   _prevState: BookingActionState,
   formData: FormData,
@@ -20,7 +28,7 @@ async function updateBookingStatus(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+    return { error: parsed.error.issues[0]?.message ?? "Datos invalidos." };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -39,18 +47,22 @@ async function updateBookingStatus(
     .eq("profesor_id", user.id)
     .single();
 
-  // Actualiza solo el campo status.
-  const { error: updateError } = await supabase
-    .from("bookings")
-    .update({ status: parsed.data.status })
-    .eq("id", parsed.data.bookingId)
-    .eq("profesor_id", user.id);
-
-  if (updateError) {
-    return { error: "No se pudo actualizar el estado de la clase." };
-  }
-
   if (status === "confirmado") {
+    // Confirmacion atomica en DB: valida cancha disponible y sincroniza reservas_cancha.
+    const { error: confirmError } = await supabase.rpc("confirm_booking_with_court", {
+      p_booking_id: parsed.data.bookingId,
+      p_profesor_id: user.id,
+    });
+
+    if (confirmError) {
+      if (isMissingConfirmWithCourtRpcError(confirmError.message)) {
+        return {
+          error: "Falta aplicar migraciones de base de datos (incluyendo la 071). Avísame y te paso el comando exacto.",
+        };
+      }
+      return { error: confirmError.message || "No se pudo confirmar la clase." };
+    }
+
     // Descuenta 1 credito si el alumno tiene paquete activo y pagado.
     const { error: packageError } = await supabase.rpc("consume_student_package_credit_on_booking_confirm", {
       p_booking_id: parsed.data.bookingId,
@@ -58,7 +70,18 @@ async function updateBookingStatus(
     });
 
     if (packageError) {
-      return { error: "Clase confirmada, pero no se pudo descontar el crédito del paquete." };
+      return { error: "Clase confirmada, pero no se pudo descontar el credito del paquete." };
+    }
+  } else {
+    // Para cancelacion se mantiene update directo; DB se encarga de sincronizar el espejo.
+    const { error: updateError } = await supabase
+      .from("bookings")
+      .update({ status: parsed.data.status })
+      .eq("id", parsed.data.bookingId)
+      .eq("profesor_id", user.id);
+
+    if (updateError) {
+      return { error: "No se pudo actualizar el estado de la clase." };
     }
   }
 
@@ -91,6 +114,8 @@ async function updateBookingStatus(
   revalidatePath("/dashboard/profesor/bookings");
   revalidatePath("/dashboard/profesor/calendario");
   revalidatePath("/dashboard/alumno/bookings");
+  revalidatePath("/dashboard/club/calendario");
+  revalidatePath("/dashboard/club");
 
   return { error: null };
 }

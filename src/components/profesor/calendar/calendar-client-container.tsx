@@ -10,12 +10,6 @@ type AlumnoOption = {
   name: string;
 };
 
-type ClubOption = {
-  id: number;
-  nombre: string;
-  canchas: Array<{ id: number; nombre: string; deporte: string }>;
-};
-
 type CalendarPrefill = {
   date: string;
   startTime: string;
@@ -42,7 +36,6 @@ type CalendarClientContainerProps = {
   dayLinks: Array<{ date: string; href: string }>;
   prevHref: string;
   nextHref: string;
-  clubOptions: ClubOption[];
 };
 
 export function CalendarClientContainer({
@@ -54,7 +47,6 @@ export function CalendarClientContainer({
   dayLinks,
   prevHref,
   nextHref,
-  clubOptions,
 }: CalendarClientContainerProps) {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [prefill, setPrefill] = useState<CalendarPrefill | null>(null);
@@ -68,7 +60,6 @@ export function CalendarClientContainer({
         onOpenChange={setIsManualOpen}
         prefill={prefill}
         onConsumePrefill={() => setPrefill(null)}
-        clubOptions={clubOptions}
       />
       <WeekTimeline
         days={days}

@@ -50,7 +50,17 @@ export async function reservarCanchaAction(
   // junto con el WITH CHECK del INSERT (.insert().select()), lo que bloquea a anon/authenticated
   // que no son dueños del club (error 42501).
   const supabase = await createSupabaseServerClient();
-  const supabaseAdmin = createSupabaseAdminClient();
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    supabaseAdmin = createSupabaseAdminClient();
+  } catch (adminClientError) {
+    console.warn("[reservarCanchaAction] Cliente admin no disponible:", adminClientError);
+    return {
+      error: "No se pudo procesar la reserva en este momento.",
+      success: null,
+      reservaId: null,
+    };
+  }
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -119,8 +129,14 @@ export async function reservarCanchaAction(
     .single();
 
   if (reservaError || !reservaData) {
+    console.warn("[reservarCanchaAction] Error al crear reserva:", {
+      message: reservaError?.message,
+      code: reservaError?.code,
+      details: reservaError?.details,
+      hint: reservaError?.hint,
+    });
     return {
-      error: `No se pudo crear la reserva. ${reservaError?.message ?? ""}`.trim(),
+      error: "No se pudo crear la reserva en este momento.",
       success: null,
       reservaId: null,
     };
@@ -136,6 +152,12 @@ export async function reservarCanchaAction(
   });
 
   if (participanteError) {
+    console.warn("[reservarCanchaAction] Error al crear participante:", {
+      message: participanteError.message,
+      code: participanteError.code,
+      details: participanteError.details,
+      hint: participanteError.hint,
+    });
     await supabaseAdmin.from("reservas_cancha").delete().eq("id", reservaData.id);
     return {
       error: "No se pudo guardar los datos del organizador.",

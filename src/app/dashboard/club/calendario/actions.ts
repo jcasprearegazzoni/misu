@@ -3,33 +3,36 @@
 import { revalidatePath } from "next/cache";
 import { requireClub } from "@/lib/auth/require-club";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { actualizarEstadoReservaCancha, parseReservaId } from "@/lib/club/reserva-estado";
 
 export async function confirmarReservaAction(formData: FormData) {
   const club = await requireClub();
-  const reservaId = Number(formData.get("reserva_id"));
-  if (!Number.isInteger(reservaId) || reservaId <= 0) return;
+  const reservaId = parseReservaId(formData.get("reserva_id"));
+  if (!reservaId) return;
 
   const supabase = await createSupabaseServerClient();
-  await supabase
-    .from("reservas_cancha")
-    .update({ estado: "confirmada" })
-    .eq("id", reservaId)
-    .eq("club_id", club.id);
+  await actualizarEstadoReservaCancha({
+    supabase,
+    clubId: club.id,
+    reservaId,
+    estado: "confirmada",
+  });
 
   revalidatePath("/dashboard/club/calendario");
 }
 
 export async function cancelarReservaAction(formData: FormData) {
   const club = await requireClub();
-  const reservaId = Number(formData.get("reserva_id"));
-  if (!Number.isInteger(reservaId) || reservaId <= 0) return;
+  const reservaId = parseReservaId(formData.get("reserva_id"));
+  if (!reservaId) return;
 
   const supabase = await createSupabaseServerClient();
-  await supabase
-    .from("reservas_cancha")
-    .update({ estado: "cancelada" })
-    .eq("id", reservaId)
-    .eq("club_id", club.id);
+  await actualizarEstadoReservaCancha({
+    supabase,
+    clubId: club.id,
+    reservaId,
+    estado: "cancelada",
+  });
 
   revalidatePath("/dashboard/club/calendario");
 }

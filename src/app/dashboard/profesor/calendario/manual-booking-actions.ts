@@ -22,6 +22,14 @@ export type CreateManualBookingActionState = {
   success: string | null;
 };
 
+function isMissingConfirmWithCourtRpcError(message: string | undefined) {
+  if (!message) return false;
+  return (
+    message.includes("confirm_booking_with_court") &&
+    (message.toLowerCase().includes("does not exist") || message.toLowerCase().includes("no existe"))
+  );
+}
+
 function timeToMinutes(value: string) {
   const [hours, minutes] = value.split(":").map(Number);
   return hours * 60 + minutes;
@@ -80,8 +88,6 @@ export async function createManualBookingAction(
     start_time: formData.get("start_time"),
     end_time: formData.get("end_time"),
     type: formData.get("type"),
-    club_id: formData.get("club_id"),
-    cancha_id: formData.get("cancha_id"),
   });
 
   if (!parsed.success) {
@@ -195,30 +201,23 @@ export async function createManualBookingAction(
     };
   }
 
-  // Clase manual creada por profesor: queda confirmada desde el inicio.
-  const { error: confirmError } = await supabase
-    .from("bookings")
-    .update({ status: "confirmado" })
-    .eq("id", bookingId)
-    .eq("profesor_id", user.id)
-    .eq("status", "pendiente");
+  // Confirmacion atomica en DB: asigna cancha si corresponde y sincroniza reservas_cancha.
+  const { error: confirmError } = await supabase.rpc("confirm_booking_with_court", {
+    p_booking_id: bookingId,
+    p_profesor_id: user.id,
+  });
 
   if (confirmError) {
+    if (isMissingConfirmWithCourtRpcError(confirmError.message)) {
+      return {
+        error: "Falta aplicar migraciones de base de datos (incluyendo la 071). Avísame y te paso el comando exacto.",
+        success: null,
+      };
+    }
     return {
-      error: "La clase se creo, pero no se pudo confirmar automaticamente.",
+      error: confirmError.message || "La clase se creo, pero no se pudo confirmar automaticamente.",
       success: null,
     };
-  }
-
-  // Si se indicó un club y una cancha, vincular el booking a esa cancha.
-  const clubId = parsed.data.club_id ?? null;
-  const canchaId = parsed.data.cancha_id ?? null;
-  if (clubId && canchaId) {
-    await supabase
-      .from("bookings")
-      .update({ club_id: clubId, cancha_id: canchaId })
-      .eq("id", bookingId)
-      .eq("profesor_id", user.id);
   }
 
   // Si hay paquete activo/pagado, consume 1 credito como en confirmacion normal.
@@ -234,6 +233,8 @@ export async function createManualBookingAction(
   revalidatePath("/dashboard/profesor/pagos");
   revalidatePath("/dashboard/alumno/bookings");
   revalidatePath("/dashboard/alumno/turnos");
+  revalidatePath("/dashboard/club/calendario");
+  revalidatePath("/dashboard/club");
 
   return {
     error: null,

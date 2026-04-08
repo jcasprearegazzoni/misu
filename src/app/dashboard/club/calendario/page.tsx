@@ -19,7 +19,6 @@ type ReservaRow = {
   duracion_minutos: number;
   estado: "pendiente" | "confirmada" | "cancelada";
   tipo: "alquiler" | "clase";
-  canchas: Array<{ nombre: string }> | null;
   reserva_participantes: Array<{
     nombre: string;
     email: string | null;
@@ -28,18 +27,9 @@ type ReservaRow = {
   }>;
 };
 
-type BookingRow = {
-  id: number;
-  date: string;
-  start_time: string;
-  end_time: string;
-  cancha_id: number;
-  canchas: Array<{ nombre: string; deporte: string }> | null;
-  profiles: Array<{ full_name: string | null }> | null;
-};
-
 export type CalendarEvent = {
   id: number;
+  canchaId: number;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -51,6 +41,11 @@ export type CalendarEvent = {
   organizadorNombre: string | null;
   organizadorEmail: string | null;
   organizadorTelefono: string | null;
+};
+
+export type CalendarCourt = {
+  id: number;
+  nombre: string;
 };
 
 const DEPORTES_VISIBLES: Deporte[] = ["tenis", "padel", "futbol"];
@@ -98,15 +93,6 @@ function startOfWeekIso(isoDate: string) {
   return date.toISOString().slice(0, 10);
 }
 
-// Calcula minutos entre dos horas HH:MM:SS
-function calcDuracionMinutos(start: string, end: string) {
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  const startMin = sh * 60 + sm;
-  const endMin = eh * 60 + em;
-  return endMin > startMin ? endMin - startMin : 0;
-}
-
 export default async function ClubCalendarioPage({ searchParams }: PageProps) {
   const club = await requireClub();
   const supabase = await createSupabaseServerClient();
@@ -130,16 +116,23 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
   const rangeStart = view === "week" ? startOfWeekIso(fecha) : fecha;
   const rangeEndExclusive = view === "week" ? addDaysIso(rangeStart, 7) : addDaysIso(fecha, 1);
 
-  // Calcular array de 7 días (lunes a domingo) para la semana
-  const days = view === "week"
-    ? Array.from({ length: 7 }, (_, i) => addDaysIso(rangeStart, i))
-    : [fecha];
+  const days = view === "week" ? Array.from({ length: 7 }, (_, i) => addDaysIso(rangeStart, i)) : [fecha];
 
-  // Query 1: reservas de canchas (alquileres y clases manuales del club)
+  const { data: canchasData } = await supabase
+    .from("canchas")
+    .select("id, nombre, deporte, activa")
+    .eq("club_id", club.id);
+
+  const canchaNombreById = new Map((canchasData ?? []).map((cancha) => [cancha.id, cancha.nombre]));
+  const canchasActivasDeporte = (canchasData ?? []).filter(
+    (cancha) => cancha.deporte === deporteSeleccionado && cancha.activa,
+  ) as Array<{ id: number; nombre: string }>;
+
+  // Fuente unica: calendario de club lee solo reservas_cancha (alquileres + clases espejo).
   const { data, error } = await supabase
     .from("reservas_cancha")
     .select(
-      "id, cancha_id, deporte, fecha, hora_inicio, hora_fin, duracion_minutos, estado, tipo, canchas(nombre), reserva_participantes(nombre, email, telefono, es_organizador)",
+      "id, cancha_id, deporte, fecha, hora_inicio, hora_fin, duracion_minutos, estado, tipo, reserva_participantes(nombre, email, telefono, es_organizador)",
     )
     .eq("club_id", club.id)
     .eq("deporte", deporteSeleccionado)
@@ -150,7 +143,7 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
 
   const reservas = (data ?? []) as ReservaRow[];
 
-  const eventosDeReservas: CalendarEvent[] = reservas.map((reserva) => {
+  const eventos: CalendarEvent[] = reservas.map((reserva) => {
     const organizador =
       reserva.reserva_participantes.find((participante) => participante.es_organizador) ??
       reserva.reserva_participantes[0] ??
@@ -158,10 +151,11 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
 
     return {
       id: reserva.id,
+      canchaId: reserva.cancha_id,
       fecha: reserva.fecha,
       horaInicio: reserva.hora_inicio,
       horaFin: reserva.hora_fin,
-      canchaNombre: reserva.canchas?.[0]?.nombre ?? `Cancha ${reserva.cancha_id}`,
+      canchaNombre: canchaNombreById.get(reserva.cancha_id) ?? `Cancha ${reserva.cancha_id}`,
       deporte: reserva.deporte,
       duracionMinutos: reserva.duracion_minutos,
       estado: reserva.estado,
@@ -172,42 +166,6 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
     };
   });
 
-  // Query 2: clases confirmadas de profesores que tienen cancha asignada en este club
-  const { data: bookingsData } = await supabase
-    .from("bookings")
-    .select("id, date, start_time, end_time, cancha_id, canchas(nombre, deporte), profiles(full_name)")
-    .eq("club_id", club.id)
-    .eq("status", "confirmado")
-    .not("cancha_id", "is", null)
-    .gte("date", rangeStart)
-    .lt("date", rangeEndExclusive);
-
-  const bookings = (bookingsData ?? []) as BookingRow[];
-
-  // Filtrar por deporte de la cancha y mapear al mismo tipo CalendarEvent
-  const eventosDeBookings: CalendarEvent[] = bookings
-    .filter((booking) => {
-      const deporte = booking.canchas?.[0]?.deporte;
-      return deporte === deporteSeleccionado;
-    })
-    .map((booking) => ({
-      // Usamos ID negativo para evitar colisiones con IDs de reservas_cancha
-      id: -booking.id,
-      fecha: booking.date,
-      horaInicio: booking.start_time,
-      horaFin: booking.end_time,
-      canchaNombre: booking.canchas?.[0]?.nombre ?? `Cancha ${booking.cancha_id}`,
-      deporte: deporteSeleccionado,
-      duracionMinutos: calcDuracionMinutos(booking.start_time, booking.end_time),
-      estado: "confirmada" as const,
-      tipo: "clase" as const,
-      organizadorNombre: booking.profiles?.[0]?.full_name ?? null,
-      organizadorEmail: null,
-      organizadorTelefono: null,
-    }));
-
-  const eventos: CalendarEvent[] = [...eventosDeReservas, ...eventosDeBookings];
-
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1280px] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <header>
@@ -215,7 +173,7 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
           Calendario
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          Operación diaria de reservas por deporte, en formato calendario.
+          Operacion diaria de reservas por deporte, en formato calendario.
         </p>
       </header>
 
@@ -238,6 +196,7 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
           deportesVisibles={deportesVisibles}
           days={days}
           eventos={eventos}
+          canchas={canchasActivasDeporte.map((cancha) => ({ id: cancha.id, nombre: cancha.nombre }))}
         />
       )}
     </main>
