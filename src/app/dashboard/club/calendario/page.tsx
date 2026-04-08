@@ -28,13 +28,21 @@ type ReservaRow = {
   }>;
 };
 
-type CalendarEvent = {
+type BookingRow = {
+  id: number;
+  date: string;
+  start_time: string;
+  end_time: string;
+  cancha_id: number;
+  canchas: Array<{ nombre: string; deporte: string }> | null;
+  profiles: Array<{ full_name: string | null }> | null;
+};
+
+export type CalendarEvent = {
   id: number;
   fecha: string;
   horaInicio: string;
   horaFin: string;
-  startIso: string;
-  endIso: string;
   canchaNombre: string;
   deporte: Deporte;
   duracionMinutos: number;
@@ -90,8 +98,13 @@ function startOfWeekIso(isoDate: string) {
   return date.toISOString().slice(0, 10);
 }
 
-function buildEventDateTime(fecha: string, hora: string) {
-  return `${fecha}T${hora.slice(0, 8)}`;
+// Calcula minutos entre dos horas HH:MM:SS
+function calcDuracionMinutos(start: string, end: string) {
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  const startMin = sh * 60 + sm;
+  const endMin = eh * 60 + em;
+  return endMin > startMin ? endMin - startMin : 0;
 }
 
 export default async function ClubCalendarioPage({ searchParams }: PageProps) {
@@ -117,6 +130,12 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
   const rangeStart = view === "week" ? startOfWeekIso(fecha) : fecha;
   const rangeEndExclusive = view === "week" ? addDaysIso(rangeStart, 7) : addDaysIso(fecha, 1);
 
+  // Calcular array de 7 días (lunes a domingo) para la semana
+  const days = view === "week"
+    ? Array.from({ length: 7 }, (_, i) => addDaysIso(rangeStart, i))
+    : [fecha];
+
+  // Query 1: reservas de canchas (alquileres y clases manuales del club)
   const { data, error } = await supabase
     .from("reservas_cancha")
     .select(
@@ -131,22 +150,17 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
 
   const reservas = (data ?? []) as ReservaRow[];
 
-  const eventos: CalendarEvent[] = reservas.map((reserva) => {
+  const eventosDeReservas: CalendarEvent[] = reservas.map((reserva) => {
     const organizador =
       reserva.reserva_participantes.find((participante) => participante.es_organizador) ??
       reserva.reserva_participantes[0] ??
       null;
-
-    const cruzaMedianoche = reserva.hora_fin <= reserva.hora_inicio;
-    const endDate = cruzaMedianoche ? addDaysIso(reserva.fecha, 1) : reserva.fecha;
 
     return {
       id: reserva.id,
       fecha: reserva.fecha,
       horaInicio: reserva.hora_inicio,
       horaFin: reserva.hora_fin,
-      startIso: buildEventDateTime(reserva.fecha, reserva.hora_inicio),
-      endIso: buildEventDateTime(endDate, reserva.hora_fin),
       canchaNombre: reserva.canchas?.[0]?.nombre ?? `Cancha ${reserva.cancha_id}`,
       deporte: reserva.deporte,
       duracionMinutos: reserva.duracion_minutos,
@@ -157,6 +171,42 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
       organizadorTelefono: organizador?.telefono ?? null,
     };
   });
+
+  // Query 2: clases confirmadas de profesores que tienen cancha asignada en este club
+  const { data: bookingsData } = await supabase
+    .from("bookings")
+    .select("id, date, start_time, end_time, cancha_id, canchas(nombre, deporte), profiles(full_name)")
+    .eq("club_id", club.id)
+    .eq("status", "confirmado")
+    .not("cancha_id", "is", null)
+    .gte("date", rangeStart)
+    .lt("date", rangeEndExclusive);
+
+  const bookings = (bookingsData ?? []) as BookingRow[];
+
+  // Filtrar por deporte de la cancha y mapear al mismo tipo CalendarEvent
+  const eventosDeBookings: CalendarEvent[] = bookings
+    .filter((booking) => {
+      const deporte = booking.canchas?.[0]?.deporte;
+      return deporte === deporteSeleccionado;
+    })
+    .map((booking) => ({
+      // Usamos ID negativo para evitar colisiones con IDs de reservas_cancha
+      id: -booking.id,
+      fecha: booking.date,
+      horaInicio: booking.start_time,
+      horaFin: booking.end_time,
+      canchaNombre: booking.canchas?.[0]?.nombre ?? `Cancha ${booking.cancha_id}`,
+      deporte: deporteSeleccionado,
+      duracionMinutos: calcDuracionMinutos(booking.start_time, booking.end_time),
+      estado: "confirmada" as const,
+      tipo: "clase" as const,
+      organizadorNombre: booking.profiles?.[0]?.full_name ?? null,
+      organizadorEmail: null,
+      organizadorTelefono: null,
+    }));
+
+  const eventos: CalendarEvent[] = [...eventosDeReservas, ...eventosDeBookings];
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1280px] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -170,7 +220,14 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
       </header>
 
       {error ? (
-        <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--error-border)", background: "var(--error-bg)", color: "var(--error)" }}>
+        <div
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{
+            borderColor: "var(--error-border)",
+            background: "var(--error-bg)",
+            color: "var(--error)",
+          }}
+        >
           No se pudieron cargar las reservas del calendario. {error.message}
         </div>
       ) : (
@@ -178,8 +235,8 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
           deporte={deporteSeleccionado}
           fecha={fecha}
           view={view}
-          hasViewParam={Boolean(resolvedSearchParams?.view)}
           deportesVisibles={deportesVisibles}
+          days={days}
           eventos={eventos}
         />
       )}

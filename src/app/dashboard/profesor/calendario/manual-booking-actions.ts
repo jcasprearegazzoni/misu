@@ -80,6 +80,8 @@ export async function createManualBookingAction(
     start_time: formData.get("start_time"),
     end_time: formData.get("end_time"),
     type: formData.get("type"),
+    club_id: formData.get("club_id"),
+    cancha_id: formData.get("cancha_id"),
   });
 
   if (!parsed.success) {
@@ -206,6 +208,17 @@ export async function createManualBookingAction(
       error: "La clase se creo, pero no se pudo confirmar automaticamente.",
       success: null,
     };
+  }
+
+  // Si se indicó un club y una cancha, vincular el booking a esa cancha.
+  const clubId = parsed.data.club_id ?? null;
+  const canchaId = parsed.data.cancha_id ?? null;
+  if (clubId && canchaId) {
+    await supabase
+      .from("bookings")
+      .update({ club_id: clubId, cancha_id: canchaId })
+      .eq("id", bookingId)
+      .eq("profesor_id", user.id);
   }
 
   // Si hay paquete activo/pagado, consume 1 credito como en confirmacion normal.
