@@ -18,6 +18,7 @@ type CalendarPrefill = {
 
 type CalendarClientContainerProps = {
   alumnos: AlumnoOption[];
+  profesorSport: "tenis" | "padel" | "ambos" | null;
   availabilityRanges: Array<{
     day_of_week: number;
     start_time: string;
@@ -40,6 +41,7 @@ type CalendarClientContainerProps = {
 
 export function CalendarClientContainer({
   alumnos,
+  profesorSport,
   availabilityRanges,
   days,
   blockedRanges,
@@ -55,6 +57,7 @@ export function CalendarClientContainer({
     <>
       <NewManualClassPanel
         alumnos={alumnos}
+        profesorSport={profesorSport}
         availabilityRanges={availabilityRanges}
         isOpen={isManualOpen}
         onOpenChange={setIsManualOpen}

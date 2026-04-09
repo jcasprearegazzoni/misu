@@ -245,12 +245,14 @@ function buildFranjaRows(params: {
   hasta: string;
   duracionMinutos: number;
   precio: number;
+  canchaId: number | null;
 }) {
   const baseRow = {
     club_id: params.clubId,
     deporte: params.deporte,
     duracion_minutos: params.duracionMinutos,
     precio: params.precio,
+    cancha_id: params.canchaId,
   };
 
   if (!isOvernight(params.desde, params.hasta)) {
@@ -267,6 +269,7 @@ function buildFranjaRows(params: {
     deporte: "tenis" | "padel" | "futbol";
     duracion_minutos: number;
     precio: number;
+    cancha_id: number | null;
     day_of_week: number;
     desde: string;
     hasta: string;
@@ -491,6 +494,7 @@ export async function upsertFranjaPrecioAction(
     "hasta",
     "duracion_minutos",
     "precio",
+    "cancha_id",
   ]);
 
   const parsed = franjaPrecioSchema.safeParse({
@@ -506,6 +510,11 @@ export async function upsertFranjaPrecioAction(
     return { error: parsed.error.issues[0]?.message ?? initialError, success: null, submitted };
   }
 
+  const rawCanchaId = formData.get("cancha_id");
+  const canchaId = rawCanchaId && String(rawCanchaId).trim() !== ""
+    ? Number(rawCanchaId)
+    : null;
+
   const supabase = await createSupabaseServerClient();
   const rows = buildFranjaRows({
     clubId: club.id,
@@ -514,6 +523,7 @@ export async function upsertFranjaPrecioAction(
     hasta: parsed.data.hasta,
     duracionMinutos: parsed.data.duracion_minutos,
     precio: parsed.data.precio,
+    canchaId: canchaId,
   });
 
   let invalidCoverage: Awaited<ReturnType<typeof findInvalidFranjaCoverage>>;
@@ -543,7 +553,7 @@ export async function upsertFranjaPrecioAction(
   if (parsed.data.id) {
     const { data: currentRow, error: currentError } = await supabase
       .from("club_franjas_precio")
-      .select("deporte, desde, hasta, duracion_minutos")
+      .select("deporte, desde, hasta, duracion_minutos, cancha_id")
       .eq("id", parsed.data.id)
       .eq("club_id", club.id)
       .maybeSingle();
@@ -552,7 +562,7 @@ export async function upsertFranjaPrecioAction(
       return { error: "No se pudo guardar la franja de precio.", success: null, submitted };
     }
 
-    const { error: deleteError } = await supabase
+    let deleteQuery = supabase
       .from("club_franjas_precio")
       .delete()
       .eq("club_id", club.id)
@@ -561,14 +571,40 @@ export async function upsertFranjaPrecioAction(
       .eq("hasta", currentRow.hasta)
       .eq("duracion_minutos", currentRow.duracion_minutos);
 
+    if (currentRow.cancha_id !== null && currentRow.cancha_id !== undefined) {
+      deleteQuery = deleteQuery.eq("cancha_id", currentRow.cancha_id);
+    } else {
+      deleteQuery = deleteQuery.is("cancha_id", null);
+    }
+
+    const { error: deleteError } = await deleteQuery;
+
     if (deleteError) {
       return { error: "No se pudo guardar la franja de precio.", success: null, submitted };
     }
   }
 
+  // Eliminar filas existentes con los mismos parametros para luego reinsertar.
+  let cleanupQuery = supabase
+    .from("club_franjas_precio")
+    .delete()
+    .eq("club_id", club.id)
+    .eq("deporte", parsed.data.deporte)
+    .eq("desde", parsed.data.desde)
+    .eq("hasta", parsed.data.hasta)
+    .eq("duracion_minutos", parsed.data.duracion_minutos);
+
+  if (canchaId !== null) {
+    cleanupQuery = cleanupQuery.eq("cancha_id", canchaId);
+  } else {
+    cleanupQuery = cleanupQuery.is("cancha_id", null);
+  }
+
+  await cleanupQuery;
+
   const { error } = await supabase
     .from("club_franjas_precio")
-    .upsert(rows, { onConflict: "club_id,deporte,day_of_week,desde,duracion_minutos" });
+    .insert(rows);
   if (error) {
     return { error: "No se pudo guardar la franja de precio.", success: null, submitted };
   }
@@ -585,13 +621,13 @@ export async function deleteFranjaPrecioAction(formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const { data: currentRow } = await supabase
     .from("club_franjas_precio")
-    .select("deporte, desde, hasta, duracion_minutos")
+    .select("deporte, desde, hasta, duracion_minutos, cancha_id")
     .eq("id", id)
     .eq("club_id", club.id)
     .maybeSingle();
 
   if (currentRow) {
-    await supabase
+    let deleteQuery = supabase
       .from("club_franjas_precio")
       .delete()
       .eq("club_id", club.id)
@@ -599,6 +635,14 @@ export async function deleteFranjaPrecioAction(formData: FormData) {
       .eq("desde", currentRow.desde)
       .eq("hasta", currentRow.hasta)
       .eq("duracion_minutos", currentRow.duracion_minutos);
+
+    if (currentRow.cancha_id !== null && currentRow.cancha_id !== undefined) {
+      deleteQuery = deleteQuery.eq("cancha_id", currentRow.cancha_id);
+    } else {
+      deleteQuery = deleteQuery.is("cancha_id", null);
+    }
+
+    await deleteQuery;
   }
 
   revalidatePath("/dashboard/club/configuracion");

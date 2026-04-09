@@ -467,6 +467,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
         <>
           <CalendarClientContainer
             alumnos={alumnos}
+            profesorSport={profile.sport ?? null}
             availabilityRanges={availability}
             days={days}
             blockedRanges={blockedRanges}

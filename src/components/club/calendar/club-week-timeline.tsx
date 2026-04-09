@@ -207,6 +207,38 @@ function getSlotToneStyle(occupiedCount: number, totalCourts: number, isSelected
   };
 }
 
+type SlotSourceFlag = "none" | "alquiler" | "clase" | "mixto";
+
+function getSlotSourceFlag(alquilerCount: number, claseCount: number): SlotSourceFlag {
+  // Bandera secundaria por origen de ocupacion.
+  if (alquilerCount === 0 && claseCount === 0) {
+    return "none";
+  }
+
+  if (alquilerCount > 0 && claseCount > 0) {
+    return "mixto";
+  }
+
+  if (alquilerCount > 0) {
+    return "alquiler";
+  }
+
+  return "clase";
+}
+
+function getSlotSourceFlagStyle(flag: SlotSourceFlag) {
+  if (flag === "alquiler") {
+    return { background: "#93c5fd" };
+  }
+  if (flag === "clase") {
+    return { background: "#fdba74" };
+  }
+  if (flag === "mixto") {
+    return { background: "linear-gradient(180deg, #93c5fd 0 50%, #fdba74 50% 100%)" };
+  }
+  return {};
+}
+
 function EstadoBadge({ estado }: { estado: CalendarEvent["estado"] }) {
   const style =
     estado === "confirmada"
@@ -501,7 +533,7 @@ export function ClubWeekTimeline({
   return (
     <section className="card p-3 sm:p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           {deportesVisibles.map((deporteItem) => {
             const active = deporteItem === deporte;
             return (
@@ -520,6 +552,42 @@ export function ClubWeekTimeline({
               </button>
             );
           })}
+          <div className="ml-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: "var(--muted)" }}>
+            <span className="inline-flex items-center gap-1.5">
+              Alquiler:
+              <span
+                className="inline-flex h-4 w-8 rounded-sm border"
+                style={{
+                  borderColor: "var(--border)",
+                  background: "color-mix(in srgb, #93c5fd 18%, var(--surface-1))",
+                  boxShadow: "inset -4px 0 0 #93c5fd",
+                }}
+              />
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              Clase:
+              <span
+                className="inline-flex h-4 w-8 rounded-sm border"
+                style={{
+                  borderColor: "var(--border)",
+                  background: "color-mix(in srgb, #fdba74 18%, var(--surface-1))",
+                  boxShadow: "inset -4px 0 0 #fdba74",
+                }}
+              />
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              Ambos:
+              <span
+                className="inline-flex h-4 w-8 rounded-sm border"
+                style={{
+                  borderColor: "var(--border)",
+                  background:
+                    "linear-gradient(90deg, color-mix(in srgb, #93c5fd 18%, var(--surface-1)) 0 50%, color-mix(in srgb, #fdba74 18%, var(--surface-1)) 50% 100%)",
+                  boxShadow: "inset -2px 0 0 #93c5fd, inset -6px 0 0 #fdba74",
+                }}
+              />
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -561,7 +629,7 @@ export function ClubWeekTimeline({
       </p>
 
       <div className={`mt-3 ${selectedSlot ? "grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto lg:overflow-visible">
           <div className={`grid ${gridCols} gap-2`}>
             <div />
             {visibleDays.map((day) => {
@@ -629,12 +697,13 @@ export function ClubWeekTimeline({
                   {daySlots.map((slot) => {
                     const isSelected = selectedSlotKey === slot.key;
                     const tone = getSlotToneStyle(slot.occupiedCount, slot.totalCourts, isSelected);
+                    const sourceFlag = getSlotSourceFlag(slot.alquilerCount, slot.claseCount);
 
                     return (
                       <button
                         key={slot.key}
                         type="button"
-                        className="absolute left-0 right-0 z-10 rounded border px-2 py-1 text-left transition"
+                        className="absolute left-0 right-0 z-10 overflow-hidden rounded border px-2 py-1 text-left transition"
                         style={{
                           top: `${slot.top + 1}px`,
                           height: `${Math.max(slot.height - 2, 40)}px`,
@@ -645,18 +714,20 @@ export function ClubWeekTimeline({
                           setSelectedSlotKey((current) => (current === slot.key ? null : slot.key));
                         }}
                       >
-                        {slot.totalCourts === 0 ? (
-                          <p className="truncate text-[11px] font-semibold leading-tight">Sin canchas activas</p>
-                        ) : (
+                        {sourceFlag !== "none" ? (
+                          <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute bottom-0 right-0 top-0 w-4"
+                            style={getSlotSourceFlagStyle(sourceFlag)}
+                          />
+                        ) : null}
+                        {slot.occupiedCount > 0 ? (
                           <>
                             <p className="truncate text-[11px] font-semibold leading-tight">
                               {slot.occupiedCount} / {slot.totalCourts} canchas ocupadas
                             </p>
-                            <p className="truncate text-[10px] leading-tight opacity-85">
-                              {slot.alquilerCount} alquileres · {slot.claseCount} clases
-                            </p>
                           </>
-                        )}
+                        ) : null}
                       </button>
                     );
                   })}
@@ -722,4 +793,5 @@ export function ClubWeekTimeline({
     </section>
   );
 }
+
 

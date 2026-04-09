@@ -52,7 +52,22 @@ export function ReserveSlotForm({
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="start_time" value={startTime} />
       <input type="hidden" name="end_time" value={endTime} />
-      {sport ? <input type="hidden" name="sport" value={sport} /> : null}
+      {sport ? (
+        <input type="hidden" name="sport" value={sport} />
+      ) : (
+        <select
+          name="sport"
+          defaultValue=""
+          required
+          className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900"
+        >
+          <option value="" disabled>
+            Deporte
+          </option>
+          <option value="tenis">Tenis</option>
+          <option value="padel">Pádel</option>
+        </select>
+      )}
       {fixedType ? (
         <>
           <input type="hidden" name="type" value={fixedType} />

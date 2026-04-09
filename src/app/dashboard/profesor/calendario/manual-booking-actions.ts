@@ -108,7 +108,7 @@ export async function createManualBookingAction(
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, sport")
     .eq("user_id", user.id)
     .single();
 
@@ -201,6 +201,16 @@ export async function createManualBookingAction(
     };
   }
 
+  // Setear deporte en el booking si el perfil del profesor lo tiene definido.
+  // Necesario para que la asignacion de cancha funcione correctamente.
+  const profesorSport = profile.sport !== "ambos" ? profile.sport : null;
+  if (profesorSport) {
+    await supabase
+      .from("bookings")
+      .update({ sport: profesorSport })
+      .eq("id", bookingId);
+  }
+
   // Confirmacion atomica en DB: asigna cancha si corresponde y sincroniza reservas_cancha.
   const { error: confirmError } = await supabase.rpc("confirm_booking_with_court", {
     p_booking_id: bookingId,
@@ -210,7 +220,7 @@ export async function createManualBookingAction(
   if (confirmError) {
     if (isMissingConfirmWithCourtRpcError(confirmError.message)) {
       return {
-        error: "Falta aplicar migraciones de base de datos (incluyendo la 071). Avísame y te paso el comando exacto.",
+        error: "Falta aplicar migraciones de base de datos (incluyendo la 073). Avísame y te paso el comando exacto.",
         success: null,
       };
     }

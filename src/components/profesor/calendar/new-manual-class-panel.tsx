@@ -21,6 +21,7 @@ type ManualPrefill = {
 
 type NewManualClassPanelProps = {
   alumnos: AlumnoOption[];
+  profesorSport: "tenis" | "padel" | "ambos" | null;
   availabilityRanges: AvailabilityRange[];
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -47,6 +48,7 @@ function formatDateShort(dateIso: string) {
 
 export function NewManualClassPanel({
   alumnos: _alumnos,
+  profesorSport,
   availabilityRanges,
   isOpen,
   onOpenChange,
@@ -178,6 +180,20 @@ export function NewManualClassPanel({
               });
             }}
           >
+            {profesorSport && profesorSport !== "ambos" ? (
+              <input type="hidden" name="sport" value={profesorSport} />
+            ) : (
+              <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                Deporte
+                <select name="sport" defaultValue="" className="select h-10 text-sm" style={{ background: "var(--surface-1)" }}>
+                  <option value="" disabled>
+                    Deporte
+                  </option>
+                  <option value="tenis">Tenis</option>
+                  <option value="padel">Pádel</option>
+                </select>
+              </label>
+            )}
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-[2fr_1fr_1fr_1fr_1fr]">
               <label className="col-span-2 grid min-w-0 gap-1.5 text-sm xl:col-span-1" style={{ color: "var(--muted)" }}>
                 Alumno

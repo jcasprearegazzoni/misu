@@ -17,6 +17,12 @@ function isMissingConfirmWithCourtRpcError(message: string | undefined) {
   );
 }
 
+// Violacion del constraint GIST de anti-solapamiento en reservas_cancha.
+// Ocurre en condiciones de carrera extremas (dos slots solapados confirmados en paralelo).
+function isGistConstraintViolation(code: string | undefined) {
+  return code === "23P01";
+}
+
 async function updateBookingStatus(
   _prevState: BookingActionState,
   formData: FormData,
@@ -57,8 +63,11 @@ async function updateBookingStatus(
     if (confirmError) {
       if (isMissingConfirmWithCourtRpcError(confirmError.message)) {
         return {
-          error: "Falta aplicar migraciones de base de datos (incluyendo la 071). Avísame y te paso el comando exacto.",
+          error: "Falta aplicar migraciones de base de datos (incluyendo la 072). Avísame y te paso el comando exacto.",
         };
+      }
+      if (isGistConstraintViolation(confirmError.code)) {
+        return { error: "No se pudo confirmar la clase por un conflicto de horario. Intentá de nuevo." };
       }
       return { error: confirmError.message || "No se pudo confirmar la clase." };
     }

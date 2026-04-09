@@ -16,6 +16,7 @@ type FranjaItem = {
   hasta: string;
   duracion_minutos: number;
   precio: number;
+  cancha_id: number | null;
 };
 
 type DisponibilidadItem = {
@@ -30,6 +31,7 @@ type FranjasManagerProps = {
   items: FranjaItem[];
   disponibilidadItems: DisponibilidadItem[];
   selectedDeporte: DeporteConfiguracion;
+  canchas: { id: number; nombre: string; deporte: string }[];
 };
 
 type FormMode = "hidden" | "add" | "edit";
@@ -153,7 +155,7 @@ function IconButton({
   );
 }
 
-export function FranjasManager({ items, disponibilidadItems, selectedDeporte }: FranjasManagerProps) {
+export function FranjasManager({ items, disponibilidadItems, selectedDeporte, canchas }: FranjasManagerProps) {
   const [state, formAction, isPending] = useActionState(upsertFranjaPrecioAction, initialState);
   const [formMode, setFormMode] = useState<FormMode>("hidden");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -183,11 +185,15 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte }: 
     () => getJornadaOperativa(disponibilidadForSport),
     [disponibilidadForSport],
   );
+  const canchasDeporte = useMemo(
+    () => canchas.filter((c) => c.deporte === selectedDeporte),
+    [canchas, selectedDeporte],
+  );
 
   const invalidKeys = useMemo(() => {
     const set = new Set<string>();
     filteredItems.forEach((item) => {
-      const key = `${item.desde}-${item.hasta}-${item.duracion_minutos}-${item.precio}`;
+      const key = `${item.desde}-${item.hasta}-${item.duracion_minutos}-${item.precio}-${item.cancha_id ?? "global"}`;
       if (!isFranjaCoveredByDisponibilidad(item, disponibilidadForSport)) {
         set.add(key);
       }
@@ -201,7 +207,7 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte }: 
 
     const dedup = new Map<string, FranjaItem>();
     filteredItems.forEach((item) => {
-      const key = `${item.desde}-${item.hasta}-${item.duracion_minutos}-${item.precio}`;
+      const key = `${item.desde}-${item.hasta}-${item.duracion_minutos}-${item.precio}-${item.cancha_id ?? "global"}`;
       if (!dedup.has(key)) dedup.set(key, item);
     });
 
@@ -216,7 +222,7 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte }: 
         const list = grouped.get(duration);
         if (!list) return;
         list.push({
-          key: `${item.desde}-${item.hasta}-${item.duracion_minutos}-${item.precio}`,
+          key: `${item.desde}-${item.hasta}-${item.duracion_minutos}-${item.precio}-${item.cancha_id ?? "global"}`,
           item,
         });
       });
@@ -327,6 +333,19 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte }: 
                   <input type="hidden" name="deporte" value={selectedDeporte} />
                   <input type="hidden" name="desde" value={normalizeTimeValue(jornadaOperativa.desde)} />
                   <input type="hidden" name="hasta" value={normalizeTimeValue(jornadaOperativa.hasta)} />
+                  {canchasDeporte.length > 0 ? (
+                    <label className="label md:col-span-2">
+                      <span>Cancha (opcional)</span>
+                      <select name="cancha_id" className="select" defaultValue="">
+                        <option value="">Todas las canchas (precio global)</option>
+                        {canchasDeporte.map((c) => (
+                          <option key={c.id} value={String(c.id)}>
+                            {c.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
 
                   <label className="label">
                     <span>Duracion</span>
@@ -446,6 +465,11 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte }: 
                             <p className="text-xs" style={{ color: "var(--muted)" }}>
                               {arsFormatter.format(Number(item.precio))}
                             </p>
+                            <p className="text-xs" style={{ color: "var(--muted)" }}>
+                              {item.cancha_id
+                                ? (canchasDeporte.find((c) => c.id === item.cancha_id)?.nombre ?? `Cancha ${item.cancha_id}`)
+                                : "Todas las canchas"}
+                            </p>
                             {invalidKeys.has(key) ? (
                               <p className="text-xs font-medium" style={{ color: "var(--error)" }}>
                                 Fuera de disponibilidad.
@@ -502,6 +526,27 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte }: 
                       {formMode === "edit" && editingItem ? <input type="hidden" name="id" value={editingItem.id} /> : null}
                       <input type="hidden" name="deporte" value={selectedDeporte} />
                       <input type="hidden" name="duracion_minutos" value={String(duration)} />
+                      {canchasDeporte.length > 0 ? (
+                        <label className="label">
+                          <span>Cancha (opcional)</span>
+                          <select
+                            name="cancha_id"
+                            className="select"
+                            defaultValue={
+                              submittedMatchesThisBlock
+                                ? (state.submitted.cancha_id ?? "")
+                                : String(editingItem?.cancha_id ?? "")
+                            }
+                          >
+                            <option value="">Todas las canchas (precio global)</option>
+                            {canchasDeporte.map((c) => (
+                              <option key={c.id} value={String(c.id)}>
+                                {c.nombre}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <label className="label">

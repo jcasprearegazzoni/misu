@@ -21,11 +21,13 @@ type FranjaItem = {
   hasta: string;
   duracion_minutos: number;
   precio: number;
+  cancha_id: number | null;
 };
 
 type Props = {
   disponibilidad: DisponibilidadItem[];
   franjas: FranjaItem[];
+  canchas: { id: number; nombre: string; deporte: string }[];
 };
 
 const deportes: Array<{ value: DeporteConfiguracion; label: string }> = [
@@ -40,7 +42,7 @@ function getSportTheme(deporte: DeporteConfiguracion) {
   return { activeBg: "#2563eb", border: "rgba(59, 130, 246, 0.4)", softBg: "rgba(37, 99, 235, 0.18)" };
 }
 
-export function HorariosPreciosManager({ disponibilidad, franjas }: Props) {
+export function HorariosPreciosManager({ disponibilidad, franjas, canchas }: Props) {
   const defaultSport = useMemo<DeporteConfiguracion>(() => {
     const fromData = [...disponibilidad, ...franjas].find((item) => item.deporte);
     return fromData?.deporte ?? "tenis";
@@ -145,7 +147,12 @@ export function HorariosPreciosManager({ disponibilidad, franjas }: Props) {
           </button>
           {isFranjasOpen ? (
             <div className="mt-3">
-              <FranjasManager items={franjas} disponibilidadItems={disponibilidad} selectedDeporte={selectedDeporte} />
+              <FranjasManager
+                items={franjas}
+                disponibilidadItems={disponibilidad}
+                selectedDeporte={selectedDeporte}
+                canchas={canchas}
+              />
             </div>
           ) : null}
         </section>

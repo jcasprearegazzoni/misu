@@ -1,5 +1,5 @@
 // Constantes horarias del calendario del club (06:00–24:00)
-export const CLUB_START_HOUR = 6;
+export const CLUB_START_HOUR = 8;
 export const CLUB_END_HOUR = 24;
 export const PIXELS_PER_MINUTE = 0.9;
 
@@ -37,3 +37,5 @@ export function getClubBlockPosition(startTime: string, endTime: string) {
 
   return { top, height };
 }
+
+

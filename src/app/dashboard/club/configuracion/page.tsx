@@ -25,13 +25,20 @@ type FranjaRow = {
   hasta: string;
   duracion_minutos: number;
   precio: number;
+  cancha_id: number | null;
+};
+
+type CanchaSimpleRow = {
+  id: number;
+  nombre: string;
+  deporte: "tenis" | "padel" | "futbol";
 };
 
 export default async function ClubConfiguracionPage() {
   const club = await requireClub();
   const supabase = await createSupabaseServerClient();
 
-  const [configResult, disponibilidadResult, franjasResult] = await Promise.all([
+  const [configResult, disponibilidadResult, franjasResult, canchasResult] = await Promise.all([
     supabase
       .from("club_configuracion")
       .select("confirmacion_automatica, cancelacion_horas_limite")
@@ -46,12 +53,19 @@ export default async function ClubConfiguracionPage() {
       .order("apertura", { ascending: true }),
     supabase
       .from("club_franjas_precio")
-      .select("id, deporte, day_of_week, desde, hasta, duracion_minutos, precio")
+      .select("id, deporte, day_of_week, desde, hasta, duracion_minutos, precio, cancha_id")
       .eq("club_id", club.id)
       .order("deporte", { ascending: true })
       .order("day_of_week", { ascending: true })
       .order("desde", { ascending: true })
       .order("duracion_minutos", { ascending: true }),
+    supabase
+      .from("canchas")
+      .select("id, nombre, deporte")
+      .eq("club_id", club.id)
+      .eq("activa", true)
+      .order("deporte", { ascending: true })
+      .order("nombre", { ascending: true }),
   ]);
 
   const configuracion = (configResult.data ?? {
@@ -61,6 +75,7 @@ export default async function ClubConfiguracionPage() {
 
   const disponibilidad = (disponibilidadResult.data ?? []) as DisponibilidadRow[];
   const franjas = (franjasResult.data ?? []) as FranjaRow[];
+  const canchas = (canchasResult.data ?? []) as CanchaSimpleRow[];
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
@@ -74,7 +89,7 @@ export default async function ClubConfiguracionPage() {
       </header>
 
       <ConfiguracionForm initialValues={configuracion} />
-      <HorariosPreciosManager disponibilidad={disponibilidad} franjas={franjas} />
+      <HorariosPreciosManager disponibilidad={disponibilidad} franjas={franjas} canchas={canchas} />
     </main>
   );
 }
