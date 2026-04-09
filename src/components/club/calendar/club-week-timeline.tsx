@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CLUB_START_HOUR,
-  CLUB_END_HOUR,
   PIXELS_PER_MINUTE,
   formatHourLabel,
   getClubHourTicks,
@@ -25,6 +24,7 @@ type CalendarEvent = {
   duracionMinutos: number;
   estado: "pendiente" | "confirmada" | "cancelada";
   tipo: "alquiler" | "clase";
+  profesorNombre: string | null;
   organizadorNombre: string | null;
   organizadorEmail: string | null;
   organizadorTelefono: string | null;
@@ -46,36 +46,24 @@ type ClubWeekTimelineProps = {
   onGoTo: (next: { deporte?: Deporte; fecha?: string; view?: CalendarView }) => void;
 };
 
-type SlotBase = {
-  horaInicio: string;
-  horaFin: string;
+// Unidad visual: eventos con el mismo slot exacto agrupados, con carril asignado
+type SlotUnit = {
+  key: string;
+  events: CalendarEvent[];
+  startMin: number;
+  endMin: number;
   top: number;
   height: number;
+  laneIndex: number; // carril horizontal (para unidades que se solapan)
+  laneCount: number; // total de carriles simultáneos
 };
 
-type SlotCourtGroup = {
-  canchaId: number;
-  canchaNombre: string;
-  items: CalendarEvent[];
-};
-
-type SlotSummary = SlotBase & {
-  key: string;
-  fecha: string;
-  occupiedCount: number;
-  totalCourts: number;
-  alquilerCount: number;
-  claseCount: number;
-  itemsByCourt: SlotCourtGroup[];
-};
-
-const ACTIVE_OCCUPANCY_STATES = new Set<CalendarEvent["estado"]>(["pendiente", "confirmada"]);
+// ---------- helpers ----------
 
 function startOfWeekIso(isoDate: string) {
   const date = new Date(`${isoDate}T12:00:00.000Z`);
   const day = date.getUTCDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  date.setUTCDate(date.getUTCDate() + diffToMonday);
+  date.setUTCDate(date.getUTCDate() + (day === 0 ? -6 : 1 - day));
   return date.toISOString().slice(0, 10);
 }
 
@@ -121,10 +109,7 @@ function formatDayChip(dateIso: string) {
     day: "2-digit",
     timeZone: "America/Argentina/Buenos_Aires",
   }).format(date);
-  return {
-    weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1),
-    day,
-  };
+  return { weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1), day };
 }
 
 function getDeporteLabel(value: Deporte) {
@@ -134,110 +119,73 @@ function getDeporteLabel(value: Deporte) {
 }
 
 function parseTimeToMinutes(value: string) {
-  const [hoursPart = "0", minutesPart = "0"] = value.slice(0, 5).split(":");
-  return Number(hoursPart) * 60 + Number(minutesPart);
+  const [h = "0", m = "0"] = value.slice(0, 5).split(":");
+  return Number(h) * 60 + Number(m);
 }
 
-function minutesToTime(minutesTotal: number) {
-  const normalized = ((minutesTotal % 1440) + 1440) % 1440;
-  const hh = Math.floor(normalized / 60);
-  const mm = normalized % 60;
-  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
+// Agrupa eventos con el mismo slot exacto (inicio + fin) en unidades,
+// luego asigna carriles (lanes) a las unidades que se solapan en tiempo.
+// Resultado: mismo slot → un solo bloque; slots distintos solapados → lado a lado.
+function computeSlotUnits(events: CalendarEvent[]): SlotUnit[] {
+  if (events.length === 0) return [];
+
+  // Paso 1: agrupar por slot exacto
+  const bySlot = new Map<string, CalendarEvent[]>();
+  for (const event of events) {
+    const key = `${event.horaInicio.slice(0, 5)}|${event.horaFin.slice(0, 5)}`;
+    const existing = bySlot.get(key) ?? [];
+    existing.push(event);
+    bySlot.set(key, existing);
+  }
+
+  // Paso 2: crear unidades ordenadas por inicio
+  const units: SlotUnit[] = Array.from(bySlot.entries())
+    .map(([key, slotEvents]) => {
+      const startMin = parseTimeToMinutes(slotEvents[0]!.horaInicio);
+      const endMin = startMin + slotEvents[0]!.duracionMinutos;
+      return {
+        key,
+        events: slotEvents,
+        startMin,
+        endMin,
+        top: (startMin - CLUB_START_HOUR * 60) * PIXELS_PER_MINUTE,
+        height: Math.max((endMin - startMin) * PIXELS_PER_MINUTE, 24),
+        laneIndex: 0,
+        laneCount: 1,
+      };
+    })
+    .sort((a, b) => a.startMin - b.startMin);
+
+  // Paso 3: asignar carril libre a cada unidad
+  const laneEnds: number[] = [];
+  for (const unit of units) {
+    let lane = laneEnds.findIndex((end) => end <= unit.startMin);
+    if (lane === -1) lane = laneEnds.length;
+    laneEnds[lane] = unit.endMin;
+    unit.laneIndex = lane;
+  }
+
+  // Paso 4: calcular total de carriles simultáneos por unidad
+  for (const unit of units) {
+    const maxLane = units
+      .filter((other) => other.startMin < unit.endMin && unit.startMin < other.endMin)
+      .reduce((max, other) => Math.max(max, other.laneIndex), 0);
+    unit.laneCount = maxLane + 1;
+  }
+
+  return units;
 }
 
-function overlapsInterval(startA: string, endA: string, startB: string, endB: string) {
-  const aStart = parseTimeToMinutes(startA);
-  const aEnd = parseTimeToMinutes(endA);
-  const bStart = parseTimeToMinutes(startB);
-  const bEnd = parseTimeToMinutes(endB);
-  return aStart < bEnd && bStart < aEnd;
+// Color según el mix de tipos de la unidad
+function getUnitAccent(events: CalendarEvent[]) {
+  const hasAlquiler = events.some((e) => e.tipo === "alquiler");
+  const hasClase = events.some((e) => e.tipo === "clase");
+  if (hasAlquiler && hasClase) return "#a78bfa";
+  if (hasClase) return "#fdba74";
+  return "#93c5fd";
 }
 
-function buildHourlySlots(): SlotBase[] {
-  const slots: SlotBase[] = [];
-
-  for (let hour = CLUB_START_HOUR; hour < CLUB_END_HOUR; hour += 1) {
-    const startMinutes = hour * 60;
-    const endMinutes = (hour + 1) * 60;
-
-    slots.push({
-      horaInicio: minutesToTime(startMinutes),
-      horaFin: minutesToTime(endMinutes),
-      top: (startMinutes - CLUB_START_HOUR * 60) * PIXELS_PER_MINUTE,
-      height: 60 * PIXELS_PER_MINUTE,
-    });
-  }
-
-  return slots;
-}
-
-function getSlotToneStyle(occupiedCount: number, totalCourts: number, isSelected: boolean) {
-  const ratio = totalCourts > 0 ? occupiedCount / totalCourts : 0;
-
-  const base =
-    occupiedCount === 0
-      ? {
-          background: "var(--surface-1)",
-          borderColor: "var(--border)",
-          color: "var(--muted)",
-        }
-      : ratio <= 0.4
-        ? {
-            background: "color-mix(in srgb, var(--success) 18%, var(--surface-1))",
-            borderColor: "color-mix(in srgb, var(--success) 65%, var(--border))",
-            color: "var(--success)",
-          }
-        : ratio <= 0.8
-          ? {
-              background: "color-mix(in srgb, var(--warning) 18%, var(--surface-1))",
-              borderColor: "color-mix(in srgb, var(--warning) 65%, var(--border))",
-              color: "var(--warning)",
-            }
-          : {
-              background: "color-mix(in srgb, var(--error) 18%, var(--surface-1))",
-              borderColor: "color-mix(in srgb, var(--error) 65%, var(--border))",
-              color: "var(--error)",
-            };
-
-  if (!isSelected) return base;
-
-  return {
-    ...base,
-    background: `color-mix(in srgb, ${base.background} 76%, var(--foreground) 24%)`,
-  };
-}
-
-type SlotSourceFlag = "none" | "alquiler" | "clase" | "mixto";
-
-function getSlotSourceFlag(alquilerCount: number, claseCount: number): SlotSourceFlag {
-  // Bandera secundaria por origen de ocupacion.
-  if (alquilerCount === 0 && claseCount === 0) {
-    return "none";
-  }
-
-  if (alquilerCount > 0 && claseCount > 0) {
-    return "mixto";
-  }
-
-  if (alquilerCount > 0) {
-    return "alquiler";
-  }
-
-  return "clase";
-}
-
-function getSlotSourceFlagStyle(flag: SlotSourceFlag) {
-  if (flag === "alquiler") {
-    return { background: "#93c5fd" };
-  }
-  if (flag === "clase") {
-    return { background: "#fdba74" };
-  }
-  if (flag === "mixto") {
-    return { background: "linear-gradient(180deg, #93c5fd 0 50%, #fdba74 50% 100%)" };
-  }
-  return {};
-}
+// ---------- UI components ----------
 
 function EstadoBadge({ estado }: { estado: CalendarEvent["estado"] }) {
   const style =
@@ -246,7 +194,6 @@ function EstadoBadge({ estado }: { estado: CalendarEvent["estado"] }) {
       : estado === "pendiente"
         ? { background: "var(--warning-bg)", color: "var(--warning)" }
         : { background: "var(--surface-1)", color: "var(--muted)" };
-
   return (
     <span className="rounded-full px-2 py-0.5 text-xs font-semibold capitalize" style={style}>
       {estado}
@@ -259,7 +206,6 @@ function TipoBadge({ tipo }: { tipo: CalendarEvent["tipo"] }) {
     tipo === "alquiler"
       ? { background: "rgba(59,130,246,.16)", color: "#93c5fd" }
       : { background: "rgba(249,115,22,.16)", color: "#fdba74" };
-
   return (
     <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={style}>
       {tipo === "alquiler" ? "Alquiler" : "Clase"}
@@ -267,91 +213,227 @@ function TipoBadge({ tipo }: { tipo: CalendarEvent["tipo"] }) {
   );
 }
 
-type SlotDetailsContentProps = {
-  slot: SlotSummary;
+// Bloque visual de una SlotUnit en la timeline (con posición por carril)
+function SlotUnitCard({
+  unit,
+  isSelected,
+  onClick,
+}: {
+  unit: SlotUnit;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const { events, top, height, laneIndex, laneCount } = unit;
+  const accent = getUnitAccent(events);
+  const isSingle = events.length === 1;
+  const singleEvent = isSingle ? events[0]! : null;
+
+  const bgMix = isSelected ? 28 : 14;
+  const bg = `color-mix(in srgb, ${accent} ${bgMix}%, var(--surface-1))`;
+  const leftPct = (laneIndex / laneCount) * 100;
+  const widthPct = (1 / laneCount) * 100;
+
+  const startLabel = events[0]!.horaInicio.slice(0, 5);
+  const endLabel = events[0]!.horaFin.slice(0, 5);
+  const activeCount = events.filter((e) => e.estado !== "cancelada").length;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute z-10 overflow-hidden rounded border-l-[3px] text-left transition-all"
+      style={{
+        top: `${top}px`,
+        height: `${height}px`,
+        left: `calc(${leftPct}% + 1px)`,
+        width: `calc(${widthPct}% - 3px)`,
+        padding: "3px 4px 3px 6px",
+        background: bg,
+        borderColor: accent,
+        boxShadow: isSelected ? `0 0 0 1.5px ${accent}` : undefined,
+      }}
+    >
+      <p className="truncate font-bold leading-tight" style={{ fontSize: "10px", color: accent }}>
+        {startLabel}
+        {height >= 30 && ` – ${endLabel}`}
+      </p>
+
+      {isSingle && singleEvent ? (
+        <>
+          {height >= 44 && (singleEvent.profesorNombre ?? singleEvent.organizadorNombre) && (
+            <p
+              className="truncate leading-tight"
+              style={{ fontSize: "10px", color: "var(--foreground)", marginTop: "1px" }}
+            >
+              {singleEvent.tipo === "clase"
+                ? singleEvent.profesorNombre
+                : singleEvent.organizadorNombre}
+            </p>
+          )}
+          {height >= 62 && (
+            <p
+              className="truncate leading-tight"
+              style={{ fontSize: "9px", color: "var(--muted)", marginTop: "1px" }}
+            >
+              {singleEvent.canchaNombre}
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          {height >= 38 && (
+            <p
+              className="truncate leading-tight"
+              style={{ fontSize: "10px", color: "var(--foreground)", marginTop: "1px" }}
+            >
+              {activeCount} reservas activas
+            </p>
+          )}
+          {height >= 54 && (
+            <p
+              className="truncate leading-tight"
+              style={{ fontSize: "9px", color: "var(--muted)", marginTop: "1px" }}
+            >
+              {[...new Set(events.map((e) => e.canchaNombre))].join(", ")}
+            </p>
+          )}
+        </>
+      )}
+    </button>
+  );
+}
+
+// Panel lateral con el detalle de todos los eventos de la unidad
+function SlotUnitDetailContent({
+  unit,
+  pendingAction,
+  actionError,
+  onChangeEstado,
+}: {
+  unit: SlotUnit;
   pendingAction: { reservaId: number; estado: "confirmada" | "cancelada" } | null;
   actionError: string | null;
   onChangeEstado: (reservaId: number, estado: "confirmada" | "cancelada") => Promise<void>;
-};
+}) {
+  const { events } = unit;
 
-function SlotDetailsContent({ slot, pendingAction, actionError, onChangeEstado }: SlotDetailsContentProps) {
+  // Agrupa por cancha para mejor lectura
+  const byCourt = new Map<string, CalendarEvent[]>();
+  for (const event of events) {
+    const existing = byCourt.get(event.canchaNombre) ?? [];
+    existing.push(event);
+    byCourt.set(event.canchaNombre, existing);
+  }
+
+  const startLabel = events[0]!.horaInicio.slice(0, 5);
+  const endLabel = events[0]!.horaFin.slice(0, 5);
+
   return (
     <div className="grid gap-3">
+      {/* Resumen */}
       <div>
         <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-          {slot.horaInicio.slice(0, 5)} - {slot.horaFin.slice(0, 5)}
+          {startLabel} – {endLabel}
         </p>
         <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
-          {slot.occupiedCount} / {slot.totalCourts} canchas ocupadas - {slot.alquilerCount} alquileres - {slot.claseCount} clases
+          {events.length === 1
+            ? "1 reserva en este horario"
+            : `${events.length} reservas en este horario`}
         </p>
       </div>
 
       {actionError ? (
         <div
           className="rounded-lg border px-3 py-2 text-xs"
-          style={{ borderColor: "var(--error-border)", background: "var(--error-bg)", color: "var(--error)" }}
+          style={{
+            borderColor: "var(--error-border)",
+            background: "var(--error-bg)",
+            color: "var(--error)",
+          }}
         >
           {actionError}
         </div>
       ) : null}
 
-      {slot.itemsByCourt.length === 0 ? (
-        <div
-          className="rounded-lg border p-3 text-xs"
-          style={{ borderColor: "var(--border)", background: "var(--surface-1)", color: "var(--muted)" }}
-        >
-          No hay reservas activas en esta franja.
-        </div>
-      ) : (
-        <div className="grid gap-2">
-          {slot.itemsByCourt.map((courtGroup) => (
-            <div
-              key={courtGroup.canchaId}
-              className="rounded-lg border p-3"
-              style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
-            >
-              <p className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
-                {courtGroup.canchaNombre}
-              </p>
+      {/* Canchas con sus reservas */}
+      <div className="grid gap-2">
+        {Array.from(byCourt.entries()).map(([canchaNombre, courtEvents]) => (
+          <div
+            key={canchaNombre}
+            className="rounded-lg border p-3"
+            style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+          >
+            <p className="mb-2 text-xs font-semibold" style={{ color: "var(--foreground)" }}>
+              {canchaNombre}
+            </p>
 
-              <div className="mt-2 grid gap-2">
-                {courtGroup.items.map((item) => (
-                  <div key={item.id} className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <EstadoBadge estado={item.estado} />
-                      <TipoBadge tipo={item.tipo} />
-                      <p className="text-xs" style={{ color: "var(--muted)" }}>
-                        {item.horaInicio.slice(0, 5)} - {item.horaFin.slice(0, 5)} - {item.duracionMinutos} min
+            <div className="grid gap-2">
+              {courtEvents.map((event) => {
+                const isClase = event.tipo === "clase";
+                const displayName = isClase ? event.profesorNombre : event.organizadorNombre;
+
+                return (
+                  <div
+                    key={event.id}
+                    className="rounded-md border p-2"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    {/* Badges + horario */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <EstadoBadge estado={event.estado} />
+                      <TipoBadge tipo={event.tipo} />
+                      <span className="text-xs" style={{ color: "var(--muted)" }}>
+                        {event.horaInicio.slice(0, 5)} – {event.horaFin.slice(0, 5)}
+                      </span>
+                    </div>
+
+                    {/* Nombre */}
+                    <div className="mt-1.5 grid gap-0.5 text-xs" style={{ color: "var(--muted)" }}>
+                      <p>
+                        {isClase ? "Profesor" : "Organizador"}:{" "}
+                        <span style={{ color: "var(--foreground)" }}>
+                          {displayName ?? "Sin datos"}
+                        </span>
                       </p>
+                      {!isClase && event.organizadorEmail ? (
+                        <p>
+                          Email:{" "}
+                          <span style={{ color: "var(--foreground)" }}>
+                            {event.organizadorEmail}
+                          </span>
+                        </p>
+                      ) : null}
+                      {!isClase && event.organizadorTelefono ? (
+                        <p>
+                          Teléfono:{" "}
+                          <span style={{ color: "var(--foreground)" }}>
+                            {event.organizadorTelefono}
+                          </span>
+                        </p>
+                      ) : null}
+                      {isClase ? (
+                        <p className="mt-0.5" style={{ color: "var(--muted)", opacity: 0.7 }}>
+                          Solo lectura para el club.
+                        </p>
+                      ) : null}
                     </div>
 
-                    <div className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
-                      {item.tipo === "clase" ? (
-                        <>
-                          <p>Profesor: {item.organizadorNombre ?? "Sin datos"}</p>
-                          <p className="mt-1">Esta clase es de solo lectura para el club.</p>
-                        </>
-                      ) : (
-                        <>
-                          <p>Organizador: {item.organizadorNombre ?? "Sin datos"}</p>
-                          {item.organizadorEmail ? <p className="mt-1">Email: {item.organizadorEmail}</p> : null}
-                          {item.organizadorTelefono ? <p className="mt-1">Telefono: {item.organizadorTelefono}</p> : null}
-                        </>
-                      )}
-                    </div>
-
-                    {item.tipo === "alquiler" && (item.estado === "pendiente" || item.estado === "confirmada") ? (
+                    {/* Acciones para alquileres */}
+                    {event.tipo === "alquiler" &&
+                    (event.estado === "pendiente" || event.estado === "confirmada") ? (
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {item.estado === "pendiente" ? (
+                        {event.estado === "pendiente" ? (
                           <button
                             type="button"
                             className="btn-primary text-xs"
-                            onClick={() => onChangeEstado(item.id, "confirmada")}
+                            onClick={() => onChangeEstado(event.id, "confirmada")}
                             disabled={
-                              pendingAction?.reservaId === item.id && pendingAction?.estado === "confirmada"
+                              pendingAction?.reservaId === event.id &&
+                              pendingAction?.estado === "confirmada"
                             }
                           >
-                            {pendingAction?.reservaId === item.id && pendingAction?.estado === "confirmada"
+                            {pendingAction?.reservaId === event.id &&
+                            pendingAction?.estado === "confirmada"
                               ? "Confirmando..."
                               : "Confirmar"}
                           </button>
@@ -360,25 +442,31 @@ function SlotDetailsContent({ slot, pendingAction, actionError, onChangeEstado }
                           type="button"
                           className="btn-ghost text-xs"
                           style={{ color: "var(--error)" }}
-                          onClick={() => onChangeEstado(item.id, "cancelada")}
-                          disabled={pendingAction?.reservaId === item.id && pendingAction?.estado === "cancelada"}
+                          onClick={() => onChangeEstado(event.id, "cancelada")}
+                          disabled={
+                            pendingAction?.reservaId === event.id &&
+                            pendingAction?.estado === "cancelada"
+                          }
                         >
-                          {pendingAction?.reservaId === item.id && pendingAction?.estado === "cancelada"
+                          {pendingAction?.reservaId === event.id &&
+                          pendingAction?.estado === "cancelada"
                             ? "Cancelando..."
                             : "Cancelar"}
                         </button>
                       </div>
                     ) : null}
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
+
+// ---------- Componente principal ----------
 
 export function ClubWeekTimeline({
   events,
@@ -387,18 +475,18 @@ export function ClubWeekTimeline({
   deporte,
   deportesVisibles,
   fecha,
-  canchas,
+  canchas: _canchas,
   onGoTo,
 }: ClubWeekTimelineProps) {
   const router = useRouter();
   const hourTicks = getClubHourTicks();
   const timelineHeight = getClubTimelineHeight();
-  const hourlySlots = useMemo(() => buildHourlySlots(), []);
 
-  const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(null);
-  const [pendingAction, setPendingAction] = useState<{ reservaId: number; estado: "confirmada" | "cancelada" } | null>(
-    null,
-  );
+  const [selectedClusterKey, setSelectedClusterKey] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{
+    reservaId: number;
+    estado: "confirmada" | "cancelada";
+  } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   async function handleChangeEstado(reservaId: number, estado: "confirmada" | "cancelada") {
@@ -410,13 +498,11 @@ export function ClubWeekTimeline({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reserva_id: reservaId, estado }),
       });
-
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         setActionError(body?.error ?? "No se pudo actualizar la reserva.");
         return;
       }
-
       router.refresh();
     } catch {
       setActionError("No se pudo actualizar la reserva.");
@@ -427,111 +513,43 @@ export function ClubWeekTimeline({
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
-    for (const day of days) {
-      map.set(day, []);
-    }
+    for (const day of days) map.set(day, []);
     for (const event of events) {
       const list = map.get(event.fecha);
       if (list) list.push(event);
     }
-
-    for (const [key, list] of map.entries()) {
-      map.set(
-        key,
-        [...list].sort((a, b) => parseTimeToMinutes(a.horaInicio) - parseTimeToMinutes(b.horaInicio)),
-      );
-    }
-
     return map;
   }, [events, days]);
 
-  const totalCourts = canchas.length;
-
-  // Construimos una matriz por dia y franja de 1 hora para escalar en alta simultaneidad.
-  const slotsByDay = useMemo(() => {
-    const map = new Map<string, SlotSummary[]>();
-
+  const unitsByDay = useMemo(() => {
+    const map = new Map<string, SlotUnit[]>();
     for (const day of days) {
-      const dayEvents = eventsByDay.get(day) ?? [];
-
-      const daySlots = hourlySlots.map((slotBase) => {
-        const slotItems = dayEvents.filter((item) =>
-          overlapsInterval(slotBase.horaInicio, slotBase.horaFin, item.horaInicio, item.horaFin),
-        );
-
-        const activeItems = slotItems.filter((item) => ACTIVE_OCCUPANCY_STATES.has(item.estado));
-
-        const occupiedCourts = new Set(activeItems.map((item) => item.canchaId));
-        const alquilerCourts = new Set(activeItems.filter((item) => item.tipo === "alquiler").map((item) => item.canchaId));
-        const claseCourts = new Set(activeItems.filter((item) => item.tipo === "clase").map((item) => item.canchaId));
-
-        const groupedByCourt = new Map<number, SlotCourtGroup>();
-
-        for (const item of slotItems) {
-          const existing = groupedByCourt.get(item.canchaId);
-          if (existing) {
-            existing.items.push(item);
-            continue;
-          }
-
-          groupedByCourt.set(item.canchaId, {
-            canchaId: item.canchaId,
-            canchaNombre: item.canchaNombre,
-            items: [item],
-          });
-        }
-
-        const itemsByCourt = Array.from(groupedByCourt.values())
-          .map((group) => ({
-            ...group,
-            items: group.items.sort((a, b) => parseTimeToMinutes(a.horaInicio) - parseTimeToMinutes(b.horaInicio)),
-          }))
-          .sort((a, b) => a.canchaNombre.localeCompare(b.canchaNombre, "es"));
-
-        return {
-          key: `${day}|${slotBase.horaInicio}`,
-          fecha: day,
-          horaInicio: slotBase.horaInicio,
-          horaFin: slotBase.horaFin,
-          top: slotBase.top,
-          height: slotBase.height,
-          occupiedCount: occupiedCourts.size,
-          totalCourts,
-          alquilerCount: alquilerCourts.size,
-          claseCount: claseCourts.size,
-          itemsByCourt,
-        } satisfies SlotSummary;
-      });
-
-      map.set(day, daySlots);
+      map.set(day, computeSlotUnits(eventsByDay.get(day) ?? []));
     }
-
     return map;
-  }, [days, eventsByDay, hourlySlots, totalCourts]);
+  }, [days, eventsByDay]);
 
-  const selectedSlot = useMemo(() => {
-    if (!selectedSlotKey) return null;
-
+  const selectedUnit = useMemo(() => {
     for (const day of days) {
-      const daySlots = slotsByDay.get(day) ?? [];
-      const match = daySlots.find((slot) => slot.key === selectedSlotKey);
+      const match = (unitsByDay.get(day) ?? []).find((u) => u.key === selectedClusterKey);
       if (match) return match;
     }
-
     return null;
-  }, [selectedSlotKey, slotsByDay, days]);
+  }, [selectedClusterKey, unitsByDay, days]);
 
   const visibleDays = view === "day" ? [fecha] : days;
-
   const fechaBase = view === "week" ? startOfWeekIso(fecha) : fecha;
   const prevFecha = addDaysIso(fechaBase, view === "week" ? -7 : -1);
   const nextFecha = addDaysIso(fechaBase, view === "week" ? 7 : 1);
   const monthLabel = formatMonthLabel(days[0] ?? fecha);
-
-  const gridCols = view === "day" ? "grid-cols-[58px_minmax(0,1fr)]" : "grid-cols-[58px_repeat(7,minmax(0,1fr))]";
+  const gridCols =
+    view === "day"
+      ? "grid-cols-[58px_minmax(0,1fr)]"
+      : "grid-cols-[58px_repeat(7,minmax(0,1fr))]";
 
   return (
     <section className="card p-3 sm:p-4">
+      {/* Controles */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-3">
           {deportesVisibles.map((deporteItem) => {
@@ -544,7 +562,11 @@ export function ClubWeekTimeline({
                 style={
                   active
                     ? { background: "var(--misu)", color: "#fff", borderColor: "var(--misu)" }
-                    : { background: "var(--surface-2)", color: "var(--muted)", borderColor: "var(--border)" }
+                    : {
+                        background: "var(--surface-2)",
+                        color: "var(--muted)",
+                        borderColor: "var(--border)",
+                      }
                 }
                 onClick={() => onGoTo({ deporte: deporteItem })}
               >
@@ -552,74 +574,73 @@ export function ClubWeekTimeline({
               </button>
             );
           })}
-          <div className="ml-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: "var(--muted)" }}>
-            <span className="inline-flex items-center gap-1.5">
-              Alquiler:
-              <span
-                className="inline-flex h-4 w-8 rounded-sm border"
-                style={{
-                  borderColor: "var(--border)",
-                  background: "color-mix(in srgb, #93c5fd 18%, var(--surface-1))",
-                  boxShadow: "inset -4px 0 0 #93c5fd",
-                }}
-              />
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              Clase:
-              <span
-                className="inline-flex h-4 w-8 rounded-sm border"
-                style={{
-                  borderColor: "var(--border)",
-                  background: "color-mix(in srgb, #fdba74 18%, var(--surface-1))",
-                  boxShadow: "inset -4px 0 0 #fdba74",
-                }}
-              />
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              Ambos:
-              <span
-                className="inline-flex h-4 w-8 rounded-sm border"
-                style={{
-                  borderColor: "var(--border)",
-                  background:
-                    "linear-gradient(90deg, color-mix(in srgb, #93c5fd 18%, var(--surface-1)) 0 50%, color-mix(in srgb, #fdba74 18%, var(--surface-1)) 50% 100%)",
-                  boxShadow: "inset -2px 0 0 #93c5fd, inset -6px 0 0 #fdba74",
-                }}
-              />
-            </span>
+
+          {/* Leyenda */}
+          <div
+            className="ml-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"
+            style={{ color: "var(--muted)" }}
+          >
+            {(
+              [
+                { label: "Alquiler", color: "#93c5fd" },
+                { label: "Clase", color: "#fdba74" },
+                { label: "Mixto", color: "#a78bfa" },
+              ] as const
+            ).map(({ label, color }) => (
+              <span key={label} className="inline-flex items-center gap-1.5">
+                {label}:
+                <span
+                  className="inline-flex h-4 w-8 rounded-sm border border-l-[3px]"
+                  style={{
+                    borderColor: "var(--border)",
+                    borderLeftColor: color,
+                    background: `color-mix(in srgb, ${color} 14%, var(--surface-1))`,
+                  }}
+                />
+              </span>
+            ))}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="btn-ghost text-sm" onClick={() => onGoTo({ fecha: prevFecha })}>
+          <button
+            type="button"
+            className="btn-ghost text-sm"
+            onClick={() => onGoTo({ fecha: prevFecha })}
+          >
             {"<"}
           </button>
-          <button type="button" className="btn-ghost text-sm" onClick={() => onGoTo({ fecha: getTodayIsoArg() })}>
+          <button
+            type="button"
+            className="btn-ghost text-sm"
+            onClick={() => onGoTo({ fecha: getTodayIsoArg() })}
+          >
             Hoy
           </button>
-          <button type="button" className="btn-ghost text-sm" onClick={() => onGoTo({ fecha: nextFecha })}>
+          <button
+            type="button"
+            className="btn-ghost text-sm"
+            onClick={() => onGoTo({ fecha: nextFecha })}
+          >
             {">"}
           </button>
           <div
             className="ml-2 flex items-center rounded-lg border p-1"
             style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           >
-            <button
-              type="button"
-              className="rounded-md px-2 py-1 text-xs font-medium transition"
-              style={view === "week" ? { background: "var(--misu)", color: "#fff" } : { color: "var(--muted)" }}
-              onClick={() => onGoTo({ view: "week" })}
-            >
-              Semana
-            </button>
-            <button
-              type="button"
-              className="rounded-md px-2 py-1 text-xs font-medium transition"
-              style={view === "day" ? { background: "var(--misu)", color: "#fff" } : { color: "var(--muted)" }}
-              onClick={() => onGoTo({ view: "day" })}
-            >
-              Dia
-            </button>
+            {(["week", "day"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                className="rounded-md px-2 py-1 text-xs font-medium transition"
+                style={
+                  view === v ? { background: "var(--misu)", color: "#fff" } : { color: "var(--muted)" }
+                }
+                onClick={() => onGoTo({ view: v })}
+              >
+                {v === "week" ? "Semana" : "Dia"}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -628,8 +649,11 @@ export function ClubWeekTimeline({
         {monthLabel}
       </p>
 
-      <div className={`mt-3 ${selectedSlot ? "grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}>
+      <div
+      className={`mt-3 ${selectedUnit ? "grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}
+      >
         <div className="overflow-x-auto lg:overflow-visible">
+          {/* Cabecera días */}
           <div className={`grid ${gridCols} gap-2`}>
             <div />
             {visibleDays.map((day) => {
@@ -641,11 +665,16 @@ export function ClubWeekTimeline({
                   className="rounded-lg border px-1 py-0.5 text-center"
                   style={{
                     borderColor: isToday ? "var(--misu)" : "var(--border)",
-                    background: isToday ? "color-mix(in srgb, var(--misu) 12%, var(--surface-2))" : "var(--surface-2)",
+                    background: isToday
+                      ? "color-mix(in srgb, var(--misu) 12%, var(--surface-2))"
+                      : "var(--surface-2)",
                     color: "var(--foreground)",
                   }}
                 >
-                  <p className="text-[10px] font-medium leading-3" style={{ color: "var(--muted)" }}>
+                  <p
+                    className="text-[10px] font-medium leading-3"
+                    style={{ color: "var(--muted)" }}
+                  >
                     {chip.weekday}
                   </p>
                   <p className="mt-0.5 text-[19px] font-semibold leading-4">{chip.day}</p>
@@ -654,7 +683,9 @@ export function ClubWeekTimeline({
             })}
           </div>
 
+          {/* Timeline */}
           <div className={`mt-2 grid ${gridCols} gap-2`}>
+            {/* Eje de horas */}
             <div className="relative" style={{ height: `${timelineHeight}px` }}>
               {hourTicks.map((hour) => {
                 const top = (hour - CLUB_START_HOUR) * 60 * PIXELS_PER_MINUTE;
@@ -670,9 +701,8 @@ export function ClubWeekTimeline({
               })}
             </div>
 
+            {/* Columnas por día */}
             {visibleDays.map((day) => {
-              const daySlots = slotsByDay.get(day) ?? [];
-
               return (
                 <div
                   key={day}
@@ -683,67 +713,46 @@ export function ClubWeekTimeline({
                     background: "var(--surface-1)",
                   }}
                 >
-                  {hourTicks.map((hour) => {
-                    const top = (hour - CLUB_START_HOUR) * 60 * PIXELS_PER_MINUTE;
-                    return (
-                      <div
-                        key={hour}
-                        className="absolute left-0 right-0 border-t"
-                        style={{ top, borderColor: "var(--border)" }}
-                      />
-                    );
-                  })}
+                  {/* Líneas guía */}
+                  {hourTicks.map((hour) => (
+                    <div
+                      key={hour}
+                      className="absolute left-0 right-0 border-t"
+                      style={{
+                        top: (hour - CLUB_START_HOUR) * 60 * PIXELS_PER_MINUTE,
+                        borderColor: "var(--border)",
+                      }}
+                    />
+                  ))}
 
-                  {daySlots.map((slot) => {
-                    const isSelected = selectedSlotKey === slot.key;
-                    const tone = getSlotToneStyle(slot.occupiedCount, slot.totalCourts, isSelected);
-                    const sourceFlag = getSlotSourceFlag(slot.alquilerCount, slot.claseCount);
-
-                    return (
-                      <button
-                        key={slot.key}
-                        type="button"
-                        className="absolute left-0 right-0 z-10 overflow-hidden rounded border px-2 py-1 text-left transition"
-                        style={{
-                          top: `${slot.top + 1}px`,
-                          height: `${Math.max(slot.height - 2, 40)}px`,
-                          ...tone,
-                        }}
-                        onClick={() => {
-                          setActionError(null);
-                          setSelectedSlotKey((current) => (current === slot.key ? null : slot.key));
-                        }}
-                      >
-                        {sourceFlag !== "none" ? (
-                          <span
-                            aria-hidden="true"
-                            className="pointer-events-none absolute bottom-0 right-0 top-0 w-4"
-                            style={getSlotSourceFlagStyle(sourceFlag)}
-                          />
-                        ) : null}
-                        {slot.occupiedCount > 0 ? (
-                          <>
-                            <p className="truncate text-[11px] font-semibold leading-tight">
-                              {slot.occupiedCount} / {slot.totalCourts} canchas ocupadas
-                            </p>
-                          </>
-                        ) : null}
-                      </button>
-                    );
-                  })}
+                  {/* SlotUnits de eventos */}
+                  {(unitsByDay.get(day) ?? []).map((unit) => (
+                    <SlotUnitCard
+                      key={unit.key}
+                      unit={unit}
+                      isSelected={selectedClusterKey === unit.key}
+                      onClick={() => {
+                        setActionError(null);
+                        setSelectedClusterKey((prev) =>
+                          prev === unit.key ? null : unit.key,
+                        );
+                      }}
+                    />
+                  ))}
                 </div>
               );
             })}
           </div>
         </div>
 
-        {selectedSlot ? (
+        {/* Panel lateral (desktop) */}
+        {selectedUnit ? (
           <aside
             className="hidden rounded-xl border p-4 lg:block"
             style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           >
-            <SlotDetailsContent
-              slot={selectedSlot}
+            <SlotUnitDetailContent
+              unit={selectedUnit}
               pendingAction={pendingAction}
               actionError={actionError}
               onChangeEstado={handleChangeEstado}
@@ -752,12 +761,13 @@ export function ClubWeekTimeline({
         ) : null}
       </div>
 
-      {selectedSlot ? (
+      {/* Bottom sheet móvil */}
+      {selectedUnit ? (
         <div className="fixed inset-0 z-50 lg:hidden" aria-modal="true" role="dialog">
           <button
             type="button"
             className="absolute inset-0 bg-black/45"
-            onClick={() => setSelectedSlotKey(null)}
+            onClick={() => setSelectedClusterKey(null)}
             aria-label="Cerrar detalle"
           />
           <div
@@ -766,14 +776,18 @@ export function ClubWeekTimeline({
           >
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                Detalle de franja
+                Detalle de reservas
               </p>
-              <button type="button" className="btn-ghost text-xs" onClick={() => setSelectedSlotKey(null)}>
+              <button
+                type="button"
+                className="btn-ghost text-xs"
+                onClick={() => setSelectedClusterKey(null)}
+              >
                 Cerrar
               </button>
             </div>
-            <SlotDetailsContent
-              slot={selectedSlot}
+            <SlotUnitDetailContent
+              unit={selectedUnit}
               pendingAction={pendingAction}
               actionError={actionError}
               onChangeEstado={handleChangeEstado}
@@ -782,10 +796,15 @@ export function ClubWeekTimeline({
         </div>
       ) : null}
 
+      {/* Estado vacío */}
       {events.length === 0 ? (
         <div
           className="mt-4 rounded-xl border px-4 py-6 text-center text-sm"
-          style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}
+          style={{
+            borderColor: "var(--border)",
+            background: "var(--surface-2)",
+            color: "var(--muted)",
+          }}
         >
           No hay reservas para este rango.
         </div>
@@ -793,5 +812,3 @@ export function ClubWeekTimeline({
     </section>
   );
 }
-
-

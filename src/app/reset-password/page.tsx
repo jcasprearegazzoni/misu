@@ -41,12 +41,11 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <Link href="/" className="mb-8 block">
-          <span
-            className="text-xl font-black tracking-tighter logo-glow"
-            style={{ color: "var(--misu)" }}
-          >
-            misu
-          </span>
+          <img
+            src="/logo.png"
+            alt="Misu"
+            className="h-8 w-auto object-contain"
+          />
         </Link>
 
         {/* Card */}

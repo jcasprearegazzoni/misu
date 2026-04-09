@@ -166,11 +166,85 @@ export default async function DashboardProfesorPage() {
       ) : (
         <>
           <section className="card mt-6 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+                Próxima clase
+              </h2>
+              {nextClass ? (
+                <Link
+                  href="/dashboard/profesor/calendario"
+                  className="shrink-0 text-xs font-semibold"
+                  style={{ color: "var(--misu)" }}
+                >
+                  Ver calendario →
+                </Link>
+              ) : null}
+            </div>
+
+            {nextClass ? (
+              <div
+                className="mt-3 flex items-center gap-4 rounded-xl border px-4 py-3"
+                style={{
+                  borderColor: "var(--border-misu)",
+                  background: "var(--misu-subtle)",
+                }}
+              >
+                {/* Hora */}
+                <div className="shrink-0 text-center">
+                  <p
+                    className="text-xl font-black leading-none tabular-nums"
+                    style={{ color: "var(--misu)" }}
+                  >
+                    {nextClass.start_time.slice(0, 5)}
+                  </p>
+                  <p
+                    className="mt-0.5 text-xs leading-none tabular-nums"
+                    style={{ color: "var(--muted)" }}
+                  >
+                    {nextClass.end_time.slice(0, 5)}
+                  </p>
+                </div>
+
+                <div
+                  className="h-10 w-px shrink-0"
+                  style={{ background: "var(--border-misu)" }}
+                />
+
+                {/* Info */}
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="text-sm font-semibold leading-tight"
+                    style={{ color: "var(--foreground)" }}
+                  >
+                    {new Intl.DateTimeFormat("es-AR", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                      timeZone: "America/Argentina/Buenos_Aires",
+                    }).format(new Date(`${nextClass.date}T12:00:00-03:00`))}
+                  </p>
+                  <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
+                    {alumnoNameMap.get(nextClass.alumno_id) ?? "Alumno"}
+                    {" · "}{typeLabel[nextClass.type]}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
+                No hay próximas clases agendadas.
+              </p>
+            )}
+          </section>
+
+          <section className="card mt-6 p-4">
+            <div className="flex items-center justify-between gap-2">
               <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
                 Clases de hoy
               </h2>
-              <span className="text-xs font-medium" style={{ color: "var(--muted)" }}>
+              <span
+                className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+              >
                 {formatUserDate(todayIso)}
               </span>
             </div>
@@ -180,47 +254,64 @@ export default async function DashboardProfesorPage() {
                 No tenés clases programadas para hoy.
               </p>
             ) : (
-              <ul className="mt-3 grid gap-2">
-                {todayClasses.map((item) => (
-                  <li
-                    key={item.id}
-                    className="rounded-lg border px-3 py-2 text-sm"
-                    style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span style={{ color: "var(--foreground)" }}>
-                        {item.start_time.slice(0, 5)} - {item.end_time.slice(0, 5)} · {typeLabel[item.type]}
-                      </span>
-                      <span className="text-xs font-medium" style={{ color: "var(--muted)" }}>
+              <ul className="mt-3 grid gap-1.5">
+                {todayClasses.map((item) => {
+                  const isPendiente = item.status === "pendiente";
+                  return (
+                    <li
+                      key={item.id}
+                      className="flex items-center gap-3 rounded-lg border px-3 py-2.5"
+                      style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+                    >
+                      {/* Hora bloque */}
+                      <div className="w-[42px] shrink-0 text-right">
+                        <p
+                          className="text-sm font-bold leading-tight tabular-nums"
+                          style={{ color: "var(--foreground)" }}
+                        >
+                          {item.start_time.slice(0, 5)}
+                        </p>
+                        <p
+                          className="text-[10px] leading-tight tabular-nums"
+                          style={{ color: "var(--muted)" }}
+                        >
+                          {item.end_time.slice(0, 5)}
+                        </p>
+                      </div>
+
+                      <div
+                        className="h-7 w-px shrink-0"
+                        style={{ background: "var(--border)" }}
+                      />
+
+                      {/* Nombre + tipo */}
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="truncate text-sm font-medium"
+                          style={{ color: "var(--foreground)" }}
+                        >
+                          {alumnoNameMap.get(item.alumno_id) ?? "Alumno"}
+                        </p>
+                        <p className="text-[11px]" style={{ color: "var(--muted)" }}>
+                          {typeLabel[item.type]}
+                        </p>
+                      </div>
+
+                      {/* Badge */}
+                      <span
+                        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                        style={
+                          isPendiente
+                            ? { background: "var(--warning-bg)", color: "var(--warning)" }
+                            : { background: "var(--success-bg)", color: "var(--success)" }
+                        }
+                      >
                         {statusLabel[item.status]}
                       </span>
-                    </div>
-                    <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
-                      {alumnoNameMap.get(item.alumno_id) ?? "Alumno"}
-                    </p>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
-            )}
-          </section>
-
-          <section className="card mt-6 p-4">
-            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-              Próxima clase
-            </h2>
-            {nextClass ? (
-              <div className="mt-3 rounded-lg border px-3 py-3 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
-                <p style={{ color: "var(--foreground)" }}>
-                  {formatUserDate(nextClass.date)} · {nextClass.start_time.slice(0, 5)} - {nextClass.end_time.slice(0, 5)}
-                </p>
-                <p className="mt-1" style={{ color: "var(--muted)" }}>
-                  {alumnoNameMap.get(nextClass.alumno_id) ?? "Alumno"} · {typeLabel[nextClass.type]} · {statusLabel[nextClass.status]}
-                </p>
-              </div>
-            ) : (
-              <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
-                No hay próximas clases agendadas.
-              </p>
             )}
           </section>
 

@@ -19,6 +19,8 @@ type ReservaRow = {
   duracion_minutos: number;
   estado: "pendiente" | "confirmada" | "cancelada";
   tipo: "alquiler" | "clase";
+  profesor_id: string | null;
+  profiles: { name: string | null }[] | { name: string | null } | null;
   reserva_participantes: Array<{
     nombre: string;
     email: string | null;
@@ -38,6 +40,8 @@ export type CalendarEvent = {
   duracionMinutos: number;
   estado: "pendiente" | "confirmada" | "cancelada";
   tipo: "alquiler" | "clase";
+  /** Nombre del profesor (solo para tipo="clase") */
+  profesorNombre: string | null;
   organizadorNombre: string | null;
   organizadorEmail: string | null;
   organizadorTelefono: string | null;
@@ -129,10 +133,11 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
   ) as Array<{ id: number; nombre: string }>;
 
   // Fuente unica: calendario de club lee solo reservas_cancha (alquileres + clases espejo).
+  // Para clases se incluye el join a profiles para obtener el nombre del profesor.
   const { data, error } = await supabase
     .from("reservas_cancha")
     .select(
-      "id, cancha_id, deporte, fecha, hora_inicio, hora_fin, duracion_minutos, estado, tipo, reserva_participantes(nombre, email, telefono, es_organizador)",
+      "id, cancha_id, deporte, fecha, hora_inicio, hora_fin, duracion_minutos, estado, tipo, profesor_id, profiles!reservas_cancha_profesor_id_fkey(name), reserva_participantes(nombre, email, telefono, es_organizador)",
     )
     .eq("club_id", club.id)
     .eq("deporte", deporteSeleccionado)
@@ -149,6 +154,11 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
       reserva.reserva_participantes[0] ??
       null;
 
+    // Para clases, el nombre del profesor viene del join a profiles.
+    const perfilProfesor = Array.isArray(reserva.profiles)
+      ? (reserva.profiles[0] ?? null)
+      : (reserva.profiles ?? null);
+
     return {
       id: reserva.id,
       canchaId: reserva.cancha_id,
@@ -160,6 +170,7 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
       duracionMinutos: reserva.duracion_minutos,
       estado: reserva.estado,
       tipo: reserva.tipo,
+      profesorNombre: perfilProfesor?.name ?? null,
       organizadorNombre: organizador?.nombre ?? null,
       organizadorEmail: organizador?.email ?? null,
       organizadorTelefono: organizador?.telefono ?? null,
