@@ -32,6 +32,7 @@ type FranjasManagerProps = {
   disponibilidadItems: DisponibilidadItem[];
   selectedDeporte: DeporteConfiguracion;
   canchas: { id: number; nombre: string; deporte: string }[];
+  bare?: boolean;
 };
 
 type FormMode = "hidden" | "add" | "edit";
@@ -155,14 +156,30 @@ function IconButton({
   );
 }
 
-export function FranjasManager({ items, disponibilidadItems, selectedDeporte, canchas }: FranjasManagerProps) {
+export function FranjasManager({ items, disponibilidadItems, selectedDeporte, canchas, bare = false }: FranjasManagerProps) {
   const [state, formAction, isPending] = useActionState(upsertFranjaPrecioAction, initialState);
   const [formMode, setFormMode] = useState<FormMode>("hidden");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formDuration, setFormDuration] = useState<DurationOption | null>(null);
   const [formKey, setFormKey] = useState(0);
   const [priceMode, setPriceMode] = useState<PriceMode>("ranges");
+  const [selectedCanchaTargets, setSelectedCanchaTargets] = useState<string[]>(["global"]);
   const sportTheme = getSportTheme(selectedDeporte);
+
+  function toggleCanchaTarget(value: string) {
+    if (value === "global") {
+      setSelectedCanchaTargets(["global"]);
+      return;
+    }
+    setSelectedCanchaTargets((prev) => {
+      const withoutGlobal = prev.filter((v) => v !== "global");
+      if (withoutGlobal.includes(value)) {
+        const next = withoutGlobal.filter((v) => v !== value);
+        return next.length === 0 ? ["global"] : next;
+      }
+      return [...withoutGlobal, value];
+    });
+  }
 
   const disponibilidadForSport = useMemo(
     () => disponibilidadItems.filter((item) => item.deporte === selectedDeporte),
@@ -240,6 +257,7 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte, ca
       setFormMode("hidden");
       setEditingId(null);
       setFormDuration(null);
+      setSelectedCanchaTargets(["global"]);
       setFormKey((prev) => prev + 1);
     }
   }, [state.success]);
@@ -254,23 +272,23 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte, ca
     setFormMode("hidden");
     setEditingId(null);
     setFormDuration(null);
+    setSelectedCanchaTargets(["global"]);
     setFormKey((prev) => prev + 1);
     setPriceMode("ranges");
   }, [selectedDeporte]);
 
-  return (
-    <section
-      className="rounded-xl border p-4"
-      style={{ borderColor: sportTheme.border, background: "var(--surface-2)" }}
-    >
-      <div>
-        <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-          Precios por franja
-        </h2>
-        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          Defini precio, horario y duracion para este deporte.
-        </p>
-      </div>
+  const content = (
+    <>
+      {!bare ? (
+        <div>
+          <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+            Precios por franja
+          </h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+            Defini precio, horario y duracion para este deporte.
+          </p>
+        </div>
+      ) : null}
 
       <div className="mt-4 grid gap-4">
         <div className="flex flex-wrap gap-2">
@@ -334,17 +352,58 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte, ca
                   <input type="hidden" name="desde" value={normalizeTimeValue(jornadaOperativa.desde)} />
                   <input type="hidden" name="hasta" value={normalizeTimeValue(jornadaOperativa.hasta)} />
                   {canchasDeporte.length > 0 ? (
-                    <label className="label md:col-span-2">
-                      <span>Cancha (opcional)</span>
-                      <select name="cancha_id" className="select" defaultValue="">
-                        <option value="">Todas las canchas (precio global)</option>
+                    <div className="grid gap-2 md:col-span-2">
+                      <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                        Aplicar a
+                      </span>
+                      <div className="grid gap-1.5">
+                        <label
+                          className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
+                          style={{
+                            borderColor: selectedCanchaTargets.includes("global") ? "var(--accent)" : "var(--border)",
+                            background: selectedCanchaTargets.includes("global")
+                              ? "rgba(var(--accent-rgb), 0.08)"
+                              : "var(--surface-2)",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedCanchaTargets.includes("global")}
+                            onChange={() => toggleCanchaTarget("global")}
+                            className="h-4 w-4 rounded accent-[var(--misu)]"
+                          />
+                          <span style={{ color: "var(--foreground)" }}>Todas las canchas</span>
+                          <span className="ml-auto text-xs" style={{ color: "var(--muted)" }}>
+                            precio global
+                          </span>
+                        </label>
+
                         {canchasDeporte.map((c) => (
-                          <option key={c.id} value={String(c.id)}>
-                            {c.nombre}
-                          </option>
+                          <label
+                            key={c.id}
+                            className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
+                            style={{
+                              borderColor: selectedCanchaTargets.includes(String(c.id)) ? "var(--accent)" : "var(--border)",
+                              background: selectedCanchaTargets.includes(String(c.id))
+                                ? "rgba(var(--accent-rgb), 0.08)"
+                                : "var(--surface-2)",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedCanchaTargets.includes(String(c.id))}
+                              onChange={() => toggleCanchaTarget(String(c.id))}
+                              className="h-4 w-4 rounded accent-[var(--misu)]"
+                            />
+                            <span style={{ color: "var(--foreground)" }}>{c.nombre}</span>
+                          </label>
                         ))}
-                      </select>
-                    </label>
+                      </div>
+
+                      {selectedCanchaTargets.map((v) => (
+                        <input key={v} type="hidden" name="cancha_targets" value={v} />
+                      ))}
+                    </div>
                   ) : null}
 
                   <label className="label">
@@ -434,6 +493,7 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte, ca
                         setFormMode("add");
                         setEditingId(null);
                         setFormDuration(duration);
+                        setSelectedCanchaTargets(["global"]);
                         setFormKey((prev) => prev + 1);
                       }}
                       className="inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-[1.02]"
@@ -526,26 +586,80 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte, ca
                       {formMode === "edit" && editingItem ? <input type="hidden" name="id" value={editingItem.id} /> : null}
                       <input type="hidden" name="deporte" value={selectedDeporte} />
                       <input type="hidden" name="duracion_minutos" value={String(duration)} />
-                      {canchasDeporte.length > 0 ? (
-                        <label className="label">
-                          <span>Cancha (opcional)</span>
-                          <select
-                            name="cancha_id"
-                            className="select"
-                            defaultValue={
-                              submittedMatchesThisBlock
-                                ? (state.submitted.cancha_id ?? "")
-                                : String(editingItem?.cancha_id ?? "")
-                            }
-                          >
-                            <option value="">Todas las canchas (precio global)</option>
+                      {canchasDeporte.length > 0 && formMode === "add" ? (
+                        <div className="grid gap-2">
+                          <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                            Aplicar a
+                          </span>
+                          <div className="grid gap-1.5">
+                            <label
+                              className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
+                              style={{
+                                borderColor: selectedCanchaTargets.includes("global") ? "var(--accent)" : "var(--border)",
+                                background: selectedCanchaTargets.includes("global")
+                                  ? "rgba(var(--accent-rgb), 0.08)"
+                                  : "var(--surface-2)",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedCanchaTargets.includes("global")}
+                                onChange={() => toggleCanchaTarget("global")}
+                                className="h-4 w-4 rounded accent-[var(--misu)]"
+                              />
+                              <span style={{ color: "var(--foreground)" }}>Todas las canchas</span>
+                              <span className="ml-auto text-xs" style={{ color: "var(--muted)" }}>
+                                precio global
+                              </span>
+                            </label>
+
                             {canchasDeporte.map((c) => (
-                              <option key={c.id} value={String(c.id)}>
-                                {c.nombre}
-                              </option>
+                              <label
+                                key={c.id}
+                                className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
+                                style={{
+                                  borderColor: selectedCanchaTargets.includes(String(c.id)) ? "var(--accent)" : "var(--border)",
+                                  background: selectedCanchaTargets.includes(String(c.id))
+                                    ? "rgba(var(--accent-rgb), 0.08)"
+                                    : "var(--surface-2)",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCanchaTargets.includes(String(c.id))}
+                                  onChange={() => toggleCanchaTarget(String(c.id))}
+                                  className="h-4 w-4 rounded accent-[var(--misu)]"
+                                />
+                                <span style={{ color: "var(--foreground)" }}>{c.nombre}</span>
+                              </label>
                             ))}
-                          </select>
-                        </label>
+                          </div>
+
+                          {selectedCanchaTargets.map((v) => (
+                            <input key={v} type="hidden" name="cancha_targets" value={v} />
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {formMode === "edit" && editingItem ? (
+                        <div className="grid gap-1">
+                          <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                            Cancha
+                          </span>
+                          <p
+                            className="rounded-lg border px-3 py-2 text-sm"
+                            style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}
+                          >
+                            {editingItem.cancha_id
+                              ? (canchasDeporte.find((c) => c.id === editingItem.cancha_id)?.nombre ?? `Cancha ${editingItem.cancha_id}`)
+                              : "Todas las canchas"}
+                          </p>
+                          <input
+                            type="hidden"
+                            name="cancha_targets"
+                            value={editingItem.cancha_id ? String(editingItem.cancha_id) : "global"}
+                          />
+                        </div>
                       ) : null}
 
                       <div className="grid gap-4 md:grid-cols-2">
@@ -605,6 +719,7 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte, ca
                             setFormMode("hidden");
                             setEditingId(null);
                             setFormDuration(null);
+                            setSelectedCanchaTargets(["global"]);
                           }}
                           className="btn-ghost transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]"
                         >
@@ -626,6 +741,19 @@ export function FranjasManager({ items, disponibilidadItems, selectedDeporte, ca
           </>
         ) : null}
       </div>
+    </>
+  );
+
+  if (bare) {
+    return <div>{content}</div>;
+  }
+
+  return (
+    <section
+      className="rounded-xl border p-4"
+      style={{ borderColor: sportTheme.border, background: "var(--surface-2)" }}
+    >
+      {content}
     </section>
   );
 }

@@ -178,14 +178,11 @@ export default async function ClubCalendarioPage({ searchParams }: PageProps) {
   });
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-8">
       <header>
         <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
           Calendario
         </h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          Operacion diaria de reservas por deporte, en formato calendario.
-        </p>
       </header>
 
       {error ? (

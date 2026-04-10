@@ -44,6 +44,7 @@ export async function saveProfesorProfileAction(
     sport: formData.get("sport"),
     provincia: formData.get("provincia"),
     municipio: formData.get("municipio"),
+    localidad: formData.get("localidad"),
   });
 
   if (!parsed.success) {
@@ -76,6 +77,7 @@ export async function saveProfesorProfileAction(
       sport: parsed.data.sport,
       provincia: parsed.data.provincia,
       zone: parsed.data.municipio,
+      localidad: parsed.data.localidad ?? null,
     })
     .eq("user_id", user.id);
 

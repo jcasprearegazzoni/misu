@@ -31,7 +31,7 @@ export default async function NotificacionesPage() {
   const unreadCount = notifications.filter((item) => !item.read_at).length;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-3 py-6 sm:px-4 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>

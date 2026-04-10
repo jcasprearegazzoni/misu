@@ -15,19 +15,16 @@ export default async function ClubDashboardLayout({ children }: { children: Reac
   const club = await requireClub();
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--background)" }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ background: "var(--background)" }}>
       <header
         style={{
           borderBottom: "1px solid var(--border)",
           background: "rgba(12, 12, 14, 0.9)",
           backdropFilter: "blur(16px)",
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
         }}
       >
-        <nav className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-6">
+        <nav className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-6">
             <Link href="/dashboard/club" className="flex items-center">
               <span
                 className="text-base font-black tracking-tighter logo-glow"
@@ -47,16 +44,16 @@ export default async function ClubDashboardLayout({ children }: { children: Reac
             </div>
           </div>
 
-          <details className="relative">
+          <details className="relative shrink-0">
             <summary
-              className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition"
+              className="flex max-w-[52vw] cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition sm:max-w-none"
               style={{
                 background: "var(--surface-2)",
                 border: "1px solid var(--border)",
                 color: "var(--foreground)",
               }}
             >
-              <span>{club.nombre}</span>
+              <span className="block truncate">{club.nombre}</span>
               <span aria-hidden="true" style={{ color: "var(--muted)" }}>
                 ▾
               </span>
@@ -70,6 +67,23 @@ export default async function ClubDashboardLayout({ children }: { children: Reac
                 boxShadow: "0 16px 40px rgba(0,0,0,0.6)",
               }}
             >
+              <div className="mb-1 grid gap-1 sm:hidden">
+                <Link
+                  href="/dashboard/club/calendario"
+                  className="btn-ghost w-full justify-start rounded-lg text-sm"
+                  style={{ padding: "0.5rem 0.75rem" }}
+                >
+                  Calendario
+                </Link>
+                <Link
+                  href="/dashboard/club/ajustes"
+                  className="btn-ghost w-full justify-start rounded-lg text-sm"
+                  style={{ padding: "0.5rem 0.75rem" }}
+                >
+                  Ajustes
+                </Link>
+                <div className="my-1 h-px" style={{ background: "var(--border)" }} />
+              </div>
               <Link
                 href="/dashboard/club/perfil"
                 className="btn-ghost w-full justify-start rounded-lg text-sm"

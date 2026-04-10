@@ -49,8 +49,6 @@ export function HorariosPreciosManager({ disponibilidad, franjas, canchas }: Pro
   }, [disponibilidad, franjas]);
 
   const [selectedDeporte, setSelectedDeporte] = useState<DeporteConfiguracion>(defaultSport);
-  const [isDisponibilidadOpen, setIsDisponibilidadOpen] = useState(false);
-  const [isFranjasOpen, setIsFranjasOpen] = useState(false);
 
   return (
     <section className="card p-5 sm:p-6">
@@ -89,73 +87,25 @@ export function HorariosPreciosManager({ disponibilidad, franjas, canchas }: Pro
         })}
       </div>
 
-      <div className="mt-5 grid gap-4">
-        <section className="rounded-xl border p-3 sm:p-4" style={{ borderColor: "var(--border)" }}>
-          <button
-            type="button"
-            onClick={() => setIsDisponibilidadOpen((prev) => !prev)}
-            aria-expanded={isDisponibilidadOpen}
-            className="group flex w-full items-center justify-between gap-3 rounded-lg px-1 py-1 text-left transition-all duration-200"
-          >
-            <span className="text-sm font-semibold sm:text-base" style={{ color: "var(--foreground)" }}>
-              Disponibilidad
-            </span>
-            <span
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors duration-200 group-hover:border-[var(--accent)] group-hover:text-[var(--foreground)]"
-              style={{ borderColor: "var(--border)", color: "var(--muted)", background: "var(--surface-1)" }}
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 20 20"
-                fill="none"
-                className={`h-5 w-5 transition-transform duration-300 ${isDisponibilidadOpen ? "rotate-180" : "rotate-0"}`}
-              >
-                <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          </button>
-          {isDisponibilidadOpen ? (
-            <div className="mt-3">
-              <DisponibilidadManager items={disponibilidad} selectedDeporte={selectedDeporte} />
-            </div>
-          ) : null}
-        </section>
+      <div className="mt-5 grid gap-6 lg:grid-cols-2">
+        <div>
+          <h3 className="mb-3 text-sm font-semibold sm:text-base" style={{ color: "var(--foreground)" }}>
+            Disponibilidad
+          </h3>
+          <DisponibilidadManager items={disponibilidad} selectedDeporte={selectedDeporte} />
+        </div>
 
-        <section className="rounded-xl border p-3 sm:p-4" style={{ borderColor: "var(--border)" }}>
-          <button
-            type="button"
-            onClick={() => setIsFranjasOpen((prev) => !prev)}
-            aria-expanded={isFranjasOpen}
-            className="group flex w-full items-center justify-between gap-3 rounded-lg px-1 py-1 text-left transition-all duration-200"
-          >
-            <span className="text-sm font-semibold sm:text-base" style={{ color: "var(--foreground)" }}>
-              Precios por franja
-            </span>
-            <span
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors duration-200 group-hover:border-[var(--accent)] group-hover:text-[var(--foreground)]"
-              style={{ borderColor: "var(--border)", color: "var(--muted)", background: "var(--surface-1)" }}
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 20 20"
-                fill="none"
-                className={`h-5 w-5 transition-transform duration-300 ${isFranjasOpen ? "rotate-180" : "rotate-0"}`}
-              >
-                <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          </button>
-          {isFranjasOpen ? (
-            <div className="mt-3">
-              <FranjasManager
-                items={franjas}
-                disponibilidadItems={disponibilidad}
-                selectedDeporte={selectedDeporte}
-                canchas={canchas}
-              />
-            </div>
-          ) : null}
-        </section>
+        <div>
+          <h3 className="mb-3 text-sm font-semibold sm:text-base" style={{ color: "var(--foreground)" }}>
+            Precios por franja
+          </h3>
+          <FranjasManager
+            items={franjas}
+            disponibilidadItems={disponibilidad}
+            selectedDeporte={selectedDeporte}
+            canchas={canchas}
+          />
+        </div>
       </div>
     </section>
   );

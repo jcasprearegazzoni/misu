@@ -27,7 +27,7 @@ export default async function ClubCanchasPage() {
   const canchas = (data ?? []) as CanchaRow[];
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-4 py-6 sm:px-6 sm:py-8">
       <header>
         <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
           Canchas

@@ -52,7 +52,7 @@ export default async function AlumnoPerfilPage({ searchParams }: AlumnoPerfilPag
   const doneCount = checklist.filter((item) => item.done).length;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-3 py-6 sm:px-4 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
       <header>
         <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
           Mi perfil

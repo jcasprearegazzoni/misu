@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { PROVINCIAS, getMunicipiosByProvincia } from "@/lib/geo/argentina";
 
 type ZonaSelectorProps = {
@@ -13,6 +13,17 @@ type ZonaSelectorProps = {
 
 export function ZonaSelector({ provincia, municipio, onProvinciaChange, onMunicipioChange }: ZonaSelectorProps) {
   const municipios = provincia ? getMunicipiosByProvincia(provincia) : [];
+
+  useEffect(() => {
+    if (!provincia) {
+      if (municipio) onMunicipioChange("");
+      return;
+    }
+
+    if (municipio && !municipios.includes(municipio)) {
+      onMunicipioChange("");
+    }
+  }, [municipio, municipios, onMunicipioChange, provincia]);
 
   function handleProvinciaChange(event: React.ChangeEvent<HTMLSelectElement>) {
     onProvinciaChange(event.target.value);

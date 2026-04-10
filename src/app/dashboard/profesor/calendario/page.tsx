@@ -438,6 +438,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
   }));
 
   const prevHref = `/dashboard/profesor/calendario?weekOffset=${weekOffset - 1}&day=${selectedDay}`;
+  const todayHref = `/dashboard/profesor/calendario?weekOffset=0&day=${todayIso}`;
   const nextHref = `/dashboard/profesor/calendario?weekOffset=${weekOffset + 1}&day=${selectedDay}`;
   const dayLinks = weekDates.map((date) => ({
     date,
@@ -456,7 +457,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
   const nextDayHref = `/dashboard/profesor/calendario?weekOffset=${nextDayWeekOffset}&day=${nextDayIso}`;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-3 py-6 sm:px-4 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
       <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>Calendario de clases</h1>
 
       {hasLoadError ? (
@@ -474,6 +475,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
             selectedDay={selectedDay}
             dayLinks={dayLinks}
             prevHref={prevHref}
+            todayHref={todayHref}
             nextHref={nextHref}
           />
           <MobileAgenda

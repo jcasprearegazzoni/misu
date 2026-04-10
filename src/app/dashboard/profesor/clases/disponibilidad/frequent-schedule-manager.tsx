@@ -19,6 +19,7 @@ type AvailabilityRow = {
 type FrequentScheduleManagerProps = {
   availability: AvailabilityRow[];
   clubs: Array<{ id: number; nombre: string }>;
+  bare?: boolean;
 };
 
 const dayOptions = [
@@ -27,7 +28,7 @@ const dayOptions = [
   { value: 3, short: "Mi", label: "Miércoles" },
   { value: 4, short: "Ju", label: "Jueves" },
   { value: 5, short: "Vi", label: "Viernes" },
-  { value: 6, short: "Sá", label: "Sábado" },
+  { value: 6, short: "Sa", label: "Sábado" },
   { value: 0, short: "Do", label: "Domingo" },
 ];
 
@@ -80,7 +81,7 @@ function ClubSelector({
     <select
       name="club_id"
       defaultValue={defaultValue ?? ""}
-      className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)] min-w-[120px]"
+      className="select h-9 min-w-[120px] w-full !py-0 leading-none"
       disabled={disabled}
     >
       <option value="">Particulares</option>
@@ -129,7 +130,7 @@ function FrequentRangeRow({ item, clubs }: RowFormProps) {
           name="start_time"
           value={startTime}
           onChange={(e) => handleStartChange(e.target.value)}
-          className="h-9 w-[104px] rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
+          className="select h-9 w-[96px] !py-0 leading-none sm:w-[104px]"
           required
         >
           {timeOptions.map((option) => (
@@ -143,7 +144,7 @@ function FrequentRangeRow({ item, clubs }: RowFormProps) {
           name="end_time"
           value={endTime}
           onChange={(e) => setEndTime(e.target.value)}
-          className="h-9 w-[104px] rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
+          className="select h-9 w-[96px] !py-0 leading-none sm:w-[104px]"
           required
         >
           {timeOptions
@@ -156,19 +157,15 @@ function FrequentRangeRow({ item, clubs }: RowFormProps) {
         </select>
         <button
           formAction={deleteAvailabilityAction}
-          className="h-9 w-9 rounded-md border text-sm font-semibold transition"
-          style={{
-            borderColor: "var(--border-misu)",
-            color: "var(--misu-light)",
-            background: "transparent",
-          }}
+          className="btn-ghost ml-auto h-9 w-9 leading-none"
+          style={{ color: "var(--error)" }}
           title="Eliminar rango"
         >
           ×
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="grid gap-1.5 sm:grid-cols-[auto_80px_auto] sm:items-center">
         <span className="text-xs font-medium text-[var(--muted)]">Duración (min)</span>
         <input
           type="number"
@@ -176,21 +173,21 @@ function FrequentRangeRow({ item, clubs }: RowFormProps) {
           min={30}
           step={30}
           defaultValue={item.slot_duration_minutes}
-          className="h-9 w-20 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
+          className="input h-9 w-20 !py-0 text-center leading-none"
           required
         />
         <button
           type="submit"
           disabled={isPending}
-          className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-3)] disabled:opacity-60"
+          className="btn-secondary h-9 px-3 text-xs leading-none"
         >
           {isPending ? "Guardando..." : "Guardar"}
         </button>
       </div>
 
-      {timeError ? <p className="text-xs font-medium text-red-300">{timeError}</p> : null}
-      {state.error ? <p className="text-xs font-medium text-red-300">{state.error}</p> : null}
-      {state.success ? <p className="text-xs font-medium text-emerald-700">{state.success}</p> : null}
+      {timeError ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--error)" }}>{timeError}</p> : null}
+      {state.error ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--error)" }}>{state.error}</p> : null}
+      {state.success ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--success)" }}>{state.success}</p> : null}
     </form>
   );
 }
@@ -235,7 +232,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
       <h3 className="text-base font-semibold text-[var(--foreground)]">{day.label}</h3>
 
       {dayRanges.length === 0 ? (
-        <p className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-3 py-2 text-sm text-[var(--muted-2)]">
+        <p className="mt-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
           Sin horarios cargados.
         </p>
       ) : (
@@ -251,9 +248,11 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
           <button
             type="button"
             onClick={handleOpen}
-            className="h-9 rounded-md border border-emerald-500/50 bg-[var(--surface-1)] px-3 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10"
+            className="mt-2 flex items-center gap-1.5 text-sm font-medium transition-colors"
+            style={{ color: "var(--misu-light)" }}
           >
-            + Agregar horario
+            <span>+</span>
+            <span>Agregar horario</span>
           </button>
         </div>
       ) : (
@@ -286,7 +285,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
               name="start_time"
               value={newStart}
               onChange={(e) => handleNewStartChange(e.target.value)}
-              className="h-9 w-[104px] rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
+              className="select h-9 w-[96px] !py-0 leading-none sm:w-[104px]"
               required
             >
               {timeOptions.map((option) => (
@@ -300,7 +299,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
               name="end_time"
               value={newEnd}
               onChange={(e) => setNewEnd(e.target.value)}
-              className="h-9 w-[104px] rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
+              className="select h-9 w-[96px] !py-0 leading-none sm:w-[104px]"
               required
             >
               {timeOptions
@@ -313,7 +312,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
             </select>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="grid gap-1.5 sm:grid-cols-[auto_80px_auto_auto] sm:items-center">
             <span className="text-xs font-medium text-[var(--muted)]">Duración (min)</span>
             <input
               type="number"
@@ -321,13 +320,13 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
               min={30}
               step={30}
               defaultValue={60}
-              className="h-9 w-20 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
+              className="input h-9 w-20 !py-0 text-center leading-none"
               required
             />
             <button
               type="submit"
               disabled={isCreating}
-              className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--surface-3)] disabled:opacity-60"
+              className="btn-primary h-9 px-3 text-xs leading-none"
             >
               {isCreating ? "Guardando..." : "Agregar"}
             </button>
@@ -338,22 +337,22 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
                 setCreateState(initialState);
                 setTimeError(null);
               }}
-              className="h-9 rounded-md border border-[var(--border)] bg-[var(--surface-1)] px-3 text-xs font-medium text-[var(--muted)] hover:bg-[var(--surface-3)]"
+              className="btn-ghost h-9 px-3 text-xs leading-none"
             >
               Cancelar
             </button>
           </div>
 
-          {timeError ? <p className="text-xs font-medium text-red-300">{timeError}</p> : null}
-          {createState.error ? <p className="text-xs font-medium text-red-700">{createState.error}</p> : null}
-          {createState.success ? <p className="text-xs font-medium text-emerald-700">{createState.success}</p> : null}
+          {timeError ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--error)" }}>{timeError}</p> : null}
+          {createState.error ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--error)" }}>{createState.error}</p> : null}
+          {createState.success ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--success)" }}>{createState.success}</p> : null}
         </form>
       )}
     </section>
   );
 }
 
-export function FrequentScheduleManager({ availability, clubs }: FrequentScheduleManagerProps) {
+export function FrequentScheduleManager({ availability, clubs, bare = false }: FrequentScheduleManagerProps) {
   const initialSelectedDays = useMemo(() => {
     const fromAvailability = Array.from(new Set(availability.map((item) => item.day_of_week)));
     if (fromAvailability.length > 0) {
@@ -391,11 +390,17 @@ export function FrequentScheduleManager({ availability, clubs }: FrequentSchedul
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl rounded-lg border border-[var(--border)] bg-[var(--surface-1)] p-3">
-      <h2 className="text-base font-semibold text-[var(--foreground)]">Horario frecuente</h2>
-      <p className="mt-1 text-sm text-[var(--muted)]">
-        Marcá los días y cargá los rangos horarios que se repiten semana a semana.
-      </p>
+    <div
+      className={bare ? "w-full" : "mx-auto w-full max-w-xl rounded-lg border border-[var(--border)] bg-[var(--surface-1)] p-3"}
+    >
+      {!bare ? (
+        <>
+          <h2 className="text-base font-semibold text-[var(--foreground)]">Horario frecuente</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Marcá los días y cargá los rangos horarios que se repiten semana a semana.
+          </p>
+        </>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {dayOptions.map((day) => {
@@ -406,15 +411,16 @@ export function FrequentScheduleManager({ availability, clubs }: FrequentSchedul
               key={day.value}
               type="button"
               onClick={() => toggleDay(day.value)}
-              className={`relative h-9 rounded-md border px-3 text-sm font-medium ${
+              className="relative h-9 rounded-md border px-3 text-sm font-medium leading-none transition-colors"
+              style={
                 isActive
-                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
-                  : "border-[var(--border)] bg-[var(--surface-1)] text-[var(--foreground)] hover:bg-[var(--surface-3)]"
-              }`}
+                  ? { background: "var(--misu-subtle)", borderColor: "var(--border-misu)", color: "var(--misu-light)" }
+                  : { background: "var(--surface-1)", borderColor: "var(--border)", color: "var(--foreground)" }
+              }
             >
               {day.short}
               {hasRanges && !isActive ? (
-                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full" style={{ background: "var(--misu)" }} />
               ) : null}
             </button>
           );

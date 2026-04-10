@@ -7,20 +7,13 @@ import { PriceSettingsForm } from "@/app/dashboard/profesor/finanzas/price-setti
 import { ClubsManager } from "@/app/dashboard/profesor/perfil/clubs-manager";
 import { PerfilForm } from "@/app/dashboard/profesor/perfil/perfil-form";
 import { InvitacionesManager } from "@/app/dashboard/profesor/perfil/invitaciones-manager";
+import { FrequentScheduleManager } from "@/app/dashboard/profesor/clases/disponibilidad/frequent-schedule-manager";
+import { AusenciasManager } from "@/app/dashboard/profesor/clases/disponibilidad/ausencias-manager";
 
 type ChecklistItem = {
   id: string;
   label: string;
   done: boolean;
-  href: string;
-  cta: string;
-};
-
-type DominioResumen = {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
   href: string;
   cta: string;
 };
@@ -48,19 +41,34 @@ type Club = {
   cp_status: "pendiente" | "activo" | "inactivo";
 };
 
+type AvailabilityRow = {
+  id: number;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  slot_duration_minutes: number;
+  club_id: number | null;
+  club_nombre: string | null;
+};
+
+type BlockedDateRow = {
+  id: number;
+  start_at: string;
+  end_at: string;
+  reason: string | null;
+};
+
 type AjustesSectionKey =
   | "onboarding"
-  | "dominios"
   | "datos"
   | "precios"
   | "operativos"
-  | "invitaciones"
+  | "horarios"
   | "clubes";
 
 type AjustesShellProps = {
   successMessage: string | null;
   checklist: ChecklistItem[];
-  dominiosResumen: DominioResumen[];
   perfilInitialValues: {
     name: string;
     username: string;
@@ -68,6 +76,7 @@ type AjustesShellProps = {
     sport: "tenis" | "padel" | "ambos";
     provincia: string;
     municipio: string;
+    localidad: string;
   };
   priceInitialValues: {
     price_individual: string;
@@ -83,36 +92,36 @@ type AjustesShellProps = {
   invitaciones: Invitacion[];
   clubsPropios: ClubPropio[];
   clubs: Club[];
+  availability: AvailabilityRow[];
+  blockedDates: BlockedDateRow[];
+  clubsForAvailability: Array<{ id: number; nombre: string }>;
   clubsError: boolean;
 };
 
 const sectionLabels: Record<AjustesSectionKey, string> = {
   onboarding: "Para empezar",
-  dominios: "Disponibilidad y Paquetes",
   datos: "Datos del profesor",
   precios: "Precios",
   operativos: "Ajustes operativos",
-  invitaciones: "Invitaciones",
+  horarios: "Horarios",
   clubes: "Clubes",
 };
 
 const sectionShortLabels: Record<AjustesSectionKey, string> = {
   onboarding: "Empezar",
-  dominios: "Dominios",
   datos: "Datos",
   precios: "Precios",
   operativos: "Operativos",
-  invitaciones: "Invitaciones",
+  horarios: "Horarios",
   clubes: "Clubes",
 };
 
 const validSectionKeys = new Set<AjustesSectionKey>([
   "onboarding",
-  "dominios",
   "datos",
   "precios",
   "operativos",
-  "invitaciones",
+  "horarios",
   "clubes",
 ]);
 
@@ -138,13 +147,15 @@ function resolveSectionKey(
 export function AjustesShell({
   successMessage,
   checklist,
-  dominiosResumen,
   perfilInitialValues,
   priceInitialValues,
   operationalInitialValues,
   invitaciones,
   clubsPropios,
   clubs,
+  availability,
+  blockedDates,
+  clubsForAvailability,
   clubsError,
 }: AjustesShellProps) {
   const doneCount = useMemo(() => checklist.filter((item) => item.done).length, [checklist]);
@@ -158,11 +169,10 @@ export function AjustesShell({
     () =>
       ([
         hasPendingOnboarding ? "onboarding" : null,
-        "dominios",
         "datos",
         "precios",
         "operativos",
-        "invitaciones",
+        "horarios",
         "clubes",
       ].filter((item) => item !== null) as AjustesSectionKey[]),
     [hasPendingOnboarding],
@@ -234,7 +244,17 @@ export function AjustesShell({
                       border: `1px solid ${isActive ? "var(--border-hover)" : "var(--border)"}`,
                     }}
                   >
-                    {sectionShortLabels[key]}
+                    <span className="flex w-full items-center justify-between gap-2">
+                      <span>{sectionShortLabels[key]}</span>
+                      {key === "clubes" && invitaciones.length > 0 ? (
+                        <span
+                          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold"
+                          style={{ background: "var(--warning)", color: "#fff" }}
+                        >
+                          {invitaciones.length}
+                        </span>
+                      ) : null}
+                    </span>
                   </button>
                 );
               })}
@@ -260,7 +280,17 @@ export function AjustesShell({
                     border: `1px solid ${isActive ? "var(--border)" : "transparent"}`,
                   }}
                 >
-                  {sectionLabels[key]}
+                  <span className="flex w-full items-center justify-between gap-2">
+                    <span>{sectionLabels[key]}</span>
+                    {key === "clubes" && invitaciones.length > 0 ? (
+                      <span
+                        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold"
+                        style={{ background: "var(--warning)", color: "#fff" }}
+                      >
+                        {invitaciones.length}
+                      </span>
+                    ) : null}
+                  </span>
                 </button>
               );
             })}
@@ -330,37 +360,11 @@ export function AjustesShell({
             </div>
           ) : null}
 
-          {activeSection === "dominios" ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {dominiosResumen.map((item) => (
-                <Link key={item.id} href={item.href} className="card block p-3 transition-opacity hover:opacity-90 sm:p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-                      {item.title}
-                    </h2>
-                    <span className="text-xs font-medium" style={{ color: "var(--muted)" }}>
-                      {item.status}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                    {item.description}
-                  </p>
-                  <p className="mt-3 text-xs font-medium" style={{ color: "var(--foreground)" }}>
-                    {item.cta}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          ) : null}
-
           {activeSection === "datos" ? (
             <div className="card p-3 sm:p-4">
               <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
                 Datos del profesor
               </h2>
-              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                Informacion visible para alumnos y configuracion de tu perfil publico.
-              </p>
               <PerfilForm successMessage={successMessage} initialValues={perfilInitialValues} />
             </div>
           ) : null}
@@ -370,9 +374,6 @@ export function AjustesShell({
               <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
                 Precios
               </h2>
-              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                Precio por tipo de clase. Se usa para calcular montos estimados y deudas.
-              </p>
               <div className="mt-4">
                 <PriceSettingsForm initialValues={priceInitialValues} />
               </div>
@@ -384,24 +385,19 @@ export function AjustesShell({
               <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
                 Ajustes operativos
               </h2>
-              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                Reglas de cancelacion y comportamiento cuando un alumno queda solo.
-              </p>
               <ProfesorSettingsForm initialValues={operationalInitialValues} />
             </div>
           ) : null}
 
-          {activeSection === "invitaciones" ? (
-            <div className="card p-3 sm:p-4">
-              <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-                Invitaciones
-              </h2>
-              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                Responde invitaciones de clubes y vincula tus clases si corresponde.
-              </p>
-              <div className="mt-4">
-                <InvitacionesManager invitaciones={invitaciones} clubsPropios={clubsPropios} />
+          {activeSection === "horarios" ? (
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,1fr)] lg:items-start">
+              <div className="card p-4">
+                <h3 className="mb-4 text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                  Horario frecuente
+                </h3>
+                <FrequentScheduleManager availability={availability} clubs={clubsForAvailability} bare />
               </div>
+              <AusenciasManager blockedDates={blockedDates} bare />
             </div>
           ) : null}
 
@@ -410,9 +406,23 @@ export function AjustesShell({
               <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
                 Clubes
               </h2>
-              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                Administra los clubes donde das clases y las condiciones de costo de cancha.
-              </p>
+
+              {invitaciones.length > 0 ? (
+                <div className="mb-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                      Invitaciones pendientes
+                    </h3>
+                    <span
+                      className="pill text-xs font-semibold"
+                      style={{ background: "var(--warning-bg)", color: "var(--warning)" }}
+                    >
+                      {invitaciones.length}
+                    </span>
+                  </div>
+                  <InvitacionesManager invitaciones={invitaciones} clubsPropios={clubsPropios} />
+                </div>
+              ) : null}
 
               {clubsError ? (
                 <p className="alert-error mt-4">

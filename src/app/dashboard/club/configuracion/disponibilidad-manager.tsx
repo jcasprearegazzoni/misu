@@ -21,6 +21,7 @@ type DisponibilidadItem = {
 type DisponibilidadManagerProps = {
   items: DisponibilidadItem[];
   selectedDeporte: DeporteConfiguracion;
+  bare?: boolean;
 };
 
 type FormMode = "hidden" | "add" | "edit";
@@ -256,7 +257,7 @@ function DisponibilidadForm({
   );
 }
 
-export function DisponibilidadManager({ items, selectedDeporte }: DisponibilidadManagerProps) {
+export function DisponibilidadManager({ items, selectedDeporte, bare = false }: DisponibilidadManagerProps) {
   const [state, formAction, isPending] = useActionState(upsertDisponibilidadAction, initialState);
   const [formMode, setFormMode] = useState<FormMode>("hidden");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -327,9 +328,9 @@ export function DisponibilidadManager({ items, selectedDeporte }: Disponibilidad
     setEditingId(null);
   };
 
-  return (
-    <section className="rounded-xl border p-4" style={{ borderColor: sportTheme.border, background: "var(--surface-2)" }}>
-      <div className="flex items-start justify-between gap-3">
+  const content = (
+    <>
+      {!bare ? (
         <div>
           <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
             Disponibilidad horaria
@@ -338,46 +339,9 @@ export function DisponibilidadManager({ items, selectedDeporte }: Disponibilidad
             Defini los dias y horarios disponibles.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setFormMode("add");
-            setEditingId(null);
-            setSelectedDaysForAdd([1]);
-            setFormKey((prev) => prev + 1);
-          }}
-          aria-label="Agregar disponibilidad"
-          title="Agregar disponibilidad"
-          className="flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95"
-          style={{ borderColor: "var(--accent)", color: "#fff", background: "var(--accent)" }}
-        >
-          <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M10 4.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 10 4.5Z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
-      </div>
+      ) : null}
 
-      <div className="mt-4 grid gap-3">
-        {formMode === "add" ? (
-          <DisponibilidadForm
-            mode="add"
-            editingItem={null}
-            selectedDeporte={selectedDeporte}
-            sportTheme={sportTheme}
-            selectedDaysForAdd={selectedDaysForAdd}
-            setSelectedDaysForAdd={setSelectedDaysForAdd}
-            formKey={formKey}
-            formAction={formAction}
-            state={state}
-            isPending={isPending}
-            onCancel={closeForm}
-          />
-        ) : null}
-
+      <div className={`grid gap-3 ${bare ? "mt-2" : "mt-4"}`}>
         {filteredItems.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             No hay disponibilidad cargada para este deporte.
@@ -466,7 +430,46 @@ export function DisponibilidadManager({ items, selectedDeporte }: Disponibilidad
             );
           })
         )}
+
+        {formMode === "add" ? (
+          <DisponibilidadForm
+            mode="add"
+            editingItem={null}
+            selectedDeporte={selectedDeporte}
+            sportTheme={sportTheme}
+            selectedDaysForAdd={selectedDaysForAdd}
+            setSelectedDaysForAdd={setSelectedDaysForAdd}
+            formKey={formKey}
+            formAction={formAction}
+            state={state}
+            isPending={isPending}
+            onCancel={closeForm}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setFormMode("add");
+              setEditingId(null);
+              setSelectedDaysForAdd([1]);
+              setFormKey((prev) => prev + 1);
+            }}
+            className="btn-ghost mt-2 w-full justify-center text-sm"
+          >
+            + Agregar horario
+          </button>
+        )}
       </div>
+    </>
+  );
+
+  if (bare) {
+    return <div>{content}</div>;
+  }
+
+  return (
+    <section className="rounded-xl border p-4" style={{ borderColor: sportTheme.border, background: "var(--surface-2)" }}>
+      {content}
     </section>
   );
 }

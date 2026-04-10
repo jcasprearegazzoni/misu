@@ -316,6 +316,12 @@ function AbandonarClubButton({ clubId, clubNombre }: { clubId: number; clubNombr
 
 function ClubCard({ club }: { club: Club }) {
   const [isEditing, setIsEditing] = useState(false);
+  const pillStyle =
+    club.cp_status === "activo"
+      ? { background: "var(--success-bg)", color: "var(--success)", border: "1px solid var(--success-border)" }
+      : club.cp_status === "pendiente"
+        ? { background: "var(--warning-bg)", color: "var(--warning)" }
+        : { background: "var(--muted-2)", color: "var(--muted)" };
   // Costo local para reflejar cambios sin esperar rerender del server.
   const [localCost, setLocalCost] = useState({
     court_cost_mode: club.court_cost_mode,
@@ -334,11 +340,7 @@ function ClubCard({ club }: { club: Club }) {
             </h3>
             <span
               className="pill"
-              style={{
-                background: "var(--success-bg)",
-                color: "var(--success)",
-                border: "1px solid var(--success-border)",
-              }}
+              style={pillStyle}
             >
               {getStatusLabel(club.cp_status)}
             </span>
@@ -396,28 +398,11 @@ function ClubCard({ club }: { club: Club }) {
 }
 
 export function ClubsManager({ clubs }: ClubsManagerProps) {
+  const [isCreating, setIsCreating] = useState(false);
+
   return (
-    <div className="mt-4 grid gap-6">
-      <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
-        <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-          Nuevo club
-        </h3>
-        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          Registrá los clubes donde das clases. Los costos de cancha se configuran por separado en cada uno.
-        </p>
-        <CreateClubForm />
-      </div>
-
+    <div className="mt-4 grid gap-4">
       <div className="grid gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-            Clubes cargados
-          </h3>
-          <span className="text-xs" style={{ color: "var(--muted-2)" }}>
-            {clubs.length} {clubs.length === 1 ? "club" : "clubes"}
-          </span>
-        </div>
-
         {clubs.length === 0 ? (
           <div className="alert-info">
             Todavía no tenés clubes asociados. Agregá el primero para poder usarlo en disponibilidad.
@@ -426,6 +411,35 @@ export function ClubsManager({ clubs }: ClubsManagerProps) {
           clubs.map((club) => <ClubCard key={club.id} club={club} />)
         )}
       </div>
+
+      {!isCreating ? (
+        <button
+          type="button"
+          onClick={() => setIsCreating(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3 text-sm font-medium transition-colors"
+          style={{ borderColor: "var(--border-hover)", color: "var(--muted)" }}
+        >
+          <span>+</span>
+          <span>Agregar club</span>
+        </button>
+      ) : (
+        <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+              Nuevo club
+            </h3>
+            <button
+              type="button"
+              onClick={() => setIsCreating(false)}
+              className="text-xs"
+              style={{ color: "var(--muted)" }}
+            >
+              Cancelar
+            </button>
+          </div>
+          <CreateClubForm />
+        </div>
+      )}
     </div>
   );
 }

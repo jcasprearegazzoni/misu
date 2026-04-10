@@ -99,12 +99,10 @@ function formatMonthLabel(dateIso: string) {
 function formatDayChip(dateIso: string) {
   const date = new Date(`${dateIso}T00:00:00-03:00`);
   const weekday = new Intl.DateTimeFormat("es-AR", {
-    weekday: "short",
+    weekday: "long",
     timeZone: "America/Argentina/Buenos_Aires",
   })
-    .format(date)
-    .replace(".", "")
-    .slice(0, 2);
+    .format(date);
   const day = new Intl.DateTimeFormat("es-AR", {
     day: "2-digit",
     timeZone: "America/Argentina/Buenos_Aires",
@@ -121,6 +119,10 @@ function getDeporteLabel(value: Deporte) {
 function parseTimeToMinutes(value: string) {
   const [h = "0", m = "0"] = value.slice(0, 5).split(":");
   return Number(h) * 60 + Number(m);
+}
+
+function buildUnitSelectionKey(dayIso: string, unitKey: string) {
+  return `${dayIso}__${unitKey}`;
 }
 
 // Agrupa eventos con el mismo slot exacto (inicio + fin) en unidades,
@@ -178,6 +180,8 @@ function computeSlotUnits(events: CalendarEvent[]): SlotUnit[] {
 
 // Color según el mix de tipos de la unidad
 function getUnitAccent(events: CalendarEvent[]) {
+  const isAllCanceled = events.every((e) => e.estado === "cancelada");
+  if (isAllCanceled) return "var(--error)";
   const hasAlquiler = events.some((e) => e.tipo === "alquiler");
   const hasClase = events.some((e) => e.tipo === "clase");
   if (hasAlquiler && hasClase) return "#a78bfa";
@@ -193,9 +197,9 @@ function EstadoBadge({ estado }: { estado: CalendarEvent["estado"] }) {
       ? { background: "var(--success-bg)", color: "var(--success)" }
       : estado === "pendiente"
         ? { background: "var(--warning-bg)", color: "var(--warning)" }
-        : { background: "var(--surface-1)", color: "var(--muted)" };
+        : { background: "var(--error-bg)", color: "var(--error)" };
   return (
-    <span className="rounded-full px-2 py-0.5 text-xs font-semibold capitalize" style={style}>
+    <span className="rounded-full px-2 py-0.5 text-[15px] font-semibold capitalize leading-tight" style={style}>
       {estado}
     </span>
   );
@@ -207,7 +211,7 @@ function TipoBadge({ tipo }: { tipo: CalendarEvent["tipo"] }) {
       ? { background: "rgba(59,130,246,.16)", color: "#93c5fd" }
       : { background: "rgba(249,115,22,.16)", color: "#fdba74" };
   return (
-    <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={style}>
+    <span className="rounded-full px-2 py-0.5 text-[15px] font-semibold leading-tight" style={style}>
       {tipo === "alquiler" ? "Alquiler" : "Clase"}
     </span>
   );
@@ -253,7 +257,7 @@ function SlotUnitCard({
         boxShadow: isSelected ? `0 0 0 1.5px ${accent}` : undefined,
       }}
     >
-      <p className="truncate font-bold leading-tight" style={{ fontSize: "10px", color: accent }}>
+      <p className="truncate font-bold leading-tight" style={{ fontSize: "11px", color: accent }}>
         {startLabel}
         {height >= 30 && ` – ${endLabel}`}
       </p>
@@ -262,8 +266,8 @@ function SlotUnitCard({
         <>
           {height >= 44 && (singleEvent.profesorNombre ?? singleEvent.organizadorNombre) && (
             <p
-              className="truncate leading-tight"
-              style={{ fontSize: "10px", color: "var(--foreground)", marginTop: "1px" }}
+              className="truncate font-semibold leading-tight"
+              style={{ fontSize: "14px", color: "var(--foreground)", marginTop: "1px" }}
             >
               {singleEvent.tipo === "clase"
                 ? singleEvent.profesorNombre
@@ -272,8 +276,8 @@ function SlotUnitCard({
           )}
           {height >= 62 && (
             <p
-              className="truncate leading-tight"
-              style={{ fontSize: "9px", color: "var(--muted)", marginTop: "1px" }}
+              className="truncate text-[11px] leading-tight sm:text-[10px]"
+              style={{ color: "var(--muted)", marginTop: "1px" }}
             >
               {singleEvent.canchaNombre}
             </p>
@@ -283,18 +287,10 @@ function SlotUnitCard({
         <>
           {height >= 38 && (
             <p
-              className="truncate leading-tight"
-              style={{ fontSize: "10px", color: "var(--foreground)", marginTop: "1px" }}
+              className="truncate font-semibold leading-tight"
+              style={{ fontSize: "14px", color: "var(--foreground)", marginTop: "1px" }}
             >
-              {activeCount} reservas activas
-            </p>
-          )}
-          {height >= 54 && (
-            <p
-              className="truncate leading-tight"
-              style={{ fontSize: "9px", color: "var(--muted)", marginTop: "1px" }}
-            >
-              {[...new Set(events.map((e) => e.canchaNombre))].join(", ")}
+              {activeCount} activas
             </p>
           )}
         </>
@@ -335,7 +331,7 @@ function SlotUnitDetailContent({
         <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
           {startLabel} – {endLabel}
         </p>
-        <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
+        <p className="mt-0.5 text-[15px]" style={{ color: "var(--muted)" }}>
           {events.length === 1
             ? "1 reserva en este horario"
             : `${events.length} reservas en este horario`}
@@ -344,7 +340,7 @@ function SlotUnitDetailContent({
 
       {actionError ? (
         <div
-          className="rounded-lg border px-3 py-2 text-xs"
+          className="rounded-lg border px-3 py-2 text-[15px]"
           style={{
             borderColor: "var(--error-border)",
             background: "var(--error-bg)",
@@ -363,11 +359,11 @@ function SlotUnitDetailContent({
             className="rounded-lg border p-3"
             style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
           >
-            <p className="mb-2 text-xs font-semibold" style={{ color: "var(--foreground)" }}>
+            <p className="mb-2 text-[15px] font-semibold" style={{ color: "var(--foreground)" }}>
               {canchaNombre}
             </p>
 
-            <div className="grid gap-2">
+            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
               {courtEvents.map((event) => {
                 const isClase = event.tipo === "clase";
                 const displayName = isClase ? event.profesorNombre : event.organizadorNombre;
@@ -375,20 +371,19 @@ function SlotUnitDetailContent({
                 return (
                   <div
                     key={event.id}
-                    className="rounded-md border p-2"
-                    style={{ borderColor: "var(--border)" }}
+                    className="py-2 first:pt-0 last:pb-0"
                   >
                     {/* Badges + horario */}
                     <div className="flex flex-wrap items-center gap-1.5">
                       <EstadoBadge estado={event.estado} />
                       <TipoBadge tipo={event.tipo} />
-                      <span className="text-xs" style={{ color: "var(--muted)" }}>
+                      <span className="text-[15px]" style={{ color: "var(--muted)" }}>
                         {event.horaInicio.slice(0, 5)} – {event.horaFin.slice(0, 5)}
                       </span>
                     </div>
 
                     {/* Nombre */}
-                    <div className="mt-1.5 grid gap-0.5 text-xs" style={{ color: "var(--muted)" }}>
+                    <div className="mt-1.5 grid gap-0.5 text-[15px]" style={{ color: "var(--muted)" }}>
                       <p>
                         {isClase ? "Profesor" : "Organizador"}:{" "}
                         <span style={{ color: "var(--foreground)" }}>
@@ -425,7 +420,7 @@ function SlotUnitDetailContent({
                         {event.estado === "pendiente" ? (
                           <button
                             type="button"
-                            className="btn-primary text-xs"
+                            className="btn-primary text-[15px]"
                             onClick={() => onChangeEstado(event.id, "confirmada")}
                             disabled={
                               pendingAction?.reservaId === event.id &&
@@ -440,9 +435,15 @@ function SlotUnitDetailContent({
                         ) : null}
                         <button
                           type="button"
-                          className="btn-ghost text-xs"
+                          className="btn-ghost text-[15px]"
                           style={{ color: "var(--error)" }}
-                          onClick={() => onChangeEstado(event.id, "cancelada")}
+                          onClick={() => {
+                            // Confirmación explícita para evitar cancelaciones accidentales.
+                            if (!window.confirm("¿Seguro que querés cancelar esta reserva?")) {
+                              return;
+                            }
+                            onChangeEstado(event.id, "cancelada");
+                          }}
                           disabled={
                             pendingAction?.reservaId === event.id &&
                             pendingAction?.estado === "cancelada"
@@ -481,6 +482,10 @@ export function ClubWeekTimeline({
   const router = useRouter();
   const hourTicks = getClubHourTicks();
   const timelineHeight = getClubTimelineHeight();
+  const navControlClass =
+    "btn-ghost text-sm transition-all duration-150 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--misu)]";
+  const viewControlClass =
+    "rounded-md px-2 py-1 text-xs font-medium transition-all duration-150 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--misu)]";
 
   const [selectedClusterKey, setSelectedClusterKey] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{
@@ -529,14 +534,6 @@ export function ClubWeekTimeline({
     return map;
   }, [days, eventsByDay]);
 
-  const selectedUnit = useMemo(() => {
-    for (const day of days) {
-      const match = (unitsByDay.get(day) ?? []).find((u) => u.key === selectedClusterKey);
-      if (match) return match;
-    }
-    return null;
-  }, [selectedClusterKey, unitsByDay, days]);
-
   const visibleDays = view === "day" ? [fecha] : days;
   const fechaBase = view === "week" ? startOfWeekIso(fecha) : fecha;
   const prevFecha = addDaysIso(fechaBase, view === "week" ? -7 : -1);
@@ -547,96 +544,112 @@ export function ClubWeekTimeline({
       ? "grid-cols-[58px_minmax(0,1fr)]"
       : "grid-cols-[58px_repeat(7,minmax(0,1fr))]";
 
+  const selectedUnit = useMemo(() => {
+    for (const day of visibleDays) {
+      const match = (unitsByDay.get(day) ?? []).find(
+        (u) => buildUnitSelectionKey(day, u.key) === selectedClusterKey,
+      );
+      if (match) return match;
+    }
+    return null;
+  }, [selectedClusterKey, unitsByDay, visibleDays]);
+
   return (
-    <section className="card p-3 sm:p-4">
-      {/* Controles */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          {deportesVisibles.map((deporteItem) => {
-            const active = deporteItem === deporte;
-            return (
-              <button
-                key={deporteItem}
-                type="button"
-                className="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
-                style={
-                  active
-                    ? { background: "var(--misu)", color: "#fff", borderColor: "var(--misu)" }
-                    : {
-                        background: "var(--surface-2)",
-                        color: "var(--muted)",
-                        borderColor: "var(--border)",
-                      }
-                }
-                onClick={() => onGoTo({ deporte: deporteItem })}
-              >
-                {getDeporteLabel(deporteItem)}
-              </button>
-            );
-          })}
+    <>
+      <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {deportesVisibles.map((deporteItem) => {
+          const active = deporteItem === deporte;
+          return (
+            <button
+              key={deporteItem}
+              type="button"
+              className="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+              style={
+                active
+                  ? { background: "var(--misu)", color: "#fff", borderColor: "var(--misu)" }
+                  : {
+                      background: "var(--surface-2)",
+                      color: "var(--muted)",
+                      borderColor: "var(--border)",
+                    }
+              }
+              onClick={() => onGoTo({ deporte: deporteItem })}
+            >
+              {getDeporteLabel(deporteItem)}
+            </button>
+          );
+        })}
+        {(
+          [
+            { label: "Alquiler", color: "#93c5fd" },
+            { label: "Clase", color: "#fdba74" },
+            { label: "Mixto", color: "#a78bfa" },
+            { label: "Cancelada", color: "var(--error)" },
+          ] as const
+        ).map(({ label, color }) => (
+          <span key={label} className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
+            {label}:
+            <span
+              className="inline-flex h-4 w-8 rounded-sm border border-l-[3px]"
+              style={{
+                borderColor: "var(--border)",
+                borderLeftColor: color,
+                background: `color-mix(in srgb, ${color} 14%, var(--surface-1))`,
+              }}
+            />
+          </span>
+        ))}
+      </div>
 
-          {/* Leyenda */}
-          <div
-            className="ml-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"
-            style={{ color: "var(--muted)" }}
-          >
-            {(
-              [
-                { label: "Alquiler", color: "#93c5fd" },
-                { label: "Clase", color: "#fdba74" },
-                { label: "Mixto", color: "#a78bfa" },
-              ] as const
-            ).map(({ label, color }) => (
-              <span key={label} className="inline-flex items-center gap-1.5">
-                {label}:
-                <span
-                  className="inline-flex h-4 w-8 rounded-sm border border-l-[3px]"
-                  style={{
-                    borderColor: "var(--border)",
-                    borderLeftColor: color,
-                    background: `color-mix(in srgb, ${color} 14%, var(--surface-1))`,
-                  }}
-                />
-              </span>
-            ))}
-          </div>
-        </div>
+      <section className="card p-2.5 sm:p-3">
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="text-3xl font-bold leading-none" style={{ color: "var(--foreground)" }}>
+            {monthLabel}
+          </p>
 
-        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="btn-ghost text-sm"
+            className={navControlClass}
             onClick={() => onGoTo({ fecha: prevFecha })}
+            onMouseUp={(event) => event.currentTarget.blur()}
+            onTouchEnd={(event) => event.currentTarget.blur()}
           >
             {"<"}
           </button>
           <button
             type="button"
-            className="btn-ghost text-sm"
+            className={navControlClass}
             onClick={() => onGoTo({ fecha: getTodayIsoArg() })}
+            onMouseUp={(event) => event.currentTarget.blur()}
+            onTouchEnd={(event) => event.currentTarget.blur()}
           >
             Hoy
           </button>
           <button
             type="button"
-            className="btn-ghost text-sm"
+            className={navControlClass}
             onClick={() => onGoTo({ fecha: nextFecha })}
+            onMouseUp={(event) => event.currentTarget.blur()}
+            onTouchEnd={(event) => event.currentTarget.blur()}
           >
             {">"}
           </button>
           <div
-            className="ml-2 flex items-center rounded-lg border p-1"
+            className="ml-2 hidden items-center rounded-lg border p-1 lg:flex"
             style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           >
             {(["week", "day"] as const).map((v) => (
               <button
                 key={v}
                 type="button"
-                className="rounded-md px-2 py-1 text-xs font-medium transition"
+                className={viewControlClass}
                 style={
                   view === v ? { background: "var(--misu)", color: "#fff" } : { color: "var(--muted)" }
                 }
                 onClick={() => onGoTo({ view: v })}
+                onMouseUp={(event) => event.currentTarget.blur()}
+                onTouchEnd={(event) => event.currentTarget.blur()}
               >
                 {v === "week" ? "Semana" : "Dia"}
               </button>
@@ -645,13 +658,9 @@ export function ClubWeekTimeline({
         </div>
       </div>
 
-      <p className="mt-3 text-3xl font-bold leading-none" style={{ color: "var(--foreground)" }}>
-        {monthLabel}
-      </p>
-
-      <div
-      className={`mt-3 ${selectedUnit ? "grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}
-      >
+        <div
+        className={`mt-2 ${selectedUnit ? "grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}
+        >
         <div className="overflow-x-auto lg:overflow-visible">
           {/* Cabecera días */}
           <div className={`grid ${gridCols} gap-2`}>
@@ -659,25 +668,31 @@ export function ClubWeekTimeline({
             {visibleDays.map((day) => {
               const chip = formatDayChip(day);
               const isToday = day === getTodayIsoArg();
+              const shouldHighlightToday = view === "week" && isToday;
               return (
                 <div
                   key={`header-${day}`}
-                  className="rounded-lg border px-1 py-0.5 text-center"
+                  className="rounded-lg border px-2 py-0.5 text-center"
                   style={{
-                    borderColor: isToday ? "var(--misu)" : "var(--border)",
-                    background: isToday
+                    borderColor: shouldHighlightToday ? "var(--misu)" : "var(--border)",
+                    background: shouldHighlightToday
                       ? "color-mix(in srgb, var(--misu) 12%, var(--surface-2))"
                       : "var(--surface-2)",
                     color: "var(--foreground)",
                   }}
                 >
-                  <p
-                    className="text-[10px] font-medium leading-3"
-                    style={{ color: "var(--muted)" }}
-                  >
-                    {chip.weekday}
-                  </p>
-                  <p className="mt-0.5 text-[19px] font-semibold leading-4">{chip.day}</p>
+                  {view === "day" ? (
+                    <p className="text-[16px] font-semibold leading-5" style={{ color: "var(--foreground)" }}>
+                      {chip.weekday} {chip.day}
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-[11px] font-medium leading-3" style={{ color: "var(--muted)" }}>
+                        {chip.weekday}
+                      </p>
+                      <p className="mt-0.5 text-[19px] font-semibold leading-4">{chip.day}</p>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -730,11 +745,12 @@ export function ClubWeekTimeline({
                     <SlotUnitCard
                       key={unit.key}
                       unit={unit}
-                      isSelected={selectedClusterKey === unit.key}
+                      isSelected={selectedClusterKey === buildUnitSelectionKey(day, unit.key)}
                       onClick={() => {
+                        const currentSelection = buildUnitSelectionKey(day, unit.key);
                         setActionError(null);
                         setSelectedClusterKey((prev) =>
-                          prev === unit.key ? null : unit.key,
+                          prev === currentSelection ? null : currentSelection,
                         );
                       }}
                     />
@@ -810,5 +826,6 @@ export function ClubWeekTimeline({
         </div>
       ) : null}
     </section>
+    </>
   );
 }

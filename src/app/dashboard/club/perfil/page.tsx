@@ -11,14 +11,25 @@ type ChecklistItem = {
   cta: string;
 };
 
-export default async function ClubPerfilPage() {
+type PageProps = {
+  searchParams?: Promise<{ updated?: string }>;
+};
+
+export default async function ClubPerfilPage({ searchParams }: PageProps) {
+  const resolved = searchParams ? await searchParams : {};
+  const profileUpdated = resolved.updated === "1";
   const club = await requireClub();
   const supabase = await createSupabaseServerClient();
 
-  const [canchasCountResult, disponibilidadCountResult, preciosCountResult] = await Promise.all([
+  const [canchasCountResult, disponibilidadCountResult, preciosCountResult, configuracionResult] = await Promise.all([
     supabase.from("canchas").select("id", { count: "exact", head: true }).eq("club_id", club.id).eq("activa", true),
     supabase.from("club_disponibilidad").select("id", { count: "exact", head: true }).eq("club_id", club.id),
     supabase.from("club_franjas_precio").select("id", { count: "exact", head: true }).eq("club_id", club.id),
+    supabase
+      .from("club_configuracion")
+      .select("confirmacion_automatica, cancelacion_horas_limite")
+      .eq("club_id", club.id)
+      .maybeSingle(),
   ]);
 
   const canchasCount = canchasCountResult.count ?? 0;
@@ -30,6 +41,10 @@ export default async function ClubPerfilPage() {
   const hasCanchas = canchasCount > 0;
   const hasHorarios = disponibilidadCount > 0;
   const hasPrecios = preciosCount > 0;
+  const configuracion = {
+    confirmacion_automatica: configuracionResult.data?.confirmacion_automatica ?? true,
+    cancelacion_horas_limite: configuracionResult.data?.cancelacion_horas_limite ?? 24,
+  };
 
   const checklist: ChecklistItem[] = [
     {
@@ -65,7 +80,7 @@ export default async function ClubPerfilPage() {
   const doneCount = checklist.filter((item) => item.done).length;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-4 py-6 sm:px-6 sm:py-8">
       <header>
         <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
           Perfil del club
@@ -120,7 +135,12 @@ export default async function ClubPerfilPage() {
       ) : null}
 
       <section id="datos" className="mt-6">
-        <ClubPerfilForm club={club} />
+        <ClubPerfilForm
+          club={club}
+          configuracion={configuracion}
+          successMessage={profileUpdated ? "Perfil actualizado correctamente." : null}
+          returnTo="/dashboard/club/perfil"
+        />
       </section>
     </main>
   );

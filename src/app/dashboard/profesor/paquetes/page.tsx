@@ -124,7 +124,7 @@ export default async function ProfesorPaquetesPage() {
   const activePackages = packages.filter((pack) => pack.active);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-3 py-6 sm:px-4 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>

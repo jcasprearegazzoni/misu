@@ -207,9 +207,11 @@ body {
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
-.btn-ghost:hover {
-  background: var(--surface-2);
-  color: var(--foreground);
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:hover {
+    background: var(--surface-2);
+    color: var(--foreground);
+  }
 }
 
 /* Input mejorado */
@@ -234,6 +236,21 @@ body {
 .input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Oculta flechas (spin buttons) en inputs numéricos en todos los navegadores principales */
+input[type="number"],
+.input[type="number"] {
+  appearance: textfield !important;
+  -moz-appearance: textfield !important;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button,
+.input[type="number"]::-webkit-outer-spin-button,
+.input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
 }
 
 /* Select */

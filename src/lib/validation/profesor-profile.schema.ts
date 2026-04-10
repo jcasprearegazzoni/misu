@@ -24,6 +24,7 @@ export const profesorProfileSchema = z.object({
   sport: z.enum(["tenis", "padel", "ambos"], "Seleccioná un deporte válido."),
   provincia: z.string().trim().min(1, "Seleccioná una provincia."),
   municipio: z.string().trim().min(1, "Seleccioná un municipio."),
+  localidad: z.preprocess(emptyToUndefined, z.string().trim().max(100).optional()),
 });
 
 export type ProfesorProfileInput = z.infer<typeof profesorProfileSchema>;

@@ -21,6 +21,8 @@ export const clubPerfilSchema = z.object({
       .optional(),
   ),
   direccion: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
+  provincia: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  municipio: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   telefono: z.preprocess(emptyToUndefined, z.string().trim().max(30).optional()),
   email_contacto: z.preprocess(
     emptyToUndefined,
@@ -33,6 +35,11 @@ export const clubPerfilSchema = z.object({
   alquila_raquetas: z.boolean().default(false),
   tiene_vestuario: z.boolean().default(false),
   tiene_parrilla: z.boolean().default(false),
+  tiene_tenis: z.boolean().default(true),
+  tiene_padel: z.boolean().default(false),
+  tiene_futbol: z.boolean().default(false),
+  confirmacion_automatica: z.boolean().default(true),
+  cancelacion_horas_limite: z.coerce.number().int().min(0).max(168).default(24),
 });
 
 export type ClubPerfilInput = z.infer<typeof clubPerfilSchema>;

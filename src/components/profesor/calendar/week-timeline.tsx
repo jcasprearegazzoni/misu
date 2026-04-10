@@ -36,6 +36,7 @@ type WeekTimelineProps = {
   selectedDay: string;
   dayLinks: Array<{ date: string; href: string }>;
   prevHref: string;
+  todayHref: string;
   nextHref: string;
   onCreateSlot?: (slot: { date: string; startTime: string; endTime: string }) => void;
 };
@@ -148,6 +149,7 @@ export function WeekTimeline({
   selectedDay,
   dayLinks,
   prevHref,
+  todayHref,
   nextHref,
   onCreateSlot,
 }: WeekTimelineProps) {
@@ -163,10 +165,9 @@ export function WeekTimeline({
     [days],
   );
   const flatSlots = useMemo(() => daySlots.flatMap((day) => day.slots), [daySlots]);
-  const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(flatSlots[0]?.slot_key ?? null);
-  const selectedSlot = flatSlots.find((slot) => slot.slot_key === selectedSlotKey) ?? flatSlots[0] ?? null;
-  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(selectedSlot?.bookings[0]?.id ?? null);
-  const [isDetailOpen, setIsDetailOpen] = useState(true);
+  const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(null);
+  const selectedSlot = flatSlots.find((slot) => slot.slot_key === selectedSlotKey) ?? null;
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
 
   const selectedItem =
     selectedSlot?.bookings.find((booking) => booking.id === selectedBookingId) ??
@@ -231,7 +232,7 @@ export function WeekTimeline({
   return (
     <section className="mt-6 hidden md:block">
       <div className="card relative p-3">
-        <div className={selectedItem && isDetailOpen ? "pr-[298px]" : ""}>
+        <div className={selectedItem ? "pr-[298px]" : ""}>
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-3xl font-bold leading-none" style={{ color: "var(--foreground)" }}>
               {monthLabel}
@@ -246,6 +247,13 @@ export function WeekTimeline({
                 {"<"}
               </Link>
               <Link
+                href={todayHref}
+                className="btn-ghost text-sm"
+                aria-label="Ir al día actual"
+              >
+                Hoy
+              </Link>
+              <Link
                 href={nextHref}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-base font-semibold transition"
                 style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
@@ -253,16 +261,6 @@ export function WeekTimeline({
               >
                 {">"}
               </Link>
-              {selectedItem ? (
-                <button
-                  type="button"
-                  onClick={() => setIsDetailOpen((prev) => !prev)}
-                  className="inline-flex h-8 items-center rounded-full border px-2.5 text-xs font-semibold transition"
-                  style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}
-                >
-                  {isDetailOpen ? "Ocultar detalle" : "Ver detalle"}
-                </button>
-              ) : null}
             </div>
           </div>
 
@@ -341,9 +339,13 @@ export function WeekTimeline({
                       }}
                       onClick={() => {
                         if (occupiedSlot) {
+                          if (selectedSlot?.slot_key === occupiedSlot.slot_key) {
+                            setSelectedSlotKey(null);
+                            setSelectedBookingId(null);
+                            return;
+                          }
                           setSelectedSlotKey(occupiedSlot.slot_key);
                           setSelectedBookingId(occupiedSlot.bookings[0]?.id ?? null);
-                          setIsDetailOpen(true);
                           return;
                         }
 
@@ -420,7 +422,7 @@ export function WeekTimeline({
             ))}
           </div>
         </div>
-        {selectedItem && isDetailOpen ? (
+        {selectedItem ? (
           <aside className="absolute bottom-3 right-3 top-3 w-[280px] overflow-y-auto pl-3">
             <BookingDetailContent
               item={selectedItem}

@@ -32,6 +32,8 @@ type Cancha = {
 type CanchasManagerProps = {
   canchas: Cancha[];
   clubId: number;
+  compact?: boolean;
+  filterDeporte?: "tenis" | "padel" | "futbol";
 };
 
 type CaracteristicaOption = {
@@ -163,7 +165,13 @@ function getNextAutoCourtName(
   return `Cancha ${max + 1}`;
 }
 
-function CreateCanchaForm({ existingCanchas }: { existingCanchas: Cancha[] }) {
+function CreateCanchaForm({
+  existingCanchas,
+  onSuccess,
+}: {
+  existingCanchas: Cancha[];
+  onSuccess?: () => void;
+}) {
   const [state, formAction, isPending] = useActionState(createCanchaAction, initialState);
   const [nombre, setNombre] = useState("");
   const [deporte, setDeporte] = useState<Cancha["deporte"] | "">("");
@@ -199,8 +207,9 @@ function CreateCanchaForm({ existingCanchas }: { existingCanchas: Cancha[] }) {
       setTechada(false);
       setIluminacion(false);
       setSubmitted(false);
+      onSuccess?.();
     }
-  }, [submitted, isPending, state.error]);
+  }, [submitted, isPending, state.error, onSuccess]);
 
   return (
     <form action={formAction} className="mt-4 grid gap-4" onSubmit={() => setSubmitted(true)}>
@@ -430,9 +439,13 @@ function EditCanchaForm({ cancha }: { cancha: Cancha }) {
 function CanchaCard({
   cancha,
   showSport,
+  compact = false,
+  sportBorderColor,
 }: {
   cancha: Cancha;
   showSport: boolean;
+  compact?: boolean;
+  sportBorderColor?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const actionTone = cancha.activa ? "text-[var(--foreground)]" : "text-[var(--muted)]";
@@ -446,10 +459,168 @@ function CanchaCard({
     ? { opacity: 0.8, filter: "saturate(0.85)" }
     : undefined;
 
+  if (compact) {
+    return (
+      <>
+        <article
+          className="min-w-0 h-[168px] rounded-xl border p-2.5"
+          style={{ borderColor: "var(--border)", background: "var(--surface-2)", ...inactiveStyles }}
+        >
+          <div className="flex h-full flex-col">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="line-clamp-2 text-base font-semibold leading-tight" style={{ color: "var(--foreground)" }}>
+                {cancha.nombre}
+              </h3>
+              <span className="text-sm font-medium" style={{ color: cancha.activa ? "var(--success)" : "var(--muted)" }}>
+                {cancha.activa ? "Activa" : "Inactiva"}
+              </span>
+            </div>
+
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {showSport ? (
+                <span className="rounded-full border px-2 py-0.5 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+                  {formatDeporte(cancha.deporte)}
+                </span>
+              ) : null}
+              {cancha.deporte === "padel" ? (
+                <span className="rounded-full border px-2 py-0.5 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+                  {formatPared(cancha.pared)}
+                </span>
+              ) : null}
+              <span className="rounded-full border px-2 py-0.5 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+                {formatCaracteristica(cancha.superficie)}
+              </span>
+            </div>
+
+            <div className="mt-1 flex flex-wrap gap-1 text-sm" style={{ color: "var(--muted)" }}>
+              <span>{cancha.techada ? "Techada" : "Sin techo"}</span>
+              <span>·</span>
+              <span>{cancha.iluminacion ? "Iluminación" : "Sin luz"}</span>
+            </div>
+
+            <div className="mt-auto flex items-center justify-end gap-2 pt-1.5">
+              <button
+                type="button"
+                aria-label={isEditing ? "Cerrar edición" : "Editar cancha"}
+                title={isEditing ? "Cerrar edición" : "Editar cancha"}
+                className={`flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95 ${actionTone}`}
+                style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+                onClick={() => setIsEditing((prev) => !prev)}
+              >
+                <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  {isEditing ? (
+                    <path
+                      fillRule="evenodd"
+                      d="M4.22 4.22a.75.75 0 0 1 1.06 0L10 8.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L11.06 10l4.72 4.72a.75.75 0 1 1-1.06 1.06L10 11.06l-4.72 4.72a.75.75 0 1 1-1.06-1.06L8.94 10 4.22 5.28a.75.75 0 0 1 0-1.06Z"
+                      clipRule="evenodd"
+                    />
+                  ) : (
+                    <path d="M13.586 3.586a2 2 0 0 1 2.828 2.828l-8.5 8.5a1 1 0 0 1-.44.26l-3 1a.75.75 0 0 1-.95-.95l1-3a1 1 0 0 1 .26-.44l8.5-8.5Z" />
+                  )}
+                </svg>
+              </button>
+
+              <form
+                action={toggleCanchaActivaAction}
+                onSubmit={(event) => (!confirmToggle() ? event.preventDefault() : undefined)}
+              >
+                <input type="hidden" name="cancha_id" value={cancha.id} />
+                <input type="hidden" name="activa" value={String(cancha.activa)} />
+                <button
+                  type="submit"
+                  aria-label={cancha.activa ? "Desactivar cancha" : "Activar cancha"}
+                  title={cancha.activa ? "Desactivar cancha" : "Activar cancha"}
+                  className="flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95"
+                  style={{ borderColor: "var(--border)", color: "var(--muted)", background: "var(--surface-1)" }}
+                >
+                  <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    {cancha.activa ? (
+                      <path
+                        fillRule="evenodd"
+                        d="M4.5 10a.75.75 0 0 1 .75-.75h9.5a.75.75 0 0 1 0 1.5h-9.5A.75.75 0 0 1 4.5 10Z"
+                        clipRule="evenodd"
+                      />
+                    ) : (
+                      <path
+                        fillRule="evenodd"
+                        d="M10 4.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 10 4.5Z"
+                        clipRule="evenodd"
+                      />
+                    )}
+                  </svg>
+                </button>
+              </form>
+
+              <form action={deleteCanchaAction} onSubmit={(event) => (!confirmDelete() ? event.preventDefault() : undefined)}>
+                <input type="hidden" name="cancha_id" value={cancha.id} />
+                <button
+                  type="submit"
+                  aria-label="Eliminar cancha"
+                  title="Eliminar cancha"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95"
+                  style={{ borderColor: "var(--border)", color: "var(--error)", background: "var(--surface-1)" }}
+                >
+                  <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M7.5 2.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75V4h4a.75.75 0 0 1 0 1.5h-.764l-.7 9.1A2 2 0 0 1 13.04 16.5H6.96a2 2 0 0 1-1.996-1.9l-.7-9.1H3.5a.75.75 0 0 1 0-1.5h4V2.75Zm1.5 1.25h2V3.5H9V4Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </article>
+
+        {isEditing ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3"
+            onClick={() => setIsEditing(false)}
+          >
+            <div
+              className="w-full max-w-2xl rounded-xl border p-4 sm:p-5"
+              style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                  Editar {cancha.nombre}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border"
+                  style={{ borderColor: "var(--border)", color: "var(--muted)", background: "var(--surface-2)" }}
+                  aria-label="Cerrar edición"
+                  title="Cerrar edición"
+                >
+                  <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M4.22 4.22a.75.75 0 0 1 1.06 0L10 8.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L11.06 10l4.72 4.72a.75.75 0 1 1-1.06 1.06L10 11.06l-4.72 4.72a.75.75 0 1 1-1.06-1.06L8.94 10 4.22 5.28a.75.75 0 0 1 0-1.06Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <EditCanchaForm cancha={cancha} />
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <article
       className="min-w-0 rounded-xl border p-4"
-      style={{ borderColor: "var(--border)", background: "var(--surface-2)", ...inactiveStyles }}
+      style={{
+        borderColor: "var(--border)",
+        background: "var(--surface-2)",
+        ...(sportBorderColor ? { borderLeft: `3px solid ${sportBorderColor}` } : {}),
+        ...inactiveStyles,
+      }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -559,7 +730,9 @@ function CanchaCard({
   );
 }
 
-export function CanchasManager({ canchas }: CanchasManagerProps) {
+export function CanchasManager({ canchas, compact = false, filterDeporte }: CanchasManagerProps) {
+  const [editingRowId, setEditingRowId] = useState<number | null>(null);
+  const [isAddingCancha, setIsAddingCancha] = useState(false);
   const grouped = useMemo(() => {
     const base = {
       tenis: [] as Cancha[],
@@ -573,81 +746,229 @@ export function CanchasManager({ canchas }: CanchasManagerProps) {
     });
     return base;
   }, [canchas]);
+  const displayList = filterDeporte ? canchas.filter((c) => c.deporte === filterDeporte) : null;
+  const sportBorderColor =
+    filterDeporte === "tenis"
+      ? "rgba(34, 197, 94, 0.6)"
+      : filterDeporte === "padel"
+        ? "rgba(245, 158, 11, 0.6)"
+        : filterDeporte === "futbol"
+          ? "rgba(59, 130, 246, 0.6)"
+          : undefined;
 
   return (
     <div className="grid gap-6">
-      {canchas.length === 0 ? (
+      {filterDeporte ? (
+        displayList!.length === 0 ? (
+          <div className="alert-info">No hay canchas cargadas para este deporte.</div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr style={{ color: "var(--muted)" }}>
+                  <th className="px-3 py-2 text-left font-medium">Cancha</th>
+                  <th className="px-3 py-2 text-left font-medium">Superficie</th>
+                  <th className="px-3 py-2 text-left font-medium">Pared</th>
+                  <th className="px-3 py-2 text-left font-medium">Techo</th>
+                  <th className="px-3 py-2 text-left font-medium">Iluminación</th>
+                  <th className="px-3 py-2 text-left font-medium">Estado</th>
+                  <th className="px-3 py-2 text-right font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayList!.map((cancha) => (
+                  <tr key={cancha.id} className="border-t align-middle" style={{ borderColor: "var(--border)" }}>
+                    <td className="px-3 py-2 font-semibold" style={{ color: "var(--foreground)" }}>
+                      {cancha.nombre}
+                    </td>
+                    <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>
+                      {formatCaracteristica(cancha.superficie)}
+                    </td>
+                    <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>
+                      {cancha.deporte === "padel" ? formatPared(cancha.pared) : "-"}
+                    </td>
+                    <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>
+                      {cancha.techada ? "Techada" : "Sin techo"}
+                    </td>
+                    <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>
+                      {cancha.iluminacion ? "Sí" : "No"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className="pill text-xs"
+                        style={{
+                          background: cancha.activa ? "var(--success-bg)" : "var(--surface-1)",
+                          color: cancha.activa ? "var(--success)" : "var(--muted)",
+                          border: `1px solid ${cancha.activa ? "var(--success-border)" : "var(--border)"}`,
+                        }}
+                      >
+                        {cancha.activa ? "Activa" : "Inactiva"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          aria-label={editingRowId === cancha.id ? "Cerrar edición" : "Editar cancha"}
+                          title={editingRowId === cancha.id ? "Cerrar edición" : "Editar cancha"}
+                          className="flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95"
+                          style={{ borderColor: "var(--border)", color: "var(--foreground)", background: "var(--surface-1)" }}
+                          onClick={() => setEditingRowId((prev) => (prev === cancha.id ? null : cancha.id))}
+                        >
+                          <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 0 1 2.828 2.828l-8.5 8.5a1 1 0 0 1-.44.26l-3 1a.75.75 0 0 1-.95-.95l1-3a1 1 0 0 1 .26-.44l8.5-8.5Z" />
+                          </svg>
+                        </button>
+                        <form
+                          action={toggleCanchaActivaAction}
+                          onSubmit={(event) => {
+                            if (!window.confirm(cancha.activa ? "¿Querés desactivar esta cancha?" : "¿Querés activar esta cancha?")) {
+                              event.preventDefault();
+                            }
+                          }}
+                        >
+                          <input type="hidden" name="cancha_id" value={cancha.id} />
+                          <input type="hidden" name="activa" value={String(cancha.activa)} />
+                          <button
+                            type="submit"
+                            aria-label={cancha.activa ? "Desactivar cancha" : "Activar cancha"}
+                            title={cancha.activa ? "Desactivar cancha" : "Activar cancha"}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95"
+                            style={{ borderColor: "var(--border)", color: "var(--muted)", background: "var(--surface-1)" }}
+                          >
+                            <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                              {cancha.activa ? (
+                                <path
+                                  fillRule="evenodd"
+                                  d="M4.5 10a.75.75 0 0 1 .75-.75h9.5a.75.75 0 0 1 0 1.5h-9.5A.75.75 0 0 1 4.5 10Z"
+                                  clipRule="evenodd"
+                                />
+                              ) : (
+                                <path
+                                  fillRule="evenodd"
+                                  d="M10 4.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 10 4.5Z"
+                                  clipRule="evenodd"
+                                />
+                              )}
+                            </svg>
+                          </button>
+                        </form>
+                        <form
+                          action={deleteCanchaAction}
+                          onSubmit={(event) => {
+                            if (!window.confirm("¿Querés eliminar esta cancha? Esta acción no se puede deshacer.")) {
+                              event.preventDefault();
+                            }
+                          }}
+                        >
+                          <input type="hidden" name="cancha_id" value={cancha.id} />
+                          <button
+                            type="submit"
+                            aria-label="Eliminar cancha"
+                            title="Eliminar cancha"
+                            className="flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 hover:shadow-md active:scale-95"
+                            style={{ borderColor: "var(--border)", color: "var(--error)", background: "var(--surface-1)" }}
+                          >
+                            <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                              <path
+                                fillRule="evenodd"
+                                d="M7.5 2.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75V4h4a.75.75 0 0 1 0 1.5h-.764l-.7 9.1A2 2 0 0 1 13.04 16.5H6.96a2 2 0 0 1-1.996-1.9l-.7-9.1H3.5a.75.75 0 0 1 0-1.5h4V2.75Zm1.5 1.25h2V3.5H9V4Z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {editingRowId ? (
+              (() => {
+                const editingCancha = displayList!.find((item) => item.id === editingRowId);
+                if (!editingCancha) return null;
+                return (
+                  <div className="border-t p-3" style={{ borderColor: "var(--border)" }}>
+                    <EditCanchaForm cancha={editingCancha} />
+                  </div>
+                );
+              })()
+            ) : null}
+          </div>
+        )
+      ) : canchas.length === 0 ? (
         <div className="alert-info">Todavía no cargaste canchas.</div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4"> 
           {(["tenis", "padel", "futbol"] as const).map((sport) => {
             const list = grouped[sport];
             if (list.length === 0) return null;
             return (
-              <details
-                key={sport}
-                className="group rounded-xl border p-3"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <summary className="flex cursor-pointer items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <InfoPill label={formatDeporte(sport)} tone={sport} />
-                    <span className="text-xs" style={{ color: "var(--muted)" }}>
-                      {list.length} {list.length === 1 ? "cancha" : "canchas"}
-                    </span>
-                  </div>
-                  <span
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-200 group-open:rotate-180"
-                    style={{ color: "var(--muted)", borderColor: "var(--border)", background: "var(--surface-1)" }}
-                  >
-                    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path
-                        fillRule="evenodd"
-                        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.7a.75.75 0 1 1 1.06 1.06l-4.24 4.25a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+              <div key={sport}>
+                <div className="mb-3 flex items-center gap-3">
+                  <InfoPill label={formatDeporte(sport)} tone={sport} />
+                  <span className="text-xs" style={{ color: "var(--muted)" }}>
+                    {list.length} {list.length === 1 ? "cancha" : "canchas"}
                   </span>
-                </summary>
-                <div className="mt-3 grid gap-3">
+                  <div className="flex-1 border-t" style={{ borderColor: "var(--border)" }} />
+                </div>
+                <div className={compact ? "grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7" : "grid gap-3"}>
                   {list.map((cancha) => (
-                    <CanchaCard key={cancha.id} cancha={cancha} showSport={false} />
+                    <CanchaCard
+                      key={cancha.id}
+                      cancha={cancha}
+                      showSport={false}
+                      compact={compact}
+                      sportBorderColor={sportBorderColor}
+                    />
                   ))}
                 </div>
-              </details>
+              </div>
             );
           })}
         </div>
       )}
 
-      <details className="card group p-4">
-        <summary className="flex cursor-pointer items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-              Nueva cancha
-            </h2>
-            <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-              Cargá una nueva cancha con sus características.
-            </p>
+      <div>
+        {isAddingCancha ? (
+          <div
+            className="rounded-xl border p-4"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                Nueva cancha
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAddingCancha(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border transition-colors"
+                style={{ borderColor: "var(--border)", color: "var(--muted)", background: "var(--surface-1)" }}
+                aria-label="Cancelar"
+              >
+                <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path
+                    fillRule="evenodd"
+                    d="M4.22 4.22a.75.75 0 0 1 1.06 0L10 8.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L11.06 10l4.72 4.72a.75.75 0 1 1-1.06 1.06L10 11.06l-4.72 4.72a.75.75 0 1 1-1.06-1.06L8.94 10 4.22 5.28a.75.75 0 0 1 0-1.06Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+            <CreateCanchaForm existingCanchas={canchas} onSuccess={() => setIsAddingCancha(false)} />
           </div>
-          <span className="transition-transform group-open:rotate-180" style={{ color: "var(--muted)" }}>
-            <span
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border"
-              style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
-            >
-            <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fillRule="evenodd"
-                d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.7a.75.75 0 1 1 1.06 1.06l-4.24 4.25a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
-                clipRule="evenodd"
-              />
-            </svg>
-            </span>
-          </span>
-        </summary>
-
-        <CreateCanchaForm existingCanchas={canchas} />
-      </details>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsAddingCancha(true)}
+            className="w-full rounded-xl border-2 border-dashed py-3 text-sm font-medium transition-colors hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+            style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+          >
+            + Agregar cancha
+          </button>
+        )}
+      </div>
     </div>
   );
 }

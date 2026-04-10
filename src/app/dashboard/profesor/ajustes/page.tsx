@@ -15,15 +15,6 @@ type ChecklistItem = {
   cta: string;
 };
 
-type DominioResumen = {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  href: string;
-  cta: string;
-};
-
 type Club = {
   id: number;
   nombre: string;
@@ -84,16 +75,64 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
   }
 
   const supabase = await createSupabaseServerClient();
-  const { count: availabilityCount } = await supabase
-    .from("availability")
-    .select("id", { count: "exact", head: true })
-    .eq("profesor_id", profile.user_id);
-
-  const { data: invitacionesData } = await supabase
-    .from("club_profesores")
-    .select("id, invited_at, clubs!club_profesores_club_id_fkey(nombre, direccion)")
-    .eq("profesor_id", profile.user_id)
-    .eq("status", "pendiente");
+  const [
+    { count: availabilityCount },
+    { data: invitacionesData },
+    { data: clubsPropiosData },
+    { data: clubsData, error: clubsError },
+    { data: availabilityData },
+    { data: blockedDatesData },
+    { data: clubProfData },
+  ] = await Promise.all([
+    supabase
+      .from("availability")
+      .select("id", { count: "exact", head: true })
+      .eq("profesor_id", profile.user_id),
+    supabase
+      .from("club_profesores")
+      .select("id, invited_at, clubs!club_profesores_club_id_fkey(nombre, direccion)")
+      .eq("profesor_id", profile.user_id)
+      .eq("status", "pendiente"),
+    supabase
+      .from("clubs")
+      .select("id, nombre")
+      .eq("created_by_profesor_id", profile.user_id)
+      .eq("is_placeholder", true),
+    supabase
+      .from("club_profesores")
+      .select(`
+        club_id,
+        court_cost_mode,
+        court_cost_per_hour,
+        court_percentage_per_student,
+        status,
+        clubs!club_profesores_club_id_fkey (
+          id,
+          nombre,
+          direccion,
+          deporte,
+          is_placeholder
+        )
+      `)
+      .eq("profesor_id", profile.user_id)
+      .eq("status", "activo"),
+    supabase
+      .from("availability")
+      .select("id, day_of_week, start_time, end_time, slot_duration_minutes, club_id")
+      .eq("profesor_id", profile.user_id)
+      .order("day_of_week", { ascending: true })
+      .order("start_time", { ascending: true }),
+    supabase
+      .from("blocked_dates")
+      .select("id, start_at, end_at, reason")
+      .eq("profesor_id", profile.user_id)
+      .order("start_at", { ascending: true }),
+    supabase
+      .from("club_profesores")
+      .select("club_id, clubs(id, nombre)")
+      .eq("profesor_id", profile.user_id)
+      .eq("status", "activo"),
+  ]);
 
   const invitaciones: Invitacion[] = (invitacionesData ?? [])
     .map((row) => {
@@ -110,35 +149,10 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
     })
     .filter((row): row is Invitacion => row !== null);
 
-  const { data: clubsPropiosData } = await supabase
-    .from("clubs")
-    .select("id, nombre")
-    .eq("created_by_profesor_id", profile.user_id)
-    .eq("is_placeholder", true);
-
   const clubsPropios: ClubPropio[] = (clubsPropiosData ?? []).map((row) => ({
     id: row.id as number,
     nombre: row.nombre as string,
   }));
-
-  const { data: clubsData, error: clubsError } = await supabase
-    .from("club_profesores")
-    .select(`
-      club_id,
-      court_cost_mode,
-      court_cost_per_hour,
-      court_percentage_per_student,
-      status,
-      clubs!club_profesores_club_id_fkey (
-        id,
-        nombre,
-        direccion,
-        deporte,
-        is_placeholder
-      )
-    `)
-    .eq("profesor_id", profile.user_id)
-    .eq("status", "activo");
 
   const clubs: Club[] = ((clubsData ?? []) as ClubJoinRow[])
     .map((row) => {
@@ -161,6 +175,17 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
       };
     })
     .filter((row): row is Club => row !== null);
+
+  const clubsForAvailability = ((clubProfData ?? []) as Array<{
+    club_id: number;
+    clubs: { id: number; nombre: string } | null | Array<{ id: number; nombre: string }>;
+  }>)
+    .map((row) => {
+      const clubData = Array.isArray(row.clubs) ? row.clubs[0] ?? null : row.clubs;
+      if (!clubData) return null;
+      return { id: clubData.id, nombre: clubData.nombre };
+    })
+    .filter((row): row is { id: number; nombre: string } => row !== null);
 
   const hasDisponibilidad = (availabilityCount ?? 0) > 0;
   const hasPrecios =
@@ -194,27 +219,8 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
     },
   ];
 
-  const dominiosResumen: DominioResumen[] = [
-    {
-      id: "disponibilidad",
-      title: "Disponibilidad",
-      description: "Gestioná horarios semanales, ausencias y bloqueos.",
-      status: hasDisponibilidad ? "Configurada" : "Pendiente de configurar",
-      href: "/dashboard/profesor/clases/disponibilidad",
-      cta: "Ir a Disponibilidad",
-    },
-    {
-      id: "paquetes",
-      title: "Paquetes",
-      description: "Administrá tu oferta de paquetes y asignaciones.",
-      status: "Se gestiona en su módulo dedicado",
-      href: "/dashboard/profesor/paquetes",
-      cta: "Ir a Paquetes",
-    },
-  ];
-
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-3 py-6 sm:px-4 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
       <header>
         <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
           Ajustes
@@ -227,7 +233,6 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
       <AjustesShell
         successMessage={resolvedSearchParams?.updated === "1" ? "Perfil actualizado correctamente." : null}
         checklist={checklist}
-        dominiosResumen={dominiosResumen}
         perfilInitialValues={{
           name: profile.name,
           username: profile.username ?? "",
@@ -235,6 +240,7 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
           sport: profile.sport ?? "tenis",
           provincia: profile.provincia ?? "",
           municipio: profile.zone ?? "",
+          localidad: profile.localidad ?? "",
         }}
         priceInitialValues={{
           price_individual: profile.price_individual !== null ? String(profile.price_individual) : "",
@@ -256,6 +262,9 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
         invitaciones={invitaciones}
         clubsPropios={clubsPropios}
         clubs={clubs}
+        availability={(availabilityData ?? []).map((row) => ({ ...row, club_nombre: null }))}
+        blockedDates={blockedDatesData ?? []}
+        clubsForAvailability={clubsForAvailability}
         clubsError={Boolean(clubsError)}
       />
     </main>

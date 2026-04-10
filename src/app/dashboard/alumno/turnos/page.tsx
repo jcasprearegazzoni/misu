@@ -204,7 +204,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
   const perfilCompleto = profile.category !== null;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-3 py-6 sm:px-4 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
       <header>
         <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
           Clases

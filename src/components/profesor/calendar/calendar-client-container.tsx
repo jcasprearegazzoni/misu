@@ -36,6 +36,7 @@ type CalendarClientContainerProps = {
   selectedDay: string;
   dayLinks: Array<{ date: string; href: string }>;
   prevHref: string;
+  todayHref: string;
   nextHref: string;
 };
 
@@ -48,6 +49,7 @@ export function CalendarClientContainer({
   selectedDay,
   dayLinks,
   prevHref,
+  todayHref,
   nextHref,
 }: CalendarClientContainerProps) {
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -71,6 +73,7 @@ export function CalendarClientContainer({
         selectedDay={selectedDay}
         dayLinks={dayLinks}
         prevHref={prevHref}
+        todayHref={todayHref}
         nextHref={nextHref}
         onCreateSlot={(slot) => {
           setPrefill(slot);

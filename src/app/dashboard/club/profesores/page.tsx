@@ -36,6 +36,19 @@ function StatusPill({ status }: { status: "pendiente" | "activo" | "inactivo" })
   );
 }
 
+function formatInvitadoHace(invited_at: string | null): string {
+  if (!invited_at) return "";
+  const diffMs = Date.now() - new Date(invited_at).getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Invitado hoy";
+  if (diffDays === 1) return "Invitado ayer";
+  if (diffDays < 7) return `Invitado hace ${diffDays} días`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 5) return `Invitado hace ${diffWeeks} ${diffWeeks === 1 ? "semana" : "semanas"}`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `Invitado hace ${diffMonths} ${diffMonths === 1 ? "mes" : "meses"}`;
+}
+
 export default async function ClubProfesoresPage({
   searchParams,
 }: {
@@ -65,9 +78,7 @@ export default async function ClubProfesoresPage({
           .in("user_id", profesorIds)
       : { data: [] as ProfesorSearchRow[] };
 
-  const perfilesMap = new Map(
-    (perfilesData ?? []).map((perfil) => [perfil.user_id, perfil]),
-  );
+  const perfilesMap = new Map((perfilesData ?? []).map((perfil) => [perfil.user_id, perfil]));
 
   let searchResults: ProfesorSearchRow[] = [];
   if (query.length >= 2) {
@@ -75,16 +86,14 @@ export default async function ClubProfesoresPage({
       .from("profiles")
       .select("user_id, name, username, sport, zone, provincia")
       .eq("role", "profesor")
-      .or(
-        `name.ilike.%${query}%,username.ilike.%${query}%,zone.ilike.%${query}%,provincia.ilike.%${query}%`,
-      )
+      .or(`name.ilike.%${query}%,username.ilike.%${query}%,zone.ilike.%${query}%,provincia.ilike.%${query}%`)
       .limit(20);
 
     searchResults = (searchData ?? []).filter((row) => !existingProfesorIds.has(row.user_id));
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <header>
         <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
           Profesores
@@ -117,12 +126,15 @@ export default async function ClubProfesoresPage({
                   <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
                     {perfilesMap.get(item.profesor_id)?.name ?? "Profesor sin nombre"}
                   </p>
+                  {item.status === "pendiente" && item.invited_at ? (
+                    <p className="text-xs" style={{ color: "var(--warning)" }}>
+                      {formatInvitadoHace(item.invited_at)}
+                    </p>
+                  ) : null}
                   <p className="text-xs" style={{ color: "var(--muted)" }}>
                     @{perfilesMap.get(item.profesor_id)?.username ?? "sin-usuario"} ·{" "}
                     {perfilesMap.get(item.profesor_id)?.sport ?? "Sin deporte"} ·{" "}
-                    {perfilesMap.get(item.profesor_id)?.zone ??
-                      perfilesMap.get(item.profesor_id)?.provincia ??
-                      "Sin zona"}
+                    {perfilesMap.get(item.profesor_id)?.zone ?? perfilesMap.get(item.profesor_id)?.provincia ?? "Sin zona"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -142,7 +154,7 @@ export default async function ClubProfesoresPage({
         )}
       </section>
 
-      <details className="card group p-5" open>
+      <details className="card group p-5" open={clubProfesores.length === 0}>
         <summary className="flex cursor-pointer items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
@@ -167,12 +179,7 @@ export default async function ClubProfesoresPage({
           <form className="flex flex-col gap-3 sm:flex-row sm:items-end" method="get">
             <label className="label flex-1">
               <span>Buscar por nombre, usuario o zona</span>
-              <input
-                name="q"
-                defaultValue={query}
-                className="input"
-                placeholder="Ej: Juan, usuario, Palermo"
-              />
+              <input name="q" defaultValue={query} className="input" placeholder="Ej: Juan, usuario, Palermo" />
             </label>
             <button className="btn-primary h-10" type="submit">
               Buscar

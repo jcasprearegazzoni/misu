@@ -78,7 +78,7 @@ export default async function ClubConfiguracionPage() {
   const canchas = (canchasResult.data ?? []) as CanchaSimpleRow[];
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
       <header>
         <h1 className="text-2xl font-semibold sm:text-3xl" style={{ color: "var(--foreground)" }}>
           Configuracion

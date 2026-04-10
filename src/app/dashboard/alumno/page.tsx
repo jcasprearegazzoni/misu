@@ -130,7 +130,7 @@ export default async function DashboardAlumnoPage() {
     : (reservaCancha?.clubs?.nombre ?? "Club");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-3 py-6 sm:px-4 sm:py-10">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-10">
       <header className="mb-8">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl" style={{ color: "var(--foreground)" }}>
           Hola, <span style={{ color: "var(--misu)" }}>{firstName}</span> 👋

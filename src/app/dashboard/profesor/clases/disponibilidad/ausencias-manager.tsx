@@ -17,6 +17,7 @@ type BlockedDateRow = {
 
 type AusenciasManagerProps = {
   blockedDates: BlockedDateRow[];
+  bare?: boolean;
 };
 
 const initialState: DisponibilidadActionState = {
@@ -74,7 +75,7 @@ function isSameDate(a: Date, b: Date) {
   );
 }
 
-export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
+export function AusenciasManager({ blockedDates, bare = false }: AusenciasManagerProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [state, setState] = useState<DisponibilidadActionState>(initialState);
@@ -138,65 +139,73 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-2xl gap-3">
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-1)] p-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm text-[var(--muted)]">Ausencias activas</p>
-            <p className="text-2xl font-semibold text-[var(--foreground)]">{blockedDates.length}</p>
+    <div className={bare ? "w-full" : "mx-auto w-full max-w-2xl"}>
+      <div
+        className={bare ? "" : "rounded-lg border p-3"}
+        style={bare ? undefined : { borderColor: "var(--border)", background: "var(--surface-1)" }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+              Ausencias
+            </h2>
+            {blockedDates.length > 0 && (
+              <span className="pill text-xs" style={{ background: "var(--surface-3)", color: "var(--muted)" }}>
+                {blockedDates.length}
+              </span>
+            )}
           </div>
           <button
             type="button"
-            onClick={() => {
-              resetModalState();
-              setIsModalOpen(true);
-            }}
-            className="rounded-full border border-emerald-500/50 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10"
+            onClick={() => { resetModalState(); setIsModalOpen(true); }}
+            className="btn-primary h-9 px-3 text-sm leading-none"
           >
-            Añadir ausencia
+            Añadir
           </button>
+        </div>
+
+        <div className="mt-3">
+          {blockedDates.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--muted)" }}>No hay ausencias registradas.</p>
+          ) : (
+            <ul className="grid gap-2">
+              {blockedDates.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex flex-col gap-3 rounded-md border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                  style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+                >
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                      {item.reason?.trim() || "Ausencia"}
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      {formatUserDateTime(item.start_at)} a {formatUserDateTime(item.end_at)}
+                    </p>
+                  </div>
+                  <form action={deleteBlockedDateAction}>
+                    <input type="hidden" name="id" value={item.id} />
+                    <button
+                      type="submit"
+                      className="btn-ghost h-9 w-9 self-end leading-none sm:self-auto"
+                      style={{ color: "var(--error)" }}
+                      title="Eliminar ausencia"
+                    >
+                      ×
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-1)] p-3">
-        <h2 className="text-base font-semibold text-[var(--foreground)]">Ausencias activas</h2>
-        {blockedDates.length === 0 ? (
-          <p className="mt-2 text-sm text-[var(--muted)]">No hay ausencias registradas.</p>
-        ) : (
-          <ul className="mt-3 grid gap-2">
-            {blockedDates.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2"
-              >
-                <div>
-                  <p className="font-medium text-[var(--foreground)]">{item.reason?.trim() || "Ausencia"}</p>
-                  <p className="text-sm text-[var(--muted)]">
-                    {formatUserDateTime(item.start_at)} a {formatUserDateTime(item.end_at)}
-                  </p>
-                </div>
-                <form action={deleteBlockedDateAction}>
-                  <input type="hidden" name="id" value={item.id} />
-                  <button
-                    className="h-9 w-9 rounded-md border text-sm font-semibold transition"
-                    style={{
-                      borderColor: "var(--border-misu)",
-                      color: "var(--misu-light)",
-                      background: "transparent",
-                    }}
-                    title="Eliminar ausencia"
-                  >
-                    ×
-                  </button>
-                </form>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-zinc-900/35 p-0 sm:items-center sm:justify-center sm:p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-end p-0 sm:items-center sm:justify-center sm:p-4"
+          style={{ background: "rgba(0,0,0,0.4)" }}
+        >
           <div className="w-full rounded-t-2xl border border-[var(--border)] bg-[var(--surface-1)] p-4 sm:max-w-2xl sm:rounded-2xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-[var(--foreground)]">Añadir nueva ausencia</h3>
@@ -206,9 +215,9 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
                   setIsModalOpen(false);
                   resetModalState();
                 }}
-                className="h-8 w-8 rounded-md border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface-3)]"
+                className="btn-ghost h-8 w-8"
               >
-                X
+                ×
               </button>
             </div>
 
@@ -237,7 +246,7 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
               }}
               className="grid gap-3 md:grid-cols-[1.2fr_1fr]"
             >
-              <div className="rounded-md border border-[var(--border)] bg-[var(--surface-2)] p-3">
+              <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
                 <p className="text-sm text-[var(--muted)]">
                   Selecciona rango de fechas en un mismo calendario.
                 </p>
@@ -248,7 +257,7 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
                     onClick={goToPreviousMonth}
                     className="h-8 w-8 rounded-md border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface-3)]"
                   >
-                    {"<"}
+                    ‹
                   </button>
                   <p className="text-base font-semibold capitalize text-[var(--foreground)]">
                     {monthFormatter.format(calendarMonth)}
@@ -258,7 +267,7 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
                     onClick={goToNextMonth}
                     className="h-8 w-8 rounded-md border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface-3)]"
                   >
-                    {">"}
+                    ›
                   </button>
                 </div>
 
@@ -283,13 +292,20 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
                         key={toIsoDate(day)}
                         type="button"
                         onClick={() => handleDayClick(day)}
-                        className={`h-8 rounded-md text-sm ${
+                        className={`h-8 rounded-md text-sm leading-none ${
                           isStart || isEnd
-                            ? "bg-emerald-700 font-semibold text-white"
+                            ? ""
                             : inRange
-                              ? "bg-emerald-500/10 text-emerald-300"
+                              ? ""
                               : "bg-[var(--surface-1)] text-[var(--foreground)] hover:bg-[var(--surface-3)]"
                         }`}
+                        style={
+                          isStart || isEnd
+                            ? { background: "var(--misu)", color: "#fff" }
+                            : inRange
+                              ? { background: "var(--misu-subtle)", color: "var(--misu-light)" }
+                              : undefined
+                        }
                       >
                         {day.getDate()}
                       </button>
@@ -308,7 +324,7 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
                     type="text"
                     name="reason"
                     placeholder="Ej: vacaciones"
-                    className="rounded-lg border border-[var(--border-hover)] bg-[var(--surface-1)] px-3 py-2 text-[var(--foreground)]"
+                    className="input"
                   />
                 </label>
 
@@ -318,7 +334,7 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
                     <select
                       value={startTime}
                       onChange={(event) => setStartTime(event.target.value)}
-                      className="h-9 w-[104px] rounded-md border border-[var(--border-hover)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
+                      className="select h-9 w-full !py-0 leading-none sm:w-[104px]"
                     >
                       {timeOptions.map((option) => (
                         <option key={`absence-start-${option.value}`} value={option.value}>
@@ -332,7 +348,7 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
                     <select
                       value={endTime}
                       onChange={(event) => setEndTime(event.target.value)}
-                      className="h-9 w-[104px] rounded-md border border-[var(--border-hover)] bg-[var(--surface-1)] px-2 text-sm text-[var(--foreground)]"
+                      className="select h-9 w-full !py-0 leading-none sm:w-[104px]"
                     >
                       {timeOptions.map((option) => (
                         <option key={`absence-end-${option.value}`} value={option.value}>
@@ -343,36 +359,23 @@ export function AusenciasManager({ blockedDates }: AusenciasManagerProps) {
                   </label>
                 </div>
 
-                <p className="text-xs text-[var(--muted)]">
-                  Rango seleccionado:{" "}
+                <p className="text-xs" style={{ color: "var(--muted)" }}>
+                  Rango:{" "}
                   {rangeStart
-                    ? `${toIsoDate(rangeStart)}${rangeEnd ? ` a ${toIsoDate(rangeEnd)}` : ""}`
+                    ? `${rangeStart.toLocaleDateString("es-AR", { day: "numeric", month: "long" })}${
+                        rangeEnd ? ` → ${rangeEnd.toLocaleDateString("es-AR", { day: "numeric", month: "long" })}` : ""
+                      }`
                     : "sin seleccionar"}
                 </p>
 
-                {localError ? (
-                  <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300">
-                    {localError}
-                  </p>
-                ) : null}
-
-                {state.error ? (
-                  <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300">
-                    {state.error}
-                  </p>
-                ) : null}
-
-                {state.success ? (
-                  <p className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-300">
-                    {state.success}
-                  </p>
-                ) : null}
+                {localError ? <p className="alert-error">{localError}</p> : null}
+                {state.error ? <p className="alert-error">{state.error}</p> : null}
+                {state.success ? <p className="alert-success">{state.success}</p> : null}
 
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="mt-1 h-9 rounded-md px-4 text-sm font-medium text-white disabled:opacity-60"
-                  style={{ background: "var(--misu)" }}
+                  className="btn-primary w-full"
                 >
                   {isPending ? "Guardando..." : "Guardar ausencia"}
                 </button>

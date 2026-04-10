@@ -29,11 +29,14 @@ export function ClubCalendarClient({
 }: ClubCalendarClientProps) {
   const router = useRouter();
 
-  // En móviles, cambiar automáticamente a vista día
+  function isCompactViewport() {
+    return typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+  }
+
+  // En mobile/tablet se fuerza vista dia para evitar la semanal.
   useEffect(() => {
-    if (typeof window === "undefined") return;
     if (view !== "week") return;
-    if (!window.matchMedia("(max-width: 639px)").matches) return;
+    if (!isCompactViewport()) return;
 
     const params = new URLSearchParams();
     params.set("deporte", deporte);
@@ -43,10 +46,14 @@ export function ClubCalendarClient({
   }, [view, router, deporte, fecha]);
 
   const goTo = (next: { deporte?: Deporte; fecha?: string; view?: CalendarView }) => {
+    const requestedView = next.view ?? view;
+    const safeView: CalendarView =
+      requestedView === "week" && isCompactViewport() ? "day" : requestedView;
+
     const params = new URLSearchParams();
     params.set("deporte", next.deporte ?? deporte);
     params.set("fecha", next.fecha ?? fecha);
-    params.set("view", next.view ?? view);
+    params.set("view", safeView);
     router.push(`/dashboard/club/calendario?${params.toString()}`);
   };
 
