@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { formatUserDate } from "@/lib/format/date";
 
 type BookingStatus = "pendiente" | "confirmado" | "cancelado";
 type BookingType = "individual" | "dobles" | "trio" | "grupal";
@@ -29,56 +28,24 @@ const typeLabel: Record<BookingType, string> = {
   grupal: "Grupal",
 };
 
-const statusLabel: Record<BookingStatus, string> = {
-  pendiente: "Pendiente",
-  confirmado: "Confirmada",
-  cancelado: "Cancelada",
-};
-
 function getTodayIsoInArgentina() {
-  const now = new Date();
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Argentina/Buenos_Aires",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(now);
+  }).format(new Date());
 }
 
-function getNowTimeInArgentina() {
-  const now = new Date();
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "America/Argentina/Buenos_Aires",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).format(now);
-}
-
-function parseTimeToSeconds(timeValue: string) {
-  const normalized = timeValue.slice(0, 8);
-  const [hoursRaw, minutesRaw, secondsRaw] = normalized.split(":");
-  const hours = Number(hoursRaw ?? 0);
-  const minutes = Number(minutesRaw ?? 0);
-  const seconds = Number(secondsRaw ?? 0);
-  return hours * 3600 + minutes * 60 + seconds;
-}
 
 export default async function DashboardProfesorPage() {
   const profile = await getCurrentProfile();
 
-  if (!profile) {
-    redirect("/login");
-  }
-
-  if (profile.role !== "profesor") {
-    redirect("/dashboard/alumno/turnos");
-  }
+  if (!profile) redirect("/login");
+  if (profile.role !== "profesor") redirect("/dashboard/alumno/turnos");
 
   const supabase = await createSupabaseServerClient();
   const todayIso = getTodayIsoInArgentina();
-  const nowTime = getNowTimeInArgentina();
 
   const [todayClassesResult, upcomingClassesResult] = await Promise.all([
     supabase
@@ -102,14 +69,15 @@ export default async function DashboardProfesorPage() {
   const hasLoadError = Boolean(todayClassesResult.error || upcomingClassesResult.error);
   const todayClasses = (todayClassesResult.data ?? []) as BookingRow[];
   const upcomingClasses = (upcomingClassesResult.data ?? []) as BookingRow[];
-  const alumnoIds = Array.from(
-    new Set([...todayClasses.map((item) => item.alumno_id), ...upcomingClasses.map((item) => item.alumno_id)]),
-  );
 
+  const alumnoIds = Array.from(
+    new Set([...todayClasses.map((c) => c.alumno_id), ...upcomingClasses.map((c) => c.alumno_id)]),
+  );
   const alumnoProfilesResult =
     alumnoIds.length > 0
       ? await supabase.from("profiles").select("user_id, name").in("user_id", alumnoIds)
       : { data: [] as AlumnoProfileRow[], error: null };
+
   const alumnoProfiles = (alumnoProfilesResult.data ?? []) as AlumnoProfileRow[];
   const hasAnyError = hasLoadError || Boolean(alumnoProfilesResult.error);
 
@@ -120,184 +88,131 @@ export default async function DashboardProfesorPage() {
     }
   }
 
-  const nowTimeInSeconds = parseTimeToSeconds(nowTime);
-  const nextClass =
-    upcomingClasses.find(
-      (item) => item.date > todayIso || (item.date === todayIso && parseTimeToSeconds(item.start_time) >= nowTimeInSeconds),
-    ) ??
-    null;
+  // Próximas clases agrupadas por día (desde mañana en adelante).
+  const tomorrowIso = (() => {
+    const [ty2, tm2, td2] = todayIso.split("-").map(Number);
+    const tomorrow = new Date(ty2, (tm2 as number) - 1, (td2 as number) + 1);
+    return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+  })();
 
-  const quickLinks = [
-    {
-      href: "/dashboard/profesor/calendario",
-      title: "Calendario",
-      description: "Ver agenda semanal y gestionar clases.",
-    },
-    {
-      href: "/dashboard/profesor/finanzas",
-      title: "Finanzas",
-      description: "Revisar cobros, pagos y estado económico.",
-    },
-    {
-      href: "/dashboard/profesor/paquetes",
-      title: "Paquetes",
-      description: "Administrar paquetes y asignaciones.",
-    },
-    {
-      href: "/dashboard/profesor/ajustes",
-      title: "Ajustes",
-      description: "Acceder a configuración y datos de perfil.",
-    },
-  ];
+  const upcomingByDay: { dateIso: string; classes: BookingRow[] }[] = [];
+  for (const cls of upcomingClasses) {
+    if (cls.date <= todayIso) continue; // excluir hoy
+    const last = upcomingByDay[upcomingByDay.length - 1];
+    if (last && last.dateIso === cls.date) {
+      last.classes.push(cls);
+    } else {
+      upcomingByDay.push({ dateIso: cls.date, classes: [cls] });
+    }
+  }
+
+  // Saludo según hora local.
+  const hourAr = Number(
+    new Intl.DateTimeFormat("es-AR", {
+      timeZone: "America/Argentina/Buenos_Aires",
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date()),
+  );
+  const greeting = hourAr < 12 ? "Buenos días" : hourAr < 19 ? "Buenas tardes" : "Buenas noches";
+
+  // Fecha larga para el header.
+  const todayLong = new Intl.DateTimeFormat("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
+  const todayLongCapitalized = todayLong.charAt(0).toUpperCase() + todayLong.slice(1);
+
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
-      <header>
-        <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>
-          Inicio
+    <main className="mx-auto w-full max-w-2xl px-4 py-6 sm:py-8">
+      {/* Header — saludo */}
+      <header className="mb-6">
+        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--misu)" }}>
+          {greeting}
+        </p>
+        <h1 className="mt-0.5 text-2xl font-bold leading-tight" style={{ color: "var(--foreground)" }}>
+          {profile.name}
         </h1>
-        <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
-          Resumen diario de tu actividad.
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          {todayLongCapitalized}
         </p>
       </header>
 
       {hasAnyError ? (
-        <p className="alert-error mt-6">No se pudieron cargar los datos del dashboard.</p>
+        <p className="alert-error">No se pudieron cargar los datos del dashboard.</p>
       ) : (
-        <>
-          <section className="card mt-6 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-                Próxima clase
+        <div className="grid gap-4">
+          {/* Sección: Hoy */}
+          <section className="card p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                Hoy
+                {todayClasses.length > 0 && (
+                  <span className="ml-2 text-xs font-normal" style={{ color: "var(--muted)" }}>
+                    {todayClasses.length} {todayClasses.length === 1 ? "clase" : "clases"}
+                  </span>
+                )}
               </h2>
-              {nextClass ? (
+              {todayClasses.length > 0 && (
                 <Link
-                  href="/dashboard/profesor/calendario"
-                  className="shrink-0 text-xs font-semibold"
+                  href="/dashboard/profesor/turnos"
+                  className="text-xs font-medium"
                   style={{ color: "var(--misu)" }}
                 >
-                  Ver calendario →
+                  Ver todas →
                 </Link>
-              ) : null}
-            </div>
-
-            {nextClass ? (
-              <div
-                className="mt-3 flex items-center gap-4 rounded-xl border px-4 py-3"
-                style={{
-                  borderColor: "var(--border-misu)",
-                  background: "var(--misu-subtle)",
-                }}
-              >
-                {/* Hora */}
-                <div className="shrink-0 text-center">
-                  <p
-                    className="text-xl font-black leading-none tabular-nums"
-                    style={{ color: "var(--misu)" }}
-                  >
-                    {nextClass.start_time.slice(0, 5)}
-                  </p>
-                  <p
-                    className="mt-0.5 text-xs leading-none tabular-nums"
-                    style={{ color: "var(--muted)" }}
-                  >
-                    {nextClass.end_time.slice(0, 5)}
-                  </p>
-                </div>
-
-                <div
-                  className="h-10 w-px shrink-0"
-                  style={{ background: "var(--border-misu)" }}
-                />
-
-                {/* Info */}
-                <div className="min-w-0 flex-1">
-                  <p
-                    className="text-sm font-semibold leading-tight"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    {new Intl.DateTimeFormat("es-AR", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                      timeZone: "America/Argentina/Buenos_Aires",
-                    }).format(new Date(`${nextClass.date}T12:00:00-03:00`))}
-                  </p>
-                  <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
-                    {alumnoNameMap.get(nextClass.alumno_id) ?? "Alumno"}
-                    {" · "}{typeLabel[nextClass.type]}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
-                No hay próximas clases agendadas.
-              </p>
-            )}
-          </section>
-
-          <section className="card mt-6 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-                Clases de hoy
-              </h2>
-              <span
-                className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
-                style={{ borderColor: "var(--border)", color: "var(--muted)" }}
-              >
-                {formatUserDate(todayIso)}
-              </span>
+              )}
             </div>
 
             {todayClasses.length === 0 ? (
-              <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
-                No tenés clases programadas para hoy.
-              </p>
+              <div className="mt-4 flex flex-col items-center gap-3 py-4 text-center">
+                <p className="text-sm" style={{ color: "var(--muted)" }}>
+                  Sin clases hoy
+                </p>
+                <Link
+                  href="/dashboard/profesor/turnos"
+                  className="text-xs font-medium"
+                  style={{ color: "var(--misu)" }}
+                >
+                  Agregar clase →
+                </Link>
+              </div>
             ) : (
-              <ul className="mt-3 grid gap-1.5">
+              <ul className="mt-3 grid gap-2">
                 {todayClasses.map((item) => {
                   const isPendiente = item.status === "pendiente";
                   return (
                     <li
                       key={item.id}
-                      className="flex items-center gap-3 rounded-lg border px-3 py-2.5"
+                      className="flex min-h-[52px] items-center gap-3 rounded-xl border px-3 py-3"
                       style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
                     >
-                      {/* Hora bloque */}
-                      <div className="w-[42px] shrink-0 text-right">
-                        <p
-                          className="text-sm font-bold leading-tight tabular-nums"
-                          style={{ color: "var(--foreground)" }}
-                        >
+                      {/* Hora */}
+                      <div className="shrink-0 text-right" style={{ minWidth: "40px" }}>
+                        <p className="text-sm font-bold tabular-nums" style={{ color: "var(--foreground)" }}>
                           {item.start_time.slice(0, 5)}
                         </p>
-                        <p
-                          className="text-[10px] leading-tight tabular-nums"
-                          style={{ color: "var(--muted)" }}
-                        >
+                        <p className="text-[10px] tabular-nums" style={{ color: "var(--muted)" }}>
                           {item.end_time.slice(0, 5)}
                         </p>
                       </div>
 
-                      <div
-                        className="h-7 w-px shrink-0"
-                        style={{ background: "var(--border)" }}
-                      />
+                      <div className="h-8 w-px shrink-0" style={{ background: "var(--border)" }} />
 
-                      {/* Nombre + tipo */}
+                      {/* Alumno + tipo */}
                       <div className="min-w-0 flex-1">
-                        <p
-                          className="truncate text-sm font-medium"
-                          style={{ color: "var(--foreground)" }}
-                        >
+                        <p className="truncate text-sm font-semibold" style={{ color: "var(--foreground)" }}>
                           {alumnoNameMap.get(item.alumno_id) ?? "Alumno"}
                         </p>
-                        <p className="text-[11px]" style={{ color: "var(--muted)" }}>
+                        <p className="text-xs" style={{ color: "var(--muted)" }}>
                           {typeLabel[item.type]}
                         </p>
                       </div>
 
-                      {/* Badge */}
+                      {/* Badge estado */}
                       <span
                         className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
                         style={
@@ -306,7 +221,7 @@ export default async function DashboardProfesorPage() {
                             : { background: "var(--success-bg)", color: "var(--success)" }
                         }
                       >
-                        {statusLabel[item.status]}
+                        {isPendiente ? "Pendiente" : "Confirmada"}
                       </span>
                     </li>
                   );
@@ -315,28 +230,81 @@ export default async function DashboardProfesorPage() {
             )}
           </section>
 
-          <section className="mt-6">
-            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-              Accesos rápidos
-            </h2>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {quickLinks.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="card block p-4 transition-opacity hover:opacity-90"
-                >
-                  <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                    {item.title}
-                  </p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
-                    {item.description}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          </section>
-        </>
+          {/* Sección: Próximas */}
+          {upcomingByDay.length > 0 && (
+            <section className="card p-4">
+              <h2 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                Próximas
+              </h2>
+
+              <div className="mt-3 grid gap-4">
+                {upcomingByDay.map(({ dateIso, classes }) => {
+                  const isTomorrow = dateIso === tomorrowIso;
+                  const dayLabel = isTomorrow
+                    ? "Mañana"
+                    : new Intl.DateTimeFormat("es-AR", {
+                        timeZone: "America/Argentina/Buenos_Aires",
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                      }).format(new Date(`${dateIso}T12:00:00`));
+                  const dayLabelCapitalized = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
+
+                  return (
+                    <div key={dateIso}>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                        {dayLabelCapitalized}
+                      </p>
+                      <ul className="grid gap-2">
+                        {classes.map((item) => {
+                          const isPendiente = item.status === "pendiente";
+                          return (
+                            <li
+                              key={item.id}
+                              className="flex min-h-[48px] items-center gap-3 rounded-xl border px-3 py-2.5"
+                              style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+                            >
+                              <div className="shrink-0 text-right" style={{ minWidth: "40px" }}>
+                                <p className="text-sm font-bold tabular-nums" style={{ color: "var(--foreground)" }}>
+                                  {item.start_time.slice(0, 5)}
+                                </p>
+                                <p className="text-[10px] tabular-nums" style={{ color: "var(--muted)" }}>
+                                  {item.end_time.slice(0, 5)}
+                                </p>
+                              </div>
+
+                              <div className="h-8 w-px shrink-0" style={{ background: "var(--border)" }} />
+
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                                  {alumnoNameMap.get(item.alumno_id) ?? "Alumno"}
+                                </p>
+                                <p className="text-xs" style={{ color: "var(--muted)" }}>
+                                  {typeLabel[item.type]}
+                                </p>
+                              </div>
+
+                              <span
+                                className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                style={
+                                  isPendiente
+                                    ? { background: "var(--warning-bg)", color: "var(--warning)" }
+                                    : { background: "var(--success-bg)", color: "var(--success)" }
+                                }
+                              >
+                                {isPendiente ? "Pendiente" : "Confirmada"}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
       )}
     </main>
   );

@@ -312,44 +312,6 @@ export default async function DashboardAlumnoPage() {
             Ver reservas y clubes →
           </p>
         </Link>
-
-        <Link
-          href="/dashboard/alumno/perfil"
-          className="group rounded-2xl border p-6 transition-all sm:col-span-2"
-          style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
-        >
-          <div className="flex items-center gap-4">
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-black"
-              style={{
-                background: "var(--misu-subtle)",
-                border: "1px solid var(--border-misu)",
-                color: "var(--misu)",
-              }}
-            >
-              {firstName[0]?.toUpperCase()}
-            </div>
-            <div>
-              <h2 className="text-base font-bold" style={{ color: "var(--foreground)" }}>
-                Mi perfil
-              </h2>
-              <p className="mt-0.5 text-sm" style={{ color: "var(--muted)" }}>
-                Actualizá tu categoría, zona y equipo para que tu profe te conozca mejor.
-              </p>
-            </div>
-            <svg
-              className="ml-auto h-4 w-4 shrink-0"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--muted-2)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </div>
-        </Link>
       </div>
     </main>
   );

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import {
   deleteAvailabilityAction,
   saveAvailabilityAction,
@@ -69,24 +69,27 @@ type RowFormProps = {
 };
 
 function ClubSelector({
-  defaultValue,
+  value,
   clubs,
   disabled,
+  onChange,
 }: {
-  defaultValue: number | null;
+  value: string;
   clubs: Array<{ id: number; nombre: string }>;
   disabled: boolean;
+  onChange?: (value: string) => void;
 }) {
   return (
     <select
       name="club_id"
-      defaultValue={defaultValue ?? ""}
-      className="select h-9 min-w-[120px] w-full !py-0 leading-none"
+      value={value}
+      onChange={(e) => onChange?.(e.target.value)}
+      className="select h-8 !w-full md:!w-[220px] lg:!w-[250px] !py-0 leading-none"
       disabled={disabled}
     >
       <option value="">Particulares</option>
       {clubs.map((club) => (
-        <option key={club.id} value={club.id}>
+        <option key={club.id} value={String(club.id)}>
           {club.nombre}
         </option>
       ))}
@@ -94,15 +97,36 @@ function ClubSelector({
   );
 }
 
-function FrequentRangeRow({ item, clubs }: RowFormProps) {
+type EditModalProps = {
+  item: AvailabilityRow;
+  clubs: Array<{ id: number; nombre: string }>;
+  onClose: () => void;
+};
+
+function EditRangeModal({ item, clubs, onClose }: EditModalProps) {
   const [state, formAction, isPending] = useActionState(saveAvailabilityAction, initialState);
   const [startTime, setStartTime] = useState(item.start_time.slice(0, 5));
   const [endTime, setEndTime] = useState(item.end_time.slice(0, 5));
+  const [clubId, setClubId] = useState(item.club_id != null ? String(item.club_id) : "");
+  const [duration, setDuration] = useState(item.slot_duration_minutes);
   const [timeError, setTimeError] = useState<string | null>(null);
+
+  // Cerrar automáticamente al guardar con éxito.
+  useEffect(() => {
+    if (state.success) onClose();
+  }, [state.success, onClose]);
+
+  // Cerrar con Escape.
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
 
   function handleStartChange(value: string) {
     setStartTime(value);
-    // Si el fin actual es igual o anterior al nuevo inicio, lo ajustamos a inicio + 1h.
     if (toMinutes(endTime) <= toMinutes(value)) {
       setEndTime(suggestEnd(value));
     }
@@ -110,85 +134,214 @@ function FrequentRangeRow({ item, clubs }: RowFormProps) {
   }
 
   return (
-    <form
-      action={formAction}
-      onSubmit={(event) => {
-        if (toMinutes(endTime) <= toMinutes(startTime)) {
-          event.preventDefault();
-          setTimeError("La hora de fin debe ser mayor que la hora de inicio.");
-          return;
-        }
-        setTimeError(null);
-      }}
-      className="grid gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-1)] p-2"
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
+      style={{ background: "rgba(0,0,0,0.6)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <input type="hidden" name="id" value={item.id} />
-      <input type="hidden" name="day_of_week" value={item.day_of_week} />
-      <div className="flex flex-wrap items-center gap-1.5">
-        <ClubSelector defaultValue={item.club_id} clubs={clubs} disabled={isPending} />
-        <select
-          name="start_time"
-          value={startTime}
-          onChange={(e) => handleStartChange(e.target.value)}
-          className="select h-9 w-[96px] !py-0 leading-none sm:w-[104px]"
-          required
+      <div className="w-full rounded-t-2xl border border-[var(--border)] bg-[var(--surface-1)] shadow-2xl sm:max-w-sm sm:rounded-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">Editar horario</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-transparent text-lg leading-none transition-opacity opacity-50 hover:opacity-100"
+            style={{ color: "var(--muted)", cursor: "pointer", border: "none" }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Body */}
+        <form
+          action={formAction}
+          onSubmit={(e) => {
+            if (toMinutes(endTime) <= toMinutes(startTime)) {
+              e.preventDefault();
+              setTimeError("La hora de fin debe ser mayor que la de inicio.");
+              return;
+            }
+            setTimeError(null);
+          }}
+          className="grid gap-4 p-5"
         >
-          {timeOptions.map((option) => (
-            <option key={`start-${option.value}`} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <span className="text-sm text-[var(--muted-2)]">a</span>
-        <select
-          name="end_time"
-          value={endTime}
-          onChange={(e) => setEndTime(e.target.value)}
-          className="select h-9 w-[96px] !py-0 leading-none sm:w-[104px]"
-          required
-        >
-          {timeOptions
-            .filter((option) => toMinutes(option.value) > toMinutes(startTime))
-            .map((option) => (
-              <option key={`end-${option.value}`} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-        </select>
-        <button
-          formAction={deleteAvailabilityAction}
-          className="btn-ghost ml-auto h-9 w-9 leading-none"
-          style={{ color: "var(--error)" }}
-          title="Eliminar rango"
-        >
-          ×
-        </button>
+          <input type="hidden" name="id" value={item.id} />
+          <input type="hidden" name="day_of_week" value={item.day_of_week} />
+
+          <label className="grid gap-1.5 text-xs font-medium text-[var(--muted)]">
+            Club
+            <ClubSelector value={clubId} clubs={clubs} disabled={isPending} onChange={setClubId} />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-xs font-medium text-[var(--muted)]">
+              Hora inicio
+              <select
+                name="start_time"
+                value={startTime}
+                onChange={(e) => handleStartChange(e.target.value)}
+                className="select h-10 !w-full !py-0 leading-none"
+                required
+              >
+                {timeOptions.map((o) => (
+                  <option key={`ms-${o.value}`} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-1.5 text-xs font-medium text-[var(--muted)]">
+              Hora fin
+              <select
+                name="end_time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="select h-10 !w-full !py-0 leading-none"
+                required
+              >
+                {timeOptions
+                  .filter((o) => toMinutes(o.value) > toMinutes(startTime))
+                  .map((o) => (
+                    <option key={`me-${o.value}`} value={o.value}>{o.label}</option>
+                  ))}
+              </select>
+            </label>
+          </div>
+
+          {/* Duración: campo chico centrado con label */}
+          <label className="grid gap-1.5 text-xs font-medium text-[var(--muted)]">
+            Duración de cada turno
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                name="slot_duration_minutes"
+                min={30}
+                step={30}
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                className="input h-10 !w-[80px] !py-0 text-center leading-none"
+                required
+              />
+              <span className="text-sm text-[var(--muted)]">min</span>
+            </div>
+          </label>
+
+          {timeError ? <p className="text-xs font-medium" style={{ color: "var(--error)" }}>{timeError}</p> : null}
+          {state.error ? <p className="text-xs font-medium" style={{ color: "var(--error)" }}>{state.error}</p> : null}
+
+          {/* Footer con botones */}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 flex-1 items-center justify-center rounded-lg border border-[var(--border)] bg-transparent text-sm font-medium text-[var(--muted)] transition-opacity hover:opacity-80"
+              style={{ cursor: "pointer" }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="btn-primary flex h-10 flex-1 items-center justify-center text-sm leading-none"
+            >
+              {isPending ? "Guardando..." : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function FrequentRangeRow({ item, clubs }: RowFormProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
+
+  const clubName = item.club_id
+    ? (clubs.find((c) => c.id === item.club_id)?.nombre ?? "Club")
+    : "Particulares";
+
+  function handleDelete() {
+    const fd = new FormData();
+    fd.set("id", String(item.id));
+    startDeleteTransition(() => deleteAvailabilityAction(fd));
+  }
+
+  return (
+    <>
+      <div className="rounded-md border border-[var(--border)] px-3 py-2.5">
+        {confirmDelete ? (
+          /* Modo confirmación: ocupa todo el card */
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-[var(--foreground)]">
+              ¿Eliminar <span className="font-medium">{item.start_time.slice(0, 5)} – {item.end_time.slice(0, 5)}</span>?
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex h-8 flex-1 items-center justify-center rounded-md border-none text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+                style={{ background: "var(--error-bg, rgba(239,68,68,0.12))", color: "var(--error)", cursor: "pointer" }}
+              >
+                {isDeleting ? "Eliminando..." : "Sí"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="flex h-8 flex-1 items-center justify-center rounded-md border border-[var(--border)] bg-transparent text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ color: "var(--muted)", cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Línea 1: club + acciones */}
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-sm text-[var(--foreground)]">{clubName}</span>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="flex h-8 items-center rounded-md border-none bg-transparent px-2 text-xs font-medium leading-none opacity-60 transition-opacity hover:opacity-100"
+                  style={{ color: "var(--foreground)", cursor: "pointer" }}
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent opacity-70 transition-opacity hover:opacity-100"
+                  style={{ color: "var(--error)" }}
+                  title="Eliminar rango"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 6h18" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                    <path d="M8 6V4h8v2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Línea 2: horario + duración */}
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-sm font-medium text-[var(--foreground)]">{item.start_time.slice(0, 5)}</span>
+              <span className="text-sm text-[var(--muted-2)]">–</span>
+              <span className="text-sm font-medium text-[var(--foreground)]">{item.end_time.slice(0, 5)}</span>
+              <span className="text-xs text-[var(--muted)]">· c/ {item.slot_duration_minutes} min</span>
+            </div>
+          </>
+        )}
       </div>
 
-      <div className="grid gap-1.5 sm:grid-cols-[auto_80px_auto] sm:items-center">
-        <span className="text-xs font-medium text-[var(--muted)]">Duración (min)</span>
-        <input
-          type="number"
-          name="slot_duration_minutes"
-          min={30}
-          step={30}
-          defaultValue={item.slot_duration_minutes}
-          className="input h-9 w-20 !py-0 text-center leading-none"
-          required
-        />
-        <button
-          type="submit"
-          disabled={isPending}
-          className="btn-secondary h-9 px-3 text-xs leading-none"
-        >
-          {isPending ? "Guardando..." : "Guardar"}
-        </button>
-      </div>
-
-      {timeError ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--error)" }}>{timeError}</p> : null}
-      {state.error ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--error)" }}>{state.error}</p> : null}
-      {state.success ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--success)" }}>{state.success}</p> : null}
-    </form>
+      {isEditing ? (
+        <EditRangeModal item={item} clubs={clubs} onClose={() => setIsEditing(false)} />
+      ) : null}
+    </>
   );
 }
 
@@ -231,123 +384,137 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
     <section className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2.5">
       <h3 className="text-base font-semibold text-[var(--foreground)]">{day.label}</h3>
 
-      {dayRanges.length === 0 ? (
+      {dayRanges.length === 0 && !isAdding ? (
         <p className="mt-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
           Sin horarios cargados.
         </p>
-      ) : (
-        <div className="mt-2 grid gap-2">
-          {dayRanges.map((item) => (
-            <FrequentRangeRow key={item.id} item={item} clubs={clubs} />
-          ))}
-        </div>
-      )}
+      ) : null}
 
-      {!isAdding ? (
-        <div className="mt-2">
+      <div className="mt-2 grid gap-2">
+        {dayRanges.map((item) => (
+          <FrequentRangeRow key={item.id} item={item} clubs={clubs} />
+        ))}
+
+        {isAdding ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const formData = new FormData(event.currentTarget);
+              if (toMinutes(newEnd) <= toMinutes(newStart)) {
+                setTimeError("La hora de fin debe ser mayor que la hora de inicio.");
+                return;
+              }
+              setTimeError(null);
+
+              startTransition(async () => {
+                const result = await saveAvailabilityAction(initialState, formData);
+                setCreateState(result);
+
+                if (!result.error) {
+                  setIsAdding(false);
+                  setCreateState(initialState);
+                }
+              });
+            }}
+            className="flex items-start gap-2 rounded-md border border-[var(--border-misu)] px-3 py-2"
+          >
+            <input type="hidden" name="day_of_week" value={day.value} />
+
+            {/* Campos: club + horario + duración */}
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-2">
+              <ClubSelector defaultValue={null} clubs={clubs} disabled={isCreating} />
+
+              <div className="flex items-center gap-1.5">
+                <select
+                  name="start_time"
+                  value={newStart}
+                  onChange={(e) => handleNewStartChange(e.target.value)}
+                  className="select h-8 !w-[90px] !py-0 leading-none"
+                  required
+                >
+                  {timeOptions.map((option) => (
+                    <option key={`new-start-${day.value}-${option.value}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+
+                <span className="text-sm text-[var(--muted-2)]">–</span>
+
+                <select
+                  name="end_time"
+                  value={newEnd}
+                  onChange={(e) => setNewEnd(e.target.value)}
+                  className="select h-8 !w-[90px] !py-0 leading-none"
+                  required
+                >
+                  {timeOptions
+                    .filter((option) => toMinutes(option.value) > toMinutes(newStart))
+                    .map((option) => (
+                      <option key={`new-end-${day.value}-${option.value}`} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  name="slot_duration_minutes"
+                  min={30}
+                  step={30}
+                  defaultValue={60}
+                  className="input h-8 !w-[60px] !py-0 text-center leading-none"
+                  required
+                />
+                <span className="text-xs text-[var(--muted)]">min</span>
+              </div>
+
+              {timeError ? <p className="w-full text-xs font-medium" style={{ color: "var(--error)" }}>{timeError}</p> : null}
+              {createState.error ? <p className="w-full text-xs font-medium" style={{ color: "var(--error)" }}>{createState.error}</p> : null}
+            </div>
+
+            {/* Botones apilados a la derecha */}
+            <div className="flex shrink-0 flex-col gap-1">
+              <button
+                type="submit"
+                disabled={isCreating}
+                className="btn-primary h-8 px-3 text-xs leading-none"
+              >
+                {isCreating ? "..." : "Agregar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAdding(false);
+                  setCreateState(initialState);
+                  setTimeError(null);
+                }}
+                className="btn-ghost h-8 px-3 text-xs leading-none"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </div>
+
+      <div className="mt-2">
+        {!isAdding ? (
           <button
             type="button"
             onClick={handleOpen}
-            className="mt-2 flex items-center gap-1.5 text-sm font-medium transition-colors"
+            className="mt-1 flex items-center gap-1.5 text-sm font-medium transition-colors"
             style={{ color: "var(--misu-light)" }}
           >
             <span>+</span>
             <span>Agregar horario</span>
           </button>
-        </div>
-      ) : (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const formData = new FormData(event.currentTarget);
-            if (toMinutes(newEnd) <= toMinutes(newStart)) {
-              setTimeError("La hora de fin debe ser mayor que la hora de inicio.");
-              return;
-            }
-            setTimeError(null);
+        ) : null}
+      </div>
 
-            startTransition(async () => {
-              const result = await saveAvailabilityAction(initialState, formData);
-              setCreateState(result);
-
-              if (!result.error) {
-                setIsAdding(false);
-                setCreateState(initialState);
-              }
-            });
-          }}
-          className="mt-2 grid gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-1)] p-2"
-        >
-          <input type="hidden" name="day_of_week" value={day.value} />
-          <div className="flex flex-wrap items-center gap-1.5">
-            <ClubSelector defaultValue={null} clubs={clubs} disabled={isCreating} />
-            <select
-              name="start_time"
-              value={newStart}
-              onChange={(e) => handleNewStartChange(e.target.value)}
-              className="select h-9 w-[96px] !py-0 leading-none sm:w-[104px]"
-              required
-            >
-              {timeOptions.map((option) => (
-                <option key={`new-start-${day.value}-${option.value}`} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <span className="text-sm text-[var(--muted-2)]">a</span>
-            <select
-              name="end_time"
-              value={newEnd}
-              onChange={(e) => setNewEnd(e.target.value)}
-              className="select h-9 w-[96px] !py-0 leading-none sm:w-[104px]"
-              required
-            >
-              {timeOptions
-                .filter((option) => toMinutes(option.value) > toMinutes(newStart))
-                .map((option) => (
-                  <option key={`new-end-${day.value}-${option.value}`} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div className="grid gap-1.5 sm:grid-cols-[auto_80px_auto_auto] sm:items-center">
-            <span className="text-xs font-medium text-[var(--muted)]">Duración (min)</span>
-            <input
-              type="number"
-              name="slot_duration_minutes"
-              min={30}
-              step={30}
-              defaultValue={60}
-              className="input h-9 w-20 !py-0 text-center leading-none"
-              required
-            />
-            <button
-              type="submit"
-              disabled={isCreating}
-              className="btn-primary h-9 px-3 text-xs leading-none"
-            >
-              {isCreating ? "Guardando..." : "Agregar"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsAdding(false);
-                setCreateState(initialState);
-                setTimeError(null);
-              }}
-              className="btn-ghost h-9 px-3 text-xs leading-none"
-            >
-              Cancelar
-            </button>
-          </div>
-
-          {timeError ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--error)" }}>{timeError}</p> : null}
-          {createState.error ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--error)" }}>{createState.error}</p> : null}
-          {createState.success ? <p className="mt-1 text-xs font-medium" style={{ color: "var(--success)" }}>{createState.success}</p> : null}
-        </form>
-      )}
+      
     </section>
   );
 }
