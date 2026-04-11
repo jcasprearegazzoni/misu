@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { UserMenu } from "@/components/user-menu";
 import { MobileNavMenu } from "@/components/mobile-nav-menu";
 import { NotificationsMenu } from "@/components/notifications-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type NavItem = {
   href: string;
@@ -83,7 +84,7 @@ function PublicNavbar() {
     <header
       style={{
         borderBottom: "1px solid var(--border)",
-        background: "rgba(12, 12, 14, 0.9)",
+        background: "var(--nav-bg)",
         backdropFilter: "blur(16px)",
         position: "sticky",
         top: 0,
@@ -101,8 +102,9 @@ function PublicNavbar() {
         </Link>
 
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           <Link href="/login" className="btn-ghost text-sm" style={{ padding: "0.35rem 0.75rem" }}>
-            IniciÃ¡ sesiÃ³n
+            Iniciá sesión
           </Link>
           <Link href="/register" className="btn-primary text-sm" style={{ padding: "0.35rem 0.75rem" }}>
             Registrarse
@@ -144,7 +146,7 @@ export async function AppNavbar() {
     <header
       style={{
         borderBottom: "1px solid var(--border)",
-        background: "rgba(12, 12, 14, 0.9)",
+        background: "var(--nav-bg)",
         backdropFilter: "blur(16px)",
         position: "sticky",
         top: 0,
@@ -190,6 +192,7 @@ export async function AppNavbar() {
 
         {/* Acciones derecha */}
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           <NotificationsMenu
             unreadCount={unreadNotificationsCount}
             notifications={notifications}

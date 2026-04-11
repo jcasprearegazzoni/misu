@@ -42,6 +42,50 @@
   --info: #5ca9ff;
   --info-bg: rgba(59, 130, 246, 0.08);
   --info-border: rgba(59, 130, 246, 0.3);
+
+  /* Fondo de navbar (dark) */
+  --nav-bg: rgba(12, 12, 14, 0.9);
+}
+
+/* ============================================
+   Light mode — tono crema
+   ============================================ */
+[data-theme="light"] {
+  --background: #f5f0e8;
+  --surface-1: #ede8de;
+  --surface-2: #e3ddd3;
+  --surface-3: #d8d1c6;
+  --surface-hover: #cfc8bc;
+
+  --foreground: #1a1410;
+  --muted: #6b5f52;
+  --muted-2: #9a8d7f;
+
+  --border: rgba(0, 0, 0, 0.1);
+  --border-hover: rgba(0, 0, 0, 0.18);
+  --border-misu: rgba(230, 128, 25, 0.4);
+
+  /* Marca — mismo naranja, funciona bien sobre crema */
+  --misu-glow: rgba(230, 128, 25, 0.2);
+  --misu-subtle: rgba(230, 128, 25, 0.12);
+  --misu-warm: rgba(230, 128, 25, 0.07);
+
+  /* Estados adaptados para fondo claro */
+  --success: #1a7a4a;
+  --success-bg: rgba(22, 163, 74, 0.1);
+  --success-border: rgba(22, 163, 74, 0.3);
+  --warning: #b35c00;
+  --warning-bg: rgba(217, 119, 6, 0.1);
+  --warning-border: rgba(217, 119, 6, 0.3);
+  --error: #c92a2a;
+  --error-bg: rgba(220, 38, 38, 0.08);
+  --error-border: rgba(220, 38, 38, 0.25);
+  --info: #1e5fa8;
+  --info-bg: rgba(37, 99, 235, 0.08);
+  --info-border: rgba(37, 99, 235, 0.25);
+
+  /* Fondo de navbar (light) */
+  --nav-bg: rgba(245, 240, 232, 0.92);
 }
 
 @theme inline {
@@ -328,6 +372,7 @@ input[type="number"]::-webkit-inner-spin-button,
   font-size: 0.875rem;
   font-weight: 500;
 }
+[data-theme="light"] .alert-error { color: var(--error); }
 
 /* Alert de éxito */
 .alert-success {
@@ -339,6 +384,7 @@ input[type="number"]::-webkit-inner-spin-button,
   font-size: 0.875rem;
   font-weight: 500;
 }
+[data-theme="light"] .alert-success { color: var(--success); }
 
 /* Alert info */
 .alert-info {
@@ -350,6 +396,7 @@ input[type="number"]::-webkit-inner-spin-button,
   font-size: 0.875rem;
   font-weight: 500;
 }
+[data-theme="light"] .alert-info { color: var(--info); }
 
 /* Alert warning */
 .alert-warning {
@@ -361,6 +408,7 @@ input[type="number"]::-webkit-inner-spin-button,
   font-size: 0.875rem;
   font-weight: 500;
 }
+[data-theme="light"] .alert-warning { color: var(--warning); }
 
 /* Separador */
 .divider {
