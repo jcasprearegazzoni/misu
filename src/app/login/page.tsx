@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { LoginForm } from "./login-form";
 
 type LoginPageProps = {
@@ -12,9 +13,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main
-      className="flex min-h-screen w-full items-center justify-center px-6 py-10"
+      className="relative flex min-h-screen w-full items-center justify-center px-6 py-10"
       style={{ background: "var(--background)" }}
     >
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
         {/* Logo */}
         <Link href="/" className="mb-8 block">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useTransition, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ZonaSelector } from "@/components/zona-selector";
+import { getLocalidadesByMunicipio } from "@/lib/geo/argentina";
 import { saveAlumnoProfileAction } from "./actions";
 
 type AlumnoPerfilFormProps = {
@@ -49,6 +50,12 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
   const [provincia, setProvincia] = useState(initialValues.provincia);
   const [municipio, setMunicipio] = useState(initialValues.municipio);
   const [localidad, setLocalidad] = useState(initialValues.localidad);
+
+  // Localidades disponibles para el municipio seleccionado
+  const localidadesDisponibles = useMemo(
+    () => (municipio ? getLocalidadesByMunicipio(provincia, municipio) : []),
+    [provincia, municipio],
+  );
   const [celular, setCelular] = useState(initialValues.celular);
   const [hasPaleta, setHasPaleta] = useState(initialValues.has_paleta);
   const [hasRaqueta, setHasRaqueta] = useState(initialValues.has_raqueta);
@@ -181,20 +188,35 @@ export function AlumnoPerfilForm({ initialValues, redirectTo, successMessage }: 
           // Al cambiar a CABA, limpiar localidad (ya no aplica)
           if (nuevaProvincia === "caba") setLocalidad("");
         }}
-        onMunicipioChange={setMunicipio}
+        onMunicipioChange={(m) => { setMunicipio(m); setLocalidad(""); }}
       />
 
       {/* Localidad: solo se muestra fuera de CABA (en CABA el barrio lo reemplaza) */}
       {provincia !== "caba" ? (
         <label className="label">
           <span>Localidad</span>
-          <input
-            type="text"
-            value={localidad}
-            onChange={(e) => setLocalidad(e.target.value)}
-            placeholder="Ej: Palermo, Recoleta, San Isidro..."
-            className="input"
-          />
+          {localidadesDisponibles.length > 0 ? (
+            <select
+              value={localidad}
+              onChange={(e) => setLocalidad(e.target.value)}
+              className="select"
+              disabled={!municipio}
+            >
+              <option value="">Seleccioná una localidad</option>
+              {localidadesDisponibles.map((loc) => (
+                <option key={loc} value={loc}>{loc}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={localidad}
+              onChange={(e) => setLocalidad(e.target.value)}
+              placeholder={municipio ? "Ej: Centro, Barrio Norte..." : "Primero seleccioná un municipio"}
+              className="input"
+              disabled={!municipio}
+            />
+          )}
         </label>
       ) : null}
 

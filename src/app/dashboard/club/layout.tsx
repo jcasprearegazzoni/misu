@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireClub } from "@/lib/auth/require-club";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 async function signOutClubAction() {
   "use server";
@@ -19,7 +20,7 @@ export default async function ClubDashboardLayout({ children }: { children: Reac
       <header
         style={{
           borderBottom: "1px solid var(--border)",
-          background: "rgba(12, 12, 14, 0.9)",
+          background: "var(--nav-bg)",
           backdropFilter: "blur(16px)",
         }}
       >
@@ -44,6 +45,8 @@ export default async function ClubDashboardLayout({ children }: { children: Reac
             </div>
           </div>
 
+          <div className="flex shrink-0 items-center gap-2">
+          <ThemeToggle />
           <details className="relative shrink-0">
             <summary
               className="flex max-w-[52vw] cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition sm:max-w-none"
@@ -102,6 +105,7 @@ export default async function ClubDashboardLayout({ children }: { children: Reac
               </form>
             </div>
           </details>
+          </div>
         </nav>
       </header>
 

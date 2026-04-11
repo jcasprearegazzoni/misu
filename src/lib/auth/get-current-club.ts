@@ -13,6 +13,7 @@ export type CurrentClub = {
   cuit: string | null;
   provincia: string | null;
   municipio: string | null;
+  localidad: string | null;
   tiene_tenis: boolean;
   tiene_padel: boolean;
   tiene_futbol: boolean;
@@ -37,7 +38,7 @@ export const getCurrentClub = cache(async (): Promise<CurrentClub | null> => {
   const { data, error } = await supabase
     .from("clubs")
     .select(
-      "id, user_id, nombre, username, direccion, telefono, email_contacto, website, cuit, provincia, municipio, tiene_tenis, tiene_padel, tiene_futbol, tiene_bar, tiene_estacionamiento, alquila_paletas, alquila_raquetas, tiene_vestuario, tiene_parrilla",
+      "id, user_id, nombre, username, direccion, telefono, email_contacto, website, cuit, provincia, municipio, localidad, tiene_tenis, tiene_padel, tiene_futbol, tiene_bar, tiene_estacionamiento, alquila_paletas, alquila_raquetas, tiene_vestuario, tiene_parrilla",
     )
     .eq("user_id", user.id)
     .single();

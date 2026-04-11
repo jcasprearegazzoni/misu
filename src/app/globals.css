@@ -51,11 +51,11 @@
    Light mode — tono crema
    ============================================ */
 [data-theme="light"] {
-  --background: #f5f0e8;
-  --surface-1: #ede8de;
-  --surface-2: #e3ddd3;
-  --surface-3: #d8d1c6;
-  --surface-hover: #cfc8bc;
+  --background: #faf8f4;
+  --surface-1: #f2efe9;
+  --surface-2: #e9e5de;
+  --surface-3: #dedacf;
+  --surface-hover: #d4cfc7;
 
   --foreground: #1a1410;
   --muted: #6b5f52;
@@ -85,7 +85,7 @@
   --info-border: rgba(37, 99, 235, 0.25);
 
   /* Fondo de navbar (light) */
-  --nav-bg: rgba(245, 240, 232, 0.92);
+  --nav-bg: rgba(250, 248, 244, 0.92);
 }
 
 @theme inline {

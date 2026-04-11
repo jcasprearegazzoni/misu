@@ -23,6 +23,7 @@ export const clubPerfilSchema = z.object({
   direccion: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
   provincia: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   municipio: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  localidad: z.preprocess(emptyToUndefined, z.string().trim().max(100).optional()),
   telefono: z.preprocess(emptyToUndefined, z.string().trim().max(30).optional()),
   email_contacto: z.preprocess(
     emptyToUndefined,

@@ -285,11 +285,11 @@ export default async function PublicClubPage({ params, searchParams }: PageProps
             ) : null}
           </section>
 
-          {/* Grid de dos columnas: info izq + booking widget der */}
-          <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
+          {/* Grid de dos columnas: booking izq + info der */}
+          <div className="mt-5 grid gap-5 lg:grid-cols-[400px_minmax(0,1fr)] lg:items-start">
 
-            {/* Columna izquierda: canchas, profesores, mapa */}
-            <div className="order-2 grid gap-5 lg:order-1">
+            {/* Columna derecha: canchas, profesores, mapa */}
+            <div className="order-2 grid gap-5 lg:order-2">
 
               {canchasResumen.length > 0 ? (
                 <section
@@ -410,8 +410,8 @@ export default async function PublicClubPage({ params, searchParams }: PageProps
 
             </div>
 
-            {/* Columna derecha: widget de reserva — sticky en desktop, primero en mobile */}
-            <div className="order-1 lg:order-2 lg:sticky lg:top-6">
+            {/* Columna izquierda: widget de reserva — sticky en desktop, primero en mobile */}
+            <div className="order-1 lg:order-1 lg:sticky lg:top-6">
               <section
                 className="rounded-2xl border p-5"
                 style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}

@@ -1,7 +1,8 @@
 ﻿"use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { ZonaSelector } from "@/components/zona-selector";
+import { getLocalidadesByMunicipio } from "@/lib/geo/argentina";
 import { saveProfesorProfileAction } from "./actions";
 
 type PerfilFormProps = {
@@ -27,6 +28,11 @@ export function PerfilForm({ initialValues, successMessage }: PerfilFormProps) {
   const [provincia, setProvincia] = useState(initialValues.provincia);
   const [municipio, setMunicipio] = useState(initialValues.municipio);
   const [localidad, setLocalidad] = useState(initialValues.localidad);
+
+  const localidadesDisponibles = useMemo(
+    () => (provincia && municipio ? getLocalidadesByMunicipio(provincia, municipio) : []),
+    [provincia, municipio],
+  );
 
   useEffect(() => {
     setProvincia(initialValues.provincia);
@@ -69,22 +75,27 @@ export function PerfilForm({ initialValues, successMessage }: PerfilFormProps) {
           provincia={provincia}
           municipio={municipio}
           onProvinciaChange={setProvincia}
-          onMunicipioChange={setMunicipio}
+          onMunicipioChange={(m) => { setMunicipio(m); setLocalidad(""); }}
         />
 
-        {provincia !== "caba" ? (
+        {provincia && provincia !== "caba" && municipio && localidadesDisponibles.length > 0 ? (
           <label className="label">
             <span>Localidad</span>
-            <input
-              type="text"
+            <select
               name="localidad"
               value={localidad}
               onChange={(e) => setLocalidad(e.target.value)}
-              placeholder="Ej: Palermo, San Isidro..."
-              className="input"
-            />
+              className="select"
+            >
+              <option value="">Seleccioná una localidad</option>
+              {localidadesDisponibles.map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
           </label>
-        ) : null}
+        ) : (
+          <input type="hidden" name="localidad" value={localidad} />
+        )}
 
         <label className="label">
           <span>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { PROVINCIAS } from "@/lib/geo/argentina";
+import { PROVINCIAS, getLocalidadesByMunicipio } from "@/lib/geo/argentina";
 
 type DeporteFiltro = "todos" | "tenis" | "padel" | "ambos";
 
@@ -13,6 +13,7 @@ type ProfesorRow = {
   sport: "tenis" | "padel" | "ambos" | null;
   provincia: string | null;
   zone: string | null;
+  localidad: string | null;
   price_individual: number | null;
   price_dobles: number | null;
   price_trio: number | null;
@@ -145,7 +146,7 @@ function ProfesorCard({ profesor, isMisProfesor }: { profesor: ProfesorRow; isMi
   );
 }
 
-// ─── Componente de filtro con label ─────────────────────────────────────────
+// ─── Select compacto con label ───────────────────────────────────────────────
 
 function FiltroSelect({
   label,
@@ -153,27 +154,33 @@ function FiltroSelect({
   onChange,
   options,
   placeholder,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: Array<{ value: string; label: string }>;
   placeholder: string;
+  disabled?: boolean;
 }) {
   const activo = value !== "";
   return (
-    <div className="grid gap-1.5">
-      <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted-2)" }}>
+    <div className="grid gap-1 min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--muted-2)" }}>
         {label}
       </p>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
         className="select"
         style={{
+          fontSize: "0.75rem",
+          padding: "0.4rem 1.75rem 0.4rem 0.625rem",
           borderColor: activo ? "var(--misu)" : undefined,
           boxShadow: activo ? "0 0 0 2px var(--misu-glow)" : undefined,
-          fontSize: "0.8125rem",
+          opacity: disabled ? 0.5 : undefined,
+          cursor: disabled ? "not-allowed" : undefined,
         }}
       >
         <option value="">{placeholder}</option>
@@ -187,12 +194,73 @@ function FiltroSelect({
   );
 }
 
+// ─── Botones compactos para ordenar por precio ────────────────────────────────
+
+function OrdenarPrecio({
+  value,
+  onChange,
+}: {
+  value: "" | "asc" | "desc";
+  onChange: (v: "" | "asc" | "desc") => void;
+}) {
+  return (
+    <div className="grid gap-1 shrink-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--muted-2)" }}>
+        Precio
+      </p>
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(value === "asc" ? "" : "asc")}
+          title="Más barato primero"
+          style={{
+            padding: "0.4rem 0.6rem",
+            borderRadius: "8px",
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            border: "1px solid",
+            cursor: "pointer",
+            transition: "all 0.15s",
+            background: value === "asc" ? "var(--misu)" : "var(--surface-2)",
+            borderColor: value === "asc" ? "var(--misu)" : "var(--border)",
+            color: value === "asc" ? "#fff" : "var(--muted)",
+            boxShadow: value === "asc" ? "0 0 0 2px var(--misu-glow)" : undefined,
+          }}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(value === "desc" ? "" : "desc")}
+          title="Más caro primero"
+          style={{
+            padding: "0.4rem 0.6rem",
+            borderRadius: "8px",
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            border: "1px solid",
+            cursor: "pointer",
+            transition: "all 0.15s",
+            background: value === "desc" ? "var(--misu)" : "var(--surface-2)",
+            borderColor: value === "desc" ? "var(--misu)" : "var(--border)",
+            color: value === "desc" ? "#fff" : "var(--muted)",
+            boxShadow: value === "desc" ? "0 0 0 2px var(--misu-glow)" : undefined,
+          }}
+        >
+          ↓
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Componente principal ────────────────────────────────────────────────────
 
 export function ReservarTab({ profesores, misProfesoresIds }: ReservarTabProps) {
   const [deporteActivo, setDeporteActivo] = useState<DeporteFiltro>("todos");
   const [provinciaFiltro, setProvinciaFiltro] = useState<string>("");
   const [zoneFiltro, setZoneFiltro] = useState<string>("");
+  const [localidadFiltro, setLocalidadFiltro] = useState<string>("");
   const [ordenPrecio, setOrdenPrecio] = useState<"" | "asc" | "desc">("");
 
   const misProfesoresSet = useMemo(() => new Set(misProfesoresIds), [misProfesoresIds]);
@@ -216,12 +284,19 @@ export function ReservarTab({ profesores, misProfesoresIds }: ReservarTabProps) 
 
   const zonaLabel = provinciaFiltro === "caba" ? "Barrio" : "Municipio / Partido";
 
+  // Localidades disponibles para el partido/zona seleccionado
+  const localidadesDisponibles = useMemo(() => {
+    if (!zoneFiltro || !provinciaFiltro) return [];
+    return getLocalidadesByMunicipio(provinciaFiltro, zoneFiltro);
+  }, [provinciaFiltro, zoneFiltro]);
+
   // Filtrado y ordenamiento combinados
   const profesoresFiltrados = useMemo(() => {
     const filtrados = profesores.filter((p) => {
       if (!matchesDeporte(p.sport, deporteActivo)) return false;
       if (provinciaFiltro && p.provincia !== provinciaFiltro) return false;
       if (zoneFiltro && p.zone !== zoneFiltro) return false;
+      if (localidadFiltro && p.localidad !== localidadFiltro) return false;
       return true;
     });
     if (ordenPrecio === "asc") {
@@ -246,17 +321,24 @@ export function ReservarTab({ profesores, misProfesoresIds }: ReservarTabProps) 
   const misProfesoresFiltrados = profesoresFiltrados.filter((p) => misProfesoresSet.has(p.user_id));
   const otrosProfesores = profesoresFiltrados.filter((p) => !misProfesoresSet.has(p.user_id));
 
-  const hayFiltrosActivos = deporteActivo !== "todos" || provinciaFiltro !== "" || zoneFiltro !== "" || ordenPrecio !== "";
+  const hayFiltrosActivos = deporteActivo !== "todos" || provinciaFiltro !== "" || zoneFiltro !== "" || localidadFiltro !== "" || ordenPrecio !== "";
 
   function handleProvinciaChange(id: string) {
     setProvinciaFiltro(id);
     setZoneFiltro("");
+    setLocalidadFiltro("");
+  }
+
+  function handleZoneChange(zone: string) {
+    setZoneFiltro(zone);
+    setLocalidadFiltro("");
   }
 
   function limpiarFiltros() {
     setDeporteActivo("todos");
     setProvinciaFiltro("");
     setZoneFiltro("");
+    setLocalidadFiltro("");
     setOrdenPrecio("");
   }
 
@@ -285,49 +367,62 @@ export function ReservarTab({ profesores, misProfesoresIds }: ReservarTabProps) 
             className="mb-5 rounded-2xl p-4"
             style={{ background: "var(--surface-1)", border: "1px solid var(--border)" }}
           >
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex flex-wrap items-end gap-2">
               {/* Deporte */}
-              <FiltroSelect
-                label="Deporte"
-                value={deporteActivo === "todos" ? "" : deporteActivo}
-                onChange={(v) => setDeporteActivo((v || "todos") as DeporteFiltro)}
-                placeholder="Todos los deportes"
-                options={[
-                  { value: "tenis", label: "Tenis" },
-                  { value: "padel", label: "Pádel" },
-                  { value: "ambos", label: "Ambos" },
-                ]}
-              />
+              <div className="w-[140px] shrink-0">
+                <FiltroSelect
+                  label="Deporte"
+                  value={deporteActivo === "todos" ? "" : deporteActivo}
+                  onChange={(v) => setDeporteActivo((v || "todos") as DeporteFiltro)}
+                  placeholder="Todos"
+                  options={[
+                    { value: "tenis", label: "Tenis" },
+                    { value: "padel", label: "Pádel" },
+                    { value: "ambos", label: "Ambos" },
+                  ]}
+                />
+              </div>
 
               {/* Provincia */}
-              <FiltroSelect
-                label="Provincia"
-                value={provinciaFiltro}
-                onChange={handleProvinciaChange}
-                placeholder="Todas las provincias"
-                options={provinciasDisponibles.map((p) => ({ value: p.id, label: p.nombre }))}
-              />
+              <div className="w-[160px] shrink-0">
+                <FiltroSelect
+                  label="Provincia"
+                  value={provinciaFiltro}
+                  onChange={handleProvinciaChange}
+                  placeholder="Todas"
+                  options={provinciasDisponibles.map((p) => ({ value: p.id, label: p.nombre }))}
+                />
+              </div>
 
-              {/* Zona */}
-              <FiltroSelect
-                label={zonaLabel}
-                value={zoneFiltro}
-                onChange={setZoneFiltro}
-                placeholder={provinciaFiltro ? `Todos los ${zonaLabel === "Barrio" ? "barrios" : "municipios"}` : "Primero elegí provincia"}
-                options={zonasDisponibles.map((z) => ({ value: z, label: z }))}
-              />
+              {/* Zona (municipio / partido / barrio) */}
+              <div className="w-[160px] shrink-0">
+                <FiltroSelect
+                  label={zonaLabel}
+                  value={zoneFiltro}
+                  onChange={handleZoneChange}
+                  placeholder={provinciaFiltro ? `Todos los ${zonaLabel === "Barrio" ? "barrios" : "municipios"}` : "Primero elegí provincia"}
+                  options={zonasDisponibles.map((z) => ({ value: z, label: z }))}
+                  disabled={!provinciaFiltro}
+                />
+              </div>
 
-              {/* Ordenar por precio */}
-              <FiltroSelect
-                label="Ordenar por precio"
-                value={ordenPrecio}
-                onChange={(v) => setOrdenPrecio(v as "" | "asc" | "desc")}
-                placeholder="Sin ordenar"
-                options={[
-                  { value: "asc", label: "Más barato primero" },
-                  { value: "desc", label: "Más caro primero" },
-                ]}
-              />
+              {/* Localidad — aparece solo cuando hay datos para el partido */}
+              {localidadesDisponibles.length > 0 ? (
+                <div className="w-[150px] shrink-0">
+                  <FiltroSelect
+                    label="Localidad"
+                    value={localidadFiltro}
+                    onChange={setLocalidadFiltro}
+                    placeholder="Todas"
+                    options={localidadesDisponibles.map((l) => ({ value: l, label: l }))}
+                  />
+                </div>
+              ) : null}
+
+              {/* Ordenar por precio — empujado a la derecha */}
+              <div className="ml-auto">
+                <OrdenarPrecio value={ordenPrecio} onChange={setOrdenPrecio} />
+              </div>
             </div>
 
             {hayFiltrosActivos ? (

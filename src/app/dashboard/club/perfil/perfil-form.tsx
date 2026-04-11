@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import type { CurrentClub } from "@/lib/auth/get-current-club";
 import { ZonaSelector } from "@/components/zona-selector";
+import { getLocalidadesByMunicipio } from "@/lib/geo/argentina";
 import { updateClubPerfilAction } from "./actions";
 
 type ClubPerfilFormProps = {
@@ -20,7 +21,13 @@ export function ClubPerfilForm({ club, configuracion, successMessage, returnTo }
   const [visibleSuccess, setVisibleSuccess] = useState<string | null>(successMessage ?? null);
   const [provincia, setProvincia] = useState(club.provincia ?? "");
   const [municipio, setMunicipio] = useState(club.municipio ?? "");
+  const [localidad, setLocalidad] = useState(club.localidad ?? "");
   const [confirmacionAutomatica, setConfirmacionAutomatica] = useState(configuracion.confirmacion_automatica);
+
+  const localidadesDisponibles = useMemo(
+    () => (provincia && municipio ? getLocalidadesByMunicipio(provincia, municipio) : []),
+    [provincia, municipio],
+  );
   const [cancelacionHorasLimite, setCancelacionHorasLimite] = useState(String(configuracion.cancelacion_horas_limite));
 
   const usernamePreview = useMemo(() => club.username ?? "usuario", [club.username]);
@@ -66,8 +73,27 @@ export function ClubPerfilForm({ club, configuracion, successMessage, returnTo }
             provincia={provincia}
             municipio={municipio}
             onProvinciaChange={setProvincia}
-            onMunicipioChange={setMunicipio}
+            onMunicipioChange={(m) => { setMunicipio(m); setLocalidad(""); }}
           />
+
+          {provincia && provincia !== "caba" && municipio && localidadesDisponibles.length > 0 ? (
+            <label className="label">
+              <span>Localidad</span>
+              <select
+                name="localidad"
+                value={localidad}
+                onChange={(e) => setLocalidad(e.target.value)}
+                className="select"
+              >
+                <option value="">Seleccioná una localidad</option>
+                {localidadesDisponibles.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <input type="hidden" name="localidad" value={localidad} />
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="label">

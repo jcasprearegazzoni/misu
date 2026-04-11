@@ -9,6 +9,8 @@ type ClubRow = {
   nombre: string;
   username: string;
   direccion: string | null;
+  provincia: string | null;
+  municipio: string | null;
   canchas: Array<{ deporte: "tenis" | "padel" | "futbol" | "otro" }> | null;
 };
 
@@ -41,6 +43,8 @@ type ClubCard = {
   nombre: string;
   username: string;
   direccion: string | null;
+  provincia: string | null;
+  municipio: string | null;
   deportes: Array<"tenis" | "padel" | "futbol">;
 };
 
@@ -87,7 +91,7 @@ export default async function AlumnoReservasPage() {
   const clubsResultPromise = supabase
     .from("clubs")
     .select(`
-      id, nombre, username, direccion,
+      id, nombre, username, direccion, provincia, municipio,
       canchas!inner (deporte)
     `)
     .eq("canchas.activa", true)
@@ -135,6 +139,8 @@ export default async function AlumnoReservasPage() {
         nombre: row.nombre,
         username: row.username,
         direccion: row.direccion,
+        provincia: row.provincia,
+        municipio: row.municipio,
         deportes,
       });
     }
