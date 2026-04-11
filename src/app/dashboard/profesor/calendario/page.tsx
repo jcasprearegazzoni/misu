@@ -288,6 +288,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       id: booking.id,
       alumno_id: booking.alumno_id,
       alumno_name: "Alumno",
+      sport: booking.sport,
       date: booking.date,
       start_time: booking.start_time,
       end_time: booking.end_time,
@@ -490,7 +491,7 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       : [];
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
       <h1 className="text-xl font-semibold sm:text-2xl" style={{ color: "var(--foreground)" }}>Calendario de clases</h1>
 
       {hasLoadError ? (

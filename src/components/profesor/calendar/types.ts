@@ -5,6 +5,7 @@ export type CalendarBookingItem = {
   id: number;
   alumno_id: string;
   alumno_name: string;
+  sport: "tenis" | "padel" | null;
   alumno_category: string | null;
   alumno_branch: string | null;
   alumno_zone: string | null;

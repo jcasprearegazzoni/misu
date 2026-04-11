@@ -136,6 +136,84 @@ function formatDateShort(dateIso: string) {
   return `${day}/${month}/${year.slice(-2)}`;
 }
 
+function formatDateIsoFromDate(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function getWeekOffsetFromToday(targetDateIso: string) {
+  const todayIso = getTodayIsoArg();
+  const today = new Date(`${todayIso}T00:00:00-03:00`);
+  const target = new Date(`${targetDateIso}T00:00:00-03:00`);
+
+  const getMonday = (date: Date) => {
+    const base = new Date(date);
+    const day = base.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    base.setDate(base.getDate() + mondayOffset);
+    base.setHours(0, 0, 0, 0);
+    return base;
+  };
+
+  const thisMonday = getMonday(today);
+  const targetMonday = getMonday(target);
+  const diffMs = targetMonday.getTime() - thisMonday.getTime();
+  return Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+}
+
+function shiftMonth(monthIso: string, deltaMonths: number) {
+  const base = new Date(`${monthIso}T00:00:00-03:00`);
+  base.setDate(1);
+  base.setMonth(base.getMonth() + deltaMonths);
+  return formatDateIsoFromDate(base).slice(0, 7) + "-01";
+}
+
+function formatMonthTitle(monthIso: string) {
+  const date = new Date(`${monthIso}T00:00:00-03:00`);
+  const month = new Intl.DateTimeFormat("es-AR", {
+    month: "long",
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(date);
+  const year = new Intl.DateTimeFormat("es-AR", {
+    year: "numeric",
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(date);
+  return `${month.charAt(0).toUpperCase() + month.slice(1)} ${year}`;
+}
+
+function buildMonthCells(monthIso: string) {
+  const monthStart = new Date(`${monthIso}T00:00:00-03:00`);
+  monthStart.setDate(1);
+
+  const year = monthStart.getFullYear();
+  const month = monthStart.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const jsDay = monthStart.getDay();
+  const mondayIndex = (jsDay + 6) % 7;
+
+  const cells: Array<string | null> = [];
+  for (let i = 0; i < mondayIndex; i += 1) {
+    cells.push(null);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(monthStart);
+    date.setDate(day);
+    cells.push(formatDateIsoFromDate(date));
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
+}
+
 function getOccupiedEventVisual(slot: NonNullable<CalendarCell["slot"]>) {
   if (slot.is_finalized) {
     if (slot.has_financial_pending) {
@@ -219,6 +297,8 @@ export function WeekTimeline({
   const [createEndTime, setCreateEndTime] = useState("");
   const [createFeedback, setCreateFeedback] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  const [isDayJumpMenuOpen, setIsDayJumpMenuOpen] = useState(false);
+  const [dayJumpMonthIso, setDayJumpMonthIso] = useState(`${selectedDay.slice(0, 7)}-01`);
 
   const selectedItem =
     selectedSlot?.bookings.find((booking) => booking.id === selectedBookingId) ??
@@ -239,18 +319,6 @@ export function WeekTimeline({
     createEndTime.length > 0 &&
     createStartTimeOptions.length > 0 &&
     createEndTimeOptions.length > 0;
-
-  useEffect(() => {
-    if (!selectedCreateSlot) {
-      return;
-    }
-    setCreateDate(selectedCreateSlot.date);
-    setCreateStartTime(selectedCreateSlot.startTime);
-    setCreateEndTime(selectedCreateSlot.endTime);
-    setAlumnoNombre("");
-    setSelectedType("individual");
-    setCreateFeedback(null);
-  }, [selectedCreateSlot]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 1023px)");
@@ -314,6 +382,7 @@ export function WeekTimeline({
   }, [availability, blockedRanges, daySlots]);
 
   const effectiveView: "week" | "day" = isMobile === null ? view : isMobile ? "day" : "week";
+  const todayIso = getTodayIsoArg();
   const visibleDays = effectiveView === "day" ? [selectedDay] : days.map((day) => day.date);
   const monthLabel = formatMonthLabel(visibleDays[0] ?? new Date().toISOString().slice(0, 10));
   const navControlClass =
@@ -326,6 +395,12 @@ export function WeekTimeline({
   const todayHref = effectiveView === "week" ? weekTodayHref : dayTodayHref;
   const nextHref = effectiveView === "week" ? weekNextHref : dayNextHref;
   const showSidePanel = Boolean(selectedItem || selectedCreateSlot);
+  const showMobileDetailSheet = isMobile === true && Boolean(selectedItem || selectedCreateSlot);
+  const baseDayHref = dayLinks.find((link) => link.date === selectedDay)?.href ?? dayLinks[0]?.href ?? "";
+  const [baseDayPath, baseDayQuery] = baseDayHref.split("?");
+  const dayJumpMonthTitle = useMemo(() => formatMonthTitle(dayJumpMonthIso), [dayJumpMonthIso]);
+  const dayJumpMonthCells = useMemo(() => buildMonthCells(dayJumpMonthIso), [dayJumpMonthIso]);
+  const weekDayHeaders = ["L", "M", "X", "J", "V", "S", "D"] as const;
 
   function applyCreateDate(nextDate: string) {
     setCreateDate(nextDate);
@@ -334,6 +409,21 @@ export function WeekTimeline({
     setCreateStartTime(nextStart);
     const nextEndOptions = buildEndOptionsForDateAndStart(nextDate, nextStart, availability);
     setCreateEndTime(getOneHourLaterOrNextAvailable(nextStart, nextEndOptions));
+  }
+
+  function closeMobileDetailSheet() {
+    setSelectedSlotKey(null);
+    setSelectedBookingId(null);
+    setSelectedCreateSlot(null);
+    setCreateFeedback(null);
+  }
+
+  function buildDayJumpHref(nextDateIso: string) {
+    const params = new URLSearchParams(baseDayQuery ?? "");
+    params.set("view", "day");
+    params.set("day", nextDateIso);
+    params.set("weekOffset", String(getWeekOffsetFromToday(nextDateIso)));
+    return `${baseDayPath || "/dashboard/profesor/calendario"}?${params.toString()}`;
   }
 
   return (
@@ -396,7 +486,7 @@ export function WeekTimeline({
             <div />
             {visibleDays.map((day) => {
               const chip = formatDayChip(day);
-              const isToday = day === getTodayIsoArg();
+              const isToday = day === todayIso;
               const shouldHighlightToday = effectiveView === "week" && isToday;
               return (
                   <div
@@ -411,15 +501,94 @@ export function WeekTimeline({
                     }}
                   >
                     {effectiveView === "day" ? (
-                      <p className="text-[16px] font-semibold leading-5" style={{ color: "var(--foreground)" }}>
-                        {new Intl.DateTimeFormat("es-AR", {
-                          weekday: "long",
-                          day: "2-digit",
-                          timeZone: "America/Argentina/Buenos_Aires",
-                        })
-                          .format(new Date(`${day}T00:00:00-03:00`))
-                          .replace(".", "")}
-                      </p>
+                      <div className="relative mx-auto max-w-[280px]">
+                        <button
+                          type="button"
+                          className="w-full rounded-md px-2 py-1 text-[16px] font-semibold leading-5"
+                          style={{ color: "var(--foreground)", background: "transparent" }}
+                          aria-expanded={isDayJumpMenuOpen}
+                          aria-label="Abrir selector rapido de dia"
+                          onClick={() => {
+                            setDayJumpMonthIso(`${selectedDay.slice(0, 7)}-01`);
+                            setIsDayJumpMenuOpen((prev) => !prev);
+                          }}
+                        >
+                          {new Intl.DateTimeFormat("es-AR", {
+                            weekday: "long",
+                            day: "2-digit",
+                            timeZone: "America/Argentina/Buenos_Aires",
+                          })
+                            .format(new Date(`${day}T00:00:00-03:00`))
+                            .replace(".", "")}
+                        </button>
+                        {isDayJumpMenuOpen ? (
+                          <div
+                            className="absolute left-1/2 top-full z-30 mt-1 w-[260px] -translate-x-1/2 rounded-xl border p-2 text-left shadow-lg"
+                            style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+                          >
+                            <div className="mb-2 flex items-center justify-between">
+                              <button
+                                type="button"
+                                className="rounded-md px-2 py-1 text-xs font-semibold"
+                                style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+                                aria-label="Mes anterior"
+                                onClick={() => setDayJumpMonthIso((prev) => shiftMonth(prev, -1))}
+                              >
+                                {"<"}
+                              </button>
+                              <p className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
+                                {dayJumpMonthTitle}
+                              </p>
+                              <button
+                                type="button"
+                                className="rounded-md px-2 py-1 text-xs font-semibold"
+                                style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+                                aria-label="Mes siguiente"
+                                onClick={() => setDayJumpMonthIso((prev) => shiftMonth(prev, 1))}
+                              >
+                                {">"}
+                              </button>
+                            </div>
+
+                            <div className="mb-1 grid grid-cols-7 gap-1">
+                              {weekDayHeaders.map((dayHeader) => (
+                                <p
+                                  key={`weekday-${dayHeader}`}
+                                  className="text-center text-[10px] font-semibold"
+                                  style={{ color: "var(--muted)" }}
+                                >
+                                  {dayHeader}
+                                </p>
+                              ))}
+                            </div>
+
+                            <div className="grid grid-cols-7 gap-1">
+                              {dayJumpMonthCells.map((dateIso, index) =>
+                                dateIso ? (
+                                  <Link
+                                    key={`jump-${dateIso}`}
+                                    href={buildDayJumpHref(dateIso)}
+                                    className="flex h-8 items-center justify-center rounded-md text-xs font-semibold"
+                                    style={{
+                                      background: dateIso === selectedDay ? "var(--misu)" : "var(--surface-2)",
+                                      color: dateIso === selectedDay ? "#fff" : "var(--foreground)",
+                                      border:
+                                        dateIso !== selectedDay && dateIso === todayIso
+                                          ? "1px solid var(--misu)"
+                                          : "1px solid transparent",
+                                    }}
+                                    onClick={() => setIsDayJumpMenuOpen(false)}
+                                  >
+                                    {Number(dateIso.slice(-2))}
+                                  </Link>
+                                ) : (
+                                  <span key={`jump-empty-${index}`} className="block h-8" />
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
                     ) : (
                       <>
                         <p className="text-[11px] font-medium leading-3" style={{ color: "var(--muted)" }}>
@@ -504,6 +673,12 @@ export function WeekTimeline({
 
                           setSelectedSlotKey(null);
                           setSelectedBookingId(null);
+                          setCreateDate(cell.date);
+                          setCreateStartTime(cell.start_time.slice(0, 5));
+                          setCreateEndTime(cell.end_time.slice(0, 5));
+                          setAlumnoNombre("");
+                          setSelectedType("individual");
+                          setCreateFeedback(null);
                           setSelectedCreateSlot({
                             date: cell.date,
                             startTime: cell.start_time.slice(0, 5),
@@ -585,6 +760,7 @@ export function WeekTimeline({
                 slotBookings={selectedSlot?.bookings}
                 selectedBookingId={selectedBookingId}
                 onSelectBooking={(bookingId) => setSelectedBookingId(bookingId)}
+                compactMobile
               />
             ) : selectedCreateSlot ? (
               <form
@@ -768,6 +944,206 @@ export function WeekTimeline({
         ) : null}
         </div>
       </div>
+
+      {showMobileDetailSheet ? (
+        <div className="fixed inset-0 z-[60] lg:hidden" aria-modal="true" role="dialog">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45"
+            onClick={closeMobileDetailSheet}
+            aria-label="Cerrar detalle"
+          />
+          <div
+            className="absolute inset-x-0 bottom-0 z-10 max-h-[85vh] overflow-y-auto rounded-t-2xl border p-4 shadow-2xl"
+            style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+          >
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                {selectedItem ? "Detalle de clase" : "Crear clase"}
+              </p>
+              <button
+                type="button"
+                className="rounded-md border px-2 py-1 text-xs"
+                style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}
+                onClick={closeMobileDetailSheet}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {selectedItem ? (
+              <BookingDetailContent
+                item={selectedItem}
+                availabilityRanges={availability}
+                timeRange={{ start: selectedItem.start_time, end: selectedItem.end_time }}
+                slotBookings={selectedSlot?.bookings}
+                selectedBookingId={selectedBookingId}
+                onSelectBooking={(bookingId) => setSelectedBookingId(bookingId)}
+              />
+            ) : selectedCreateSlot ? (
+              <form
+                className="grid gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  if (!canConfirmCreate) {
+                    setCreateFeedback({
+                      type: "error",
+                      message: "Completa alumno, fecha y horario para confirmar.",
+                    });
+                    return;
+                  }
+
+                  setCreateFeedback({
+                    type: "error",
+                    message:
+                      "La creacion para alumnos sin cuenta requiere habilitacion backend (no disponible en este modulo aun).",
+                  });
+                }}
+              >
+                <div className="rounded-md border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+                  <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                    {selectedCreateSlot.date} - {selectedCreateSlot.startTime} a {selectedCreateSlot.endTime}
+                  </p>
+                </div>
+
+                {deportes.length > 1 ? (
+                  <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                    Deporte
+                    <select
+                      value={deporteActivo ?? ""}
+                      disabled
+                      className="select h-10 text-sm"
+                      style={{ background: "var(--surface-1)" }}
+                    >
+                      {deportes.map((deporte) => (
+                        <option key={deporte.key} value={deporte.key}>
+                          {deporte.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                  Alumno
+                  <input
+                    type="text"
+                    value={alumnoNombre}
+                    onChange={(event) => setAlumnoNombre(event.target.value)}
+                    placeholder="Nombre del alumno"
+                    className="input h-10 text-sm"
+                    style={{ background: "var(--surface-1)" }}
+                  />
+                </label>
+
+                <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                  Modalidad
+                  <select
+                    value={selectedType}
+                    onChange={(event) =>
+                      setSelectedType(event.target.value as "individual" | "dobles" | "trio" | "grupal")
+                    }
+                    className="select h-10 text-sm"
+                    style={{ background: "var(--surface-1)" }}
+                  >
+                    <option value="individual">Individual</option>
+                    <option value="dobles">Dobles</option>
+                    <option value="trio">Trio</option>
+                    <option value="grupal">Grupal</option>
+                  </select>
+                </label>
+
+                <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                  Fecha
+                  <input
+                    type="date"
+                    value={createDate}
+                    onChange={(event) => applyCreateDate(event.target.value)}
+                    className="input h-10 text-sm"
+                    style={{ background: "var(--surface-1)" }}
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                    Hora inicio
+                    <select
+                      value={createStartTime}
+                      onChange={(event) => {
+                        const nextStart = event.target.value;
+                        setCreateStartTime(nextStart);
+                        if (createEndTime <= nextStart) {
+                          const nextEndOptions = buildEndOptionsForDateAndStart(
+                            createDate,
+                            nextStart,
+                            availability,
+                          );
+                          setCreateEndTime(getOneHourLaterOrNextAvailable(nextStart, nextEndOptions));
+                        }
+                      }}
+                      className="select h-10 text-sm"
+                      style={{ background: "var(--surface-1)" }}
+                    >
+                      {createStartTimeOptions.map((option) => (
+                        <option key={`create-mobile-start-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                    Hora fin
+                    <select
+                      value={createEndTime}
+                      onChange={(event) => setCreateEndTime(event.target.value)}
+                      className="select h-10 text-sm"
+                      style={{ background: "var(--surface-1)" }}
+                    >
+                      {createEndTimeOptions.map((option) => (
+                        <option key={`create-mobile-end-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {createStartTimeOptions.length === 0 ? (
+                  <p
+                    className="rounded-md border px-3 py-2 text-sm"
+                    style={{
+                      borderColor: "var(--warning-border)",
+                      background: "var(--warning-bg)",
+                      color: "var(--warning)",
+                    }}
+                  >
+                    No hay disponibilidad configurada para la fecha elegida.
+                  </p>
+                ) : null}
+
+                {createFeedback ? (
+                  <p
+                    className="rounded-md border px-3 py-2 text-sm"
+                    style={{
+                      borderColor: "var(--error-border)",
+                      background: "var(--error-bg)",
+                      color: "var(--error)",
+                    }}
+                  >
+                    {createFeedback.message}
+                  </p>
+                ) : null}
+
+                <button type="submit" className="btn-primary h-10 px-4 text-sm font-semibold" disabled={!canConfirmCreate}>
+                  Confirmar
+                </button>
+              </form>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
