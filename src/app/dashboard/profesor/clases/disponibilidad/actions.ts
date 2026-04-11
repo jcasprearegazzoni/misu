@@ -165,6 +165,70 @@ export async function addBlockedDateAction(
   };
 }
 
+export async function saveBlockedDateAction(
+  _prevState: DisponibilidadActionState,
+  formData: FormData,
+): Promise<DisponibilidadActionState> {
+  const parsed = blockedDateSchema.safeParse({
+    id: formData.get("id"),
+    start_at: formData.get("start_at"),
+    end_at: formData.get("end_at"),
+    reason: formData.get("reason"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Datos invalidos para fecha bloqueada.",
+      success: null,
+    };
+  }
+
+  const { supabase, profesorId } = await getProfesorIdOrRedirect();
+  const blockedStartAt = new Date(parsed.data.start_at);
+  const blockedEndAt = new Date(parsed.data.end_at);
+
+  if (parsed.data.id) {
+    const { error } = await supabase
+      .from("blocked_dates")
+      .update({
+        start_at: blockedStartAt.toISOString(),
+        end_at: blockedEndAt.toISOString(),
+        reason: parsed.data.reason ?? null,
+      })
+      .eq("id", parsed.data.id)
+      .eq("profesor_id", profesorId);
+
+    if (error) {
+      return {
+        error: error.message,
+        success: null,
+      };
+    }
+
+    const { error: rpcError } = await supabase.rpc("cancel_bookings_for_blocked_range", {
+      p_profesor_id: profesorId,
+      p_start_at: blockedStartAt.toISOString(),
+      p_end_at: blockedEndAt.toISOString(),
+    });
+
+    if (rpcError) {
+      return {
+        error: "Ausencia actualizada, pero no se pudieron cancelar las clases solapadas.",
+        success: null,
+      };
+    }
+
+    revalidateDisponibilidadPages();
+
+    return {
+      error: null,
+      success: "Ausencia actualizada correctamente.",
+    };
+  }
+
+  return addBlockedDateAction(_prevState, formData);
+}
+
 export async function deleteAvailabilityAction(formData: FormData): Promise<void> {
   const rawId = formData.get("id");
   const id = Number(rawId);

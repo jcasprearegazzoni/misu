@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useActionState, useEffect, useState } from "react";
 import { ZonaSelector } from "@/components/zona-selector";
@@ -36,78 +36,68 @@ export function PerfilForm({ initialValues, successMessage }: PerfilFormProps) {
 
   return (
     <form action={formAction} className="mt-4 grid gap-6">
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px] lg:items-start">
-        <div className="grid gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
             <label className="label">
               <span>Nombre</span>
               <input type="text" name="name" defaultValue={initialValues.name} className="input" required />
             </label>
-            <label className="label">
-              <span>Deporte</span>
-              <select name="sport" defaultValue={initialValues.sport} className="select">
-                <option value="tenis">Tenis</option>
-                <option value="padel">Pádel</option>
-                <option value="ambos">Ambos</option>
-              </select>
-            </label>
+            <small style={{ color: "var(--muted-2)" }}>
+              URL y username:{" "}
+              {initialValues.username ? (
+                <>
+                  misu.app/p/<strong>{initialValues.username}</strong>
+                </>
+              ) : (
+                "se generara automaticamente al guardar"
+              )}
+            </small>
           </div>
 
-          <ZonaSelector
-            provincia={provincia}
-            municipio={municipio}
-            onProvinciaChange={setProvincia}
-            onMunicipioChange={setMunicipio}
-          />
-
-          {provincia !== "caba" ? (
-            <label className="label">
-              <span>Localidad</span>
-              <input
-                type="text"
-                name="localidad"
-                value={localidad}
-                onChange={(e) => setLocalidad(e.target.value)}
-                placeholder="Ej: Palermo, San Isidro..."
-                className="input"
-              />
-            </label>
-          ) : null}
-        </div>
-
-        <div className="grid content-start gap-4">
-          {initialValues.username ? (
-            <div className="label">
-              <span>Username</span>
-              <p className="input" style={{ color: "var(--muted)", cursor: "default", userSelect: "all" }}>
-                {initialValues.username}
-              </p>
-              <small style={{ color: "var(--muted-2)" }}>
-                URL pública: misu.app/p/<strong>{initialValues.username}</strong>
-              </small>
-            </div>
-          ) : (
-            <div className="label">
-              <span>Username</span>
-              <p className="input" style={{ color: "var(--muted-2)", cursor: "default" }}>
-                Se generará automáticamente al guardar.
-              </p>
-            </div>
-          )}
-
           <label className="label">
-            <span>
-              Bio <span style={{ color: "var(--muted-2)", fontWeight: 400 }}>(opcional)</span>
-            </span>
-            <textarea
-              name="bio"
-              defaultValue={initialValues.bio}
-              rows={4}
-              className="input"
-              placeholder="Contá brevemente sobre vos"
-            />
+            <span>Deporte</span>
+            <select name="sport" defaultValue={initialValues.sport} className="select">
+              <option value="tenis">Tenis</option>
+              <option value="padel">Padel</option>
+              <option value="ambos">Ambos</option>
+            </select>
           </label>
         </div>
+
+        <ZonaSelector
+          provincia={provincia}
+          municipio={municipio}
+          onProvinciaChange={setProvincia}
+          onMunicipioChange={setMunicipio}
+        />
+
+        {provincia !== "caba" ? (
+          <label className="label">
+            <span>Localidad</span>
+            <input
+              type="text"
+              name="localidad"
+              value={localidad}
+              onChange={(e) => setLocalidad(e.target.value)}
+              placeholder="Ej: Palermo, San Isidro..."
+              className="input"
+            />
+          </label>
+        ) : null}
+
+        <label className="label">
+          <span>
+            Bio <span style={{ color: "var(--muted-2)", fontWeight: 400 }}>(opcional)</span>
+          </span>
+          <textarea
+            name="bio"
+            defaultValue={initialValues.bio}
+            rows={4}
+            className="input"
+            placeholder="Conta brevemente sobre vos"
+          />
+        </label>
       </div>
 
       {state.error ? <p className="alert-error">{state.error}</p> : null}
@@ -121,3 +111,4 @@ export function PerfilForm({ initialValues, successMessage }: PerfilFormProps) {
     </form>
   );
 }
+

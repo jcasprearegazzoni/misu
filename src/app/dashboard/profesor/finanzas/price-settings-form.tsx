@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { saveProfesorPriceSettingsAction } from "./actions";
 
 type TipoClase = "individual" | "dobles" | "trio" | "grupal";
@@ -8,7 +8,7 @@ type TipoClase = "individual" | "dobles" | "trio" | "grupal";
 const TIPOS: Array<{ key: TipoClase; label: string; descripcion: string }> = [
   { key: "individual", label: "Individual", descripcion: "1 alumno" },
   { key: "dobles", label: "Dobles", descripcion: "2 alumnos" },
-  { key: "trio", label: "Trío", descripcion: "3 alumnos" },
+  { key: "trio", label: "Trio", descripcion: "3 alumnos" },
   { key: "grupal", label: "Grupal", descripcion: "4+ alumnos" },
 ];
 
@@ -21,34 +21,72 @@ type PriceSettingsFormProps = {
   };
 };
 
+function normalizeNumericInput(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatPriceNumber(rawValue: string) {
+  if (!rawValue) return "";
+  const numericValue = Number(rawValue);
+  if (!Number.isFinite(numericValue)) return rawValue;
+  return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(numericValue);
+}
+
 export function PriceSettingsForm({ initialValues }: PriceSettingsFormProps) {
   const [state, formAction, isPending] = useActionState(saveProfesorPriceSettingsAction, {
     error: null,
     success: null,
   });
 
-  // Inicializa el checkbox como activo si el precio ya tiene valor
   const [enabled, setEnabled] = useState<Record<TipoClase, boolean>>({
     individual: initialValues.price_individual !== "",
     dobles: initialValues.price_dobles !== "",
     trio: initialValues.price_trio !== "",
     grupal: initialValues.price_grupal !== "",
   });
+
   const [prices, setPrices] = useState<Record<TipoClase, string>>({
-    individual: initialValues.price_individual,
-    dobles: initialValues.price_dobles,
-    trio: initialValues.price_trio,
-    grupal: initialValues.price_grupal,
+    individual: normalizeNumericInput(initialValues.price_individual),
+    dobles: normalizeNumericInput(initialValues.price_dobles),
+    trio: normalizeNumericInput(initialValues.price_trio),
+    grupal: normalizeNumericInput(initialValues.price_grupal),
   });
+
+  const [visibleSuccess, setVisibleSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!state.success) return;
+    setVisibleSuccess(state.success);
+
+    const timeoutId = window.setTimeout(() => {
+      setVisibleSuccess(null);
+    }, 3500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [state.success]);
+
+  const formattedPrices = useMemo(
+    () => ({
+      individual: formatPriceNumber(prices.individual),
+      dobles: formatPriceNumber(prices.dobles),
+      trio: formatPriceNumber(prices.trio),
+      grupal: formatPriceNumber(prices.grupal),
+    }),
+    [prices],
+  );
 
   function toggle(key: TipoClase) {
     setEnabled((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  function handlePriceChange(key: TipoClase, value: string) {
+    setPrices((prev) => ({ ...prev, [key]: normalizeNumericInput(value) }));
+  }
+
   return (
     <form action={formAction} className="grid gap-4">
       <p className="mb-3 text-xs" style={{ color: "var(--muted)" }}>
-        Solo los tipos de clase habilitados se envían. Los deshabilitados se borran de tu perfil.
+        Solo los tipos de clase habilitados se envian. Los deshabilitados se borran de tu perfil.
       </p>
 
       <div className="grid gap-2 sm:grid-cols-2 sm:items-start">
@@ -86,7 +124,7 @@ export function PriceSettingsForm({ initialValues }: PriceSettingsFormProps) {
                     {descripcion}
                   </p>
                 </div>
-                {isEnabled && (
+                {isEnabled ? (
                   <span
                     className="rounded-full px-2 py-0.5 text-xs font-semibold"
                     style={{
@@ -96,7 +134,7 @@ export function PriceSettingsForm({ initialValues }: PriceSettingsFormProps) {
                   >
                     Activo
                   </span>
-                )}
+                ) : null}
               </label>
 
               <div
@@ -119,17 +157,19 @@ export function PriceSettingsForm({ initialValues }: PriceSettingsFormProps) {
                         >
                           $
                         </span>
+
+                        {isEnabled ? <input type="hidden" name={fieldName} value={prices[key]} /> : null}
+
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           id={`${fieldName}_input`}
-                          name={isEnabled ? fieldName : undefined}
-                          value={prices[key]}
-                          onChange={(e) => setPrices((prev) => ({ ...prev, [key]: e.target.value }))}
-                          min="0"
-                          step="1"
+                          value={formattedPrices[key]}
+                          onChange={(e) => handlePriceChange(key, e.target.value)}
                           className="input w-full"
                           style={{ paddingLeft: "2rem" }}
                           placeholder="0"
+                          disabled={!isEnabled}
                         />
                       </div>
                     </label>
@@ -142,7 +182,7 @@ export function PriceSettingsForm({ initialValues }: PriceSettingsFormProps) {
       </div>
 
       {state.error ? <p className="alert-error">{state.error}</p> : null}
-      {state.success ? <p className="alert-success">{state.success}</p> : null}
+      {visibleSuccess ? <p className="alert-success">{visibleSuccess}</p> : null}
 
       <div className="flex justify-end">
         <button type="submit" disabled={isPending} className="btn-primary disabled:opacity-60">
@@ -152,3 +192,4 @@ export function PriceSettingsForm({ initialValues }: PriceSettingsFormProps) {
     </form>
   );
 }
+

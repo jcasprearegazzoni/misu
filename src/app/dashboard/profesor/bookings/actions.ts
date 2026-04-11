@@ -48,7 +48,7 @@ async function updateBookingStatus(
 
   const { data: bookingContext } = await supabase
     .from("bookings")
-    .select("profesor_id, alumno_id, date, start_time, end_time")
+    .select("profesor_id, alumno_id, date, start_time, end_time, package_consumed, consumed_student_package_id")
     .eq("id", parsed.data.bookingId)
     .eq("profesor_id", user.id)
     .single();
@@ -82,6 +82,42 @@ async function updateBookingStatus(
       return { error: "Clase confirmada, pero no se pudo descontar el credito del paquete." };
     }
   } else {
+    let restoredPackageCredit = false;
+
+    // Si la clase habia consumido un credito de paquete, restaurarlo antes de cancelar.
+    if (bookingContext?.package_consumed && bookingContext.consumed_student_package_id) {
+      const admin = createSupabaseAdminClient();
+
+      const { data: pkg } = await admin
+        .from("student_packages")
+        .select("classes_remaining")
+        .eq("id", bookingContext.consumed_student_package_id)
+        .single();
+
+      if (pkg) {
+        const { error: restorePackageError } = await admin
+          .from("student_packages")
+          .update({ classes_remaining: pkg.classes_remaining + 1 })
+          .eq("id", bookingContext.consumed_student_package_id);
+
+        if (restorePackageError) {
+          return { error: "No se pudo restaurar el credito del paquete." };
+        }
+
+        restoredPackageCredit = true;
+      }
+
+      const { error: clearBookingPackageError } = await admin
+        .from("bookings")
+        .update({ package_consumed: false, consumed_student_package_id: null })
+        .eq("id", parsed.data.bookingId)
+        .eq("profesor_id", user.id);
+
+      if (clearBookingPackageError) {
+        return { error: "No se pudo actualizar el consumo de paquete en la reserva." };
+      }
+    }
+
     // Para cancelacion se mantiene update directo; DB se encarga de sincronizar el espejo.
     const { error: updateError } = await supabase
       .from("bookings")
@@ -92,17 +128,23 @@ async function updateBookingStatus(
     if (updateError) {
       return { error: "No se pudo actualizar el estado de la clase." };
     }
+
+    if (bookingContext) {
+      await createNotification({
+        userId: bookingContext.alumno_id,
+        type: "booking_cancelled",
+        title: "Reserva cancelada",
+        message: `Tu reserva del ${bookingContext.date} de ${bookingContext.start_time.slice(0, 5)} a ${bookingContext.end_time.slice(0, 5)} fue cancelada.${restoredPackageCredit ? " Se devolvió 1 clase a tu paquete." : ""}`,
+      });
+    }
   }
 
-  if (bookingContext) {
+  if (bookingContext && status === "confirmado") {
     await createNotification({
       userId: bookingContext.alumno_id,
-      type: status === "confirmado" ? "booking_confirmed" : "booking_cancelled",
-      title: status === "confirmado" ? "Reserva confirmada" : "Reserva cancelada",
-      message:
-        status === "confirmado"
-          ? `Tu reserva del ${bookingContext.date} de ${bookingContext.start_time.slice(0, 5)} a ${bookingContext.end_time.slice(0, 5)} fue confirmada.`
-          : `Tu reserva del ${bookingContext.date} de ${bookingContext.start_time.slice(0, 5)} a ${bookingContext.end_time.slice(0, 5)} fue cancelada.`,
+      type: "booking_confirmed",
+      title: "Reserva confirmada",
+      message: `Tu reserva del ${bookingContext.date} de ${bookingContext.start_time.slice(0, 5)} a ${bookingContext.end_time.slice(0, 5)} fue confirmada.`,
     });
   }
 
@@ -202,15 +244,29 @@ export async function createSoloDecisionAction(formData: FormData) {
     .single();
 
   const deadlineMinutes = profesorProfile?.solo_decision_deadline_minutes ?? 1440;
+  const decisionDeadlineAt = new Date(Date.now() + deadlineMinutes * 60 * 1000).toISOString();
 
-  await supabase.from("booking_solo_decisions").insert({
+  const { error: insertSoloDecisionError } = await supabase.from("booking_solo_decisions").insert({
     booking_id: booking.id,
     profesor_id: booking.profesor_id,
     alumno_id: booking.alumno_id,
     status: "pendiente",
-    decision_deadline_at: new Date(Date.now() + deadlineMinutes * 60 * 1000).toISOString(),
+    decision_deadline_at: decisionDeadlineAt,
+  });
+
+  if (insertSoloDecisionError) {
+    return;
+  }
+
+  // Notifica al alumno solo si la decision se creo correctamente.
+  await createNotification({
+    userId: booking.alumno_id,
+    type: "solo_decision_created",
+    title: "Ten\u00E9s que tomar una decisi\u00F3n sobre tu clase",
+    message: `Tu clase del ${booking.date} de ${booking.start_time.slice(0, 5)} a ${booking.end_time.slice(0, 5)} requiere decisi\u00F3n antes del ${decisionDeadlineAt}.`,
   });
 
   revalidatePath("/dashboard/profesor/bookings");
   revalidatePath("/dashboard/alumno/decisiones");
 }
+

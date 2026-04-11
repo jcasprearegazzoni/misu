@@ -1,10 +1,9 @@
 ﻿"use client";
 
-import { useState, useTransition } from "react";
-import { formatUserDateTime } from "@/lib/format/date";
+import { useEffect, useState, useTransition } from "react";
 import {
-  addBlockedDateAction,
   deleteBlockedDateAction,
+  saveBlockedDateAction,
   type DisponibilidadActionState,
 } from "@/app/dashboard/profesor/clases/disponibilidad/actions";
 
@@ -18,6 +17,7 @@ type BlockedDateRow = {
 type AusenciasManagerProps = {
   blockedDates: BlockedDateRow[];
   bare?: boolean;
+  hideTitle?: boolean;
 };
 
 const initialState: DisponibilidadActionState = {
@@ -75,18 +75,107 @@ function isSameDate(a: Date, b: Date) {
   );
 }
 
-export function AusenciasManager({ blockedDates, bare = false }: AusenciasManagerProps) {
+function getDateAndTimeParts(isoValue: string) {
+  const date = new Date(isoValue);
+  return {
+    date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+    time: `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`,
+  };
+}
+
+function formatAbsenceDateTime(value: string) {
+  const date = new Date(value);
+  const dateLabel = date.toLocaleDateString("es-AR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
+  const timeLabel = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  return `${dateLabel} ${timeLabel}`;
+}
+
+function getAbsenceTitle(item: BlockedDateRow) {
+  return item.reason?.trim() || "Ausencia";
+}
+
+function getAbsenceRangeLabel(item: BlockedDateRow) {
+  return `${formatAbsenceDateTime(item.start_at)} - ${formatAbsenceDateTime(item.end_at)}`;
+}
+
+export function AusenciasManager({ blockedDates, bare = false, hideTitle = false }: AusenciasManagerProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [state, setState] = useState<DisponibilidadActionState>(initialState);
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [calendarMonth, setCalendarMonth] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
   const [rangeStart, setRangeStart] = useState<Date | null>(null);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(null);
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("22:00");
+  const [reason, setReason] = useState("");
+  const [editingItem, setEditingItem] = useState<BlockedDateRow | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   const calendarCells = getMonthMatrix(calendarMonth);
+  const isEditing = editingItem !== null;
+
+  const rangeEndOrStart = rangeEnd ?? rangeStart;
+  const computedStartAt = rangeStart ? `${toIsoDate(rangeStart)}T${startTime}` : "";
+  const computedEndAt = rangeEndOrStart ? `${toIsoDate(rangeEndOrStart)}T${endTime}` : "";
+
+  useEffect(() => {
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && isModalOpen) {
+        closeModal();
+      }
+    }
+
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isModalOpen]);
+
+  function resetModalState() {
+    setRangeStart(null);
+    setRangeEnd(null);
+    setStartTime("08:00");
+    setEndTime("22:00");
+    setReason("");
+    setEditingItem(null);
+    setLocalError(null);
+    setState(initialState);
+  }
+
+  function openCreateModal() {
+    resetModalState();
+    const now = new Date();
+    setCalendarMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    setIsModalOpen(true);
+  }
+
+  function openEditModal(item: BlockedDateRow) {
+    resetModalState();
+
+    const startParts = getDateAndTimeParts(item.start_at);
+    const endParts = getDateAndTimeParts(item.end_at);
+
+    setEditingItem(item);
+    setRangeStart(startParts.date);
+    setRangeEnd(endParts.date);
+    setStartTime(startParts.time);
+    setEndTime(endParts.time);
+    setReason(item.reason ?? "");
+    setCalendarMonth(new Date(startParts.date.getFullYear(), startParts.date.getMonth(), 1));
+    setIsModalOpen(true);
+  }
+
+  function closeModal() {
+    setIsModalOpen(false);
+    resetModalState();
+  }
 
   function handleDayClick(day: Date) {
     setLocalError(null);
@@ -126,16 +215,13 @@ export function AusenciasManager({ blockedDates, bare = false }: AusenciasManage
     return day >= rangeStart && day <= rangeEnd;
   }
 
-  const computedStartAt = rangeStart ? `${toIsoDate(rangeStart)}T${startTime}` : "";
-  const computedEndAt = (rangeEnd ?? rangeStart) ? `${toIsoDate(rangeEnd ?? rangeStart!)}T${endTime}` : "";
-
-  function resetModalState() {
-    setRangeStart(null);
-    setRangeEnd(null);
-    setStartTime("08:00");
-    setEndTime("22:00");
-    setLocalError(null);
-    setState(initialState);
+  function handleDelete(itemId: number) {
+    const formData = new FormData();
+    formData.set("id", String(itemId));
+    startDeleteTransition(() => {
+      deleteBlockedDateAction(formData);
+      setConfirmDeleteId(null);
+    });
   }
 
   return (
@@ -145,55 +231,92 @@ export function AusenciasManager({ blockedDates, bare = false }: AusenciasManage
         style={bare ? undefined : { borderColor: "var(--border)", background: "var(--surface-1)" }}
       >
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-              Ausencias
-            </h2>
-            {blockedDates.length > 0 && (
-              <span className="pill text-xs" style={{ background: "var(--surface-3)", color: "var(--muted)" }}>
-                {blockedDates.length}
-              </span>
-            )}
-          </div>
+          {hideTitle ? (
+            <div />
+          ) : (
+            <div className="flex items-center">
+              <h2 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                Ausencias
+              </h2>
+            </div>
+          )}
+
           <button
             type="button"
-            onClick={() => { resetModalState(); setIsModalOpen(true); }}
-            className="btn-primary h-9 px-3 text-sm leading-none"
+            onClick={openCreateModal}
+            className="flex items-center gap-1.5 text-sm font-medium transition-colors"
+            style={{ color: "var(--misu-light)" }}
           >
-            Añadir
+            <span>+</span>
+            <span>Agregar ausencia</span>
           </button>
         </div>
 
         <div className="mt-3">
           {blockedDates.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--muted)" }}>No hay ausencias registradas.</p>
+            <p className="rounded-md border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+              Sin ausencias cargadas.
+            </p>
           ) : (
             <ul className="grid gap-2">
               {blockedDates.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex flex-col gap-3 rounded-md border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                  style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-                >
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
-                      {item.reason?.trim() || "Ausencia"}
-                    </p>
-                    <p className="text-xs" style={{ color: "var(--muted)" }}>
-                      {formatUserDateTime(item.start_at)} a {formatUserDateTime(item.end_at)}
-                    </p>
-                  </div>
-                  <form action={deleteBlockedDateAction}>
-                    <input type="hidden" name="id" value={item.id} />
-                    <button
-                      type="submit"
-                      className="btn-ghost h-9 w-9 self-end leading-none sm:self-auto"
-                      style={{ color: "var(--error)" }}
-                      title="Eliminar ausencia"
-                    >
-                      ×
-                    </button>
-                  </form>
+                <li key={item.id} className="rounded-md border border-[var(--border)] px-3 py-2.5">
+                  {confirmDeleteId === item.id ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm text-[var(--foreground)]">Eliminar ausencia</p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(item.id)}
+                          disabled={isDeleting}
+                          className="flex h-8 flex-1 items-center justify-center rounded-md border-none text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+                          style={{ background: "var(--error-bg, rgba(239,68,68,0.12))", color: "var(--error)", cursor: "pointer" }}
+                        >
+                          {isDeleting ? "Eliminando..." : "Si"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="flex h-8 flex-1 items-center justify-center rounded-md border border-[var(--border)] bg-transparent text-xs font-medium transition-opacity hover:opacity-80"
+                          style={{ color: "var(--muted)", cursor: "pointer" }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-[var(--foreground)]">{getAbsenceTitle(item)}</p>
+                          <p className="truncate text-xs text-[var(--muted)]">{getAbsenceRangeLabel(item)}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(item)}
+                            className="flex h-8 items-center rounded-md border-none bg-transparent px-2 text-xs font-medium leading-none opacity-60 transition-opacity hover:opacity-100"
+                            style={{ color: "var(--foreground)", cursor: "pointer" }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(item.id)}
+                            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent opacity-70 transition-opacity hover:opacity-100"
+                            style={{ color: "var(--error)" }}
+                            title="Eliminar ausencia"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M3 6h18" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                              <path d="M8 6V4h8v2" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -205,16 +328,20 @@ export function AusenciasManager({ blockedDates, bare = false }: AusenciasManage
         <div
           className="fixed inset-0 z-50 flex items-end p-0 sm:items-center sm:justify-center sm:p-4"
           style={{ background: "rgba(0,0,0,0.4)" }}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeModal();
+            }
+          }}
         >
           <div className="w-full rounded-t-2xl border border-[var(--border)] bg-[var(--surface-1)] p-4 sm:max-w-2xl sm:rounded-2xl">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold text-[var(--foreground)]">Añadir nueva ausencia</h3>
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">
+                {isEditing ? "Editar ausencia" : "Agregar ausencia"}
+              </h3>
               <button
                 type="button"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  resetModalState();
-                }}
+                onClick={closeModal}
                 className="btn-ghost h-8 w-8"
               >
                 ×
@@ -230,17 +357,20 @@ export function AusenciasManager({ blockedDates, bare = false }: AusenciasManage
                   return;
                 }
 
-                const formData = new FormData(event.currentTarget);
+                const formData = new FormData();
+                if (editingItem) {
+                  formData.set("id", String(editingItem.id));
+                }
                 formData.set("start_at", computedStartAt);
                 formData.set("end_at", computedEndAt);
+                formData.set("reason", reason);
 
                 startTransition(async () => {
-                  const result = await addBlockedDateAction(initialState, formData);
+                  const result = await saveBlockedDateAction(initialState, formData);
                   setState(result);
 
                   if (!result.error) {
-                    setIsModalOpen(false);
-                    resetModalState();
+                    closeModal();
                   }
                 });
               }}
@@ -315,15 +445,14 @@ export function AusenciasManager({ blockedDates, bare = false }: AusenciasManage
               </div>
 
               <div className="grid gap-2.5">
-                <input type="hidden" name="start_at" value={computedStartAt} />
-                <input type="hidden" name="end_at" value={computedEndAt} />
-
                 <label className="grid gap-1 text-sm font-medium text-[var(--foreground)]">
-                  <span>Título de la ausencia</span>
+                  <span>Titulo de la ausencia</span>
                   <input
                     type="text"
                     name="reason"
                     placeholder="Ej: vacaciones"
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
                     className="input"
                   />
                 </label>
@@ -363,7 +492,7 @@ export function AusenciasManager({ blockedDates, bare = false }: AusenciasManage
                   Rango:{" "}
                   {rangeStart
                     ? `${rangeStart.toLocaleDateString("es-AR", { day: "numeric", month: "long" })}${
-                        rangeEnd ? ` → ${rangeEnd.toLocaleDateString("es-AR", { day: "numeric", month: "long" })}` : ""
+                        rangeEnd ? ` -> ${rangeEnd.toLocaleDateString("es-AR", { day: "numeric", month: "long" })}` : ""
                       }`
                     : "sin seleccionar"}
                 </p>
@@ -377,7 +506,7 @@ export function AusenciasManager({ blockedDates, bare = false }: AusenciasManage
                   disabled={isPending}
                   className="btn-primary w-full"
                 >
-                  {isPending ? "Guardando..." : "Guardar ausencia"}
+                  {isPending ? "Guardando..." : isEditing ? "Guardar cambios" : "Guardar ausencia"}
                 </button>
               </div>
             </form>

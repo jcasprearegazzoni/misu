@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { formatUserDate, formatUserDateTime } from "@/lib/format/date";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { BookingStatus, BookingType } from "@/types/booking";
 import {
   acceptSoloDecisionAction,
   cancelSoloDecisionAction,
@@ -18,8 +19,8 @@ type BookingRow = {
   date: string;
   start_time: string;
   end_time: string;
-  type: "individual" | "dobles" | "trio" | "grupal";
-  status: "pendiente" | "confirmado" | "cancelado";
+  type: BookingType;
+  status: BookingStatus;
   package_consumed: boolean;
 };
 

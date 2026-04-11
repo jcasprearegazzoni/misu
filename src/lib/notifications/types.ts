@@ -7,6 +7,8 @@ export const notificationTypes = [
   "solo_decision_created",
   "solo_decision_timeout",
   "solo_decision_accepted_individual",
+  "reserva_cancha_confirmada",
+  "reserva_cancha_cancelada",
 ] as const;
 
 export type NotificationType = (typeof notificationTypes)[number];

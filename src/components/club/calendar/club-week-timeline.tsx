@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CLUB_START_HOUR,
@@ -484,10 +484,12 @@ export function ClubWeekTimeline({
   const timelineHeight = getClubTimelineHeight();
   const navControlClass =
     "btn-ghost text-sm transition-all duration-150 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--misu)]";
-  const viewControlClass =
+  const segmentControlClass =
     "rounded-md px-2 py-1 text-xs font-medium transition-all duration-150 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--misu)]";
+  const sportSegmentClass = segmentControlClass;
 
   const [selectedClusterKey, setSelectedClusterKey] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const [pendingAction, setPendingAction] = useState<{
     reservaId: number;
     estado: "confirmada" | "cancelada";
@@ -516,6 +518,14 @@ export function ClubWeekTimeline({
     }
   }
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 1023px)");
+    const sync = () => setIsMobile(mediaQuery.matches);
+    sync();
+    mediaQuery.addEventListener("change", sync);
+    return () => mediaQuery.removeEventListener("change", sync);
+  }, []);
+
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const day of days) map.set(day, []);
@@ -534,13 +544,14 @@ export function ClubWeekTimeline({
     return map;
   }, [days, eventsByDay]);
 
-  const visibleDays = view === "day" ? [fecha] : days;
-  const fechaBase = view === "week" ? startOfWeekIso(fecha) : fecha;
-  const prevFecha = addDaysIso(fechaBase, view === "week" ? -7 : -1);
-  const nextFecha = addDaysIso(fechaBase, view === "week" ? 7 : 1);
+  const effectiveView: CalendarView = isMobile === null ? view : isMobile ? "day" : "week";
+  const visibleDays = effectiveView === "day" ? [fecha] : days;
+  const fechaBase = effectiveView === "week" ? startOfWeekIso(fecha) : fecha;
+  const prevFecha = addDaysIso(fechaBase, effectiveView === "week" ? -7 : -1);
+  const nextFecha = addDaysIso(fechaBase, effectiveView === "week" ? 7 : 1);
   const monthLabel = formatMonthLabel(days[0] ?? fecha);
   const gridCols =
-    view === "day"
+    effectiveView === "day"
       ? "grid-cols-[58px_minmax(0,1fr)]"
       : "grid-cols-[58px_repeat(7,minmax(0,1fr))]";
 
@@ -556,29 +567,39 @@ export function ClubWeekTimeline({
 
   return (
     <>
-      <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-        {deportesVisibles.map((deporteItem) => {
-          const active = deporteItem === deporte;
-          return (
-            <button
-              key={deporteItem}
-              type="button"
-              className="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
-              style={
-                active
-                  ? { background: "var(--misu)", color: "#fff", borderColor: "var(--misu)" }
-                  : {
-                      background: "var(--surface-2)",
-                      color: "var(--muted)",
-                      borderColor: "var(--border)",
-                    }
-              }
-              onClick={() => onGoTo({ deporte: deporteItem })}
-            >
-              {getDeporteLabel(deporteItem)}
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-2.5 pt-2 sm:px-3 sm:pt-2.5">
+          <div
+            className="inline-flex items-center rounded-lg border p-1"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          >
+            {deportesVisibles.map((deporteItem) => {
+              const active = deporteItem === deporte;
+              return (
+                <button
+                  key={deporteItem}
+                  type="button"
+                  className={sportSegmentClass}
+                  style={
+                    active
+                      ? {
+                          background: "var(--misu)",
+                          color: "#fff",
+                        }
+                      : {
+                          color: "var(--muted)",
+                          background: "transparent",
+                        }
+                  }
+                  onClick={() => onGoTo({ deporte: deporteItem })}
+                >
+                  {getDeporteLabel(deporteItem)}
+                </button>
+              );
+            })}
+          </div>
+
+      {/* Leyenda de colores: entre deportes y bloque de dias */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {(
           [
             { label: "Alquiler", color: "#93c5fd" },
@@ -601,63 +622,42 @@ export function ClubWeekTimeline({
         ))}
       </div>
 
-      <section className="card p-2.5 sm:p-3">
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <p className="text-3xl font-bold leading-none" style={{ color: "var(--foreground)" }}>
-            {monthLabel}
-          </p>
-
-          <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={navControlClass}
-            onClick={() => onGoTo({ fecha: prevFecha })}
-            onMouseUp={(event) => event.currentTarget.blur()}
-            onTouchEnd={(event) => event.currentTarget.blur()}
-          >
-            {"<"}
-          </button>
-          <button
-            type="button"
-            className={navControlClass}
-            onClick={() => onGoTo({ fecha: getTodayIsoArg() })}
-            onMouseUp={(event) => event.currentTarget.blur()}
-            onTouchEnd={(event) => event.currentTarget.blur()}
-          >
-            Hoy
-          </button>
-          <button
-            type="button"
-            className={navControlClass}
-            onClick={() => onGoTo({ fecha: nextFecha })}
-            onMouseUp={(event) => event.currentTarget.blur()}
-            onTouchEnd={(event) => event.currentTarget.blur()}
-          >
-            {">"}
-          </button>
-          <div
-            className="ml-2 hidden items-center rounded-lg border p-1 lg:flex"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-          >
-            {(["week", "day"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                className={viewControlClass}
-                style={
-                  view === v ? { background: "var(--misu)", color: "#fff" } : { color: "var(--muted)" }
-                }
-                onClick={() => onGoTo({ view: v })}
-                onMouseUp={(event) => event.currentTarget.blur()}
-                onTouchEnd={(event) => event.currentTarget.blur()}
-              >
-                {v === "week" ? "Semana" : "Dia"}
-              </button>
-            ))}
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <p className="mr-1 text-2xl font-bold leading-none sm:text-3xl" style={{ color: "var(--foreground)" }}>
+              {monthLabel}
+            </p>
+            <button
+              type="button"
+              className={navControlClass}
+              onClick={() => onGoTo({ fecha: prevFecha })}
+              onMouseUp={(event) => event.currentTarget.blur()}
+              onTouchEnd={(event) => event.currentTarget.blur()}
+            >
+              {"<"}
+            </button>
+            <button
+              type="button"
+              className={navControlClass}
+              onClick={() => onGoTo({ fecha: getTodayIsoArg() })}
+              onMouseUp={(event) => event.currentTarget.blur()}
+              onTouchEnd={(event) => event.currentTarget.blur()}
+            >
+              Hoy
+            </button>
+            <button
+              type="button"
+              className={navControlClass}
+              onClick={() => onGoTo({ fecha: nextFecha })}
+              onMouseUp={(event) => event.currentTarget.blur()}
+              onTouchEnd={(event) => event.currentTarget.blur()}
+            >
+              {">"}
+            </button>
           </div>
         </div>
-      </div>
 
+      <div className="card overflow-hidden">
+      <section className="p-2.5 pt-1 sm:p-3 sm:pt-1.5">
         <div
         className={`mt-2 ${selectedUnit ? "grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}
         >
@@ -668,7 +668,7 @@ export function ClubWeekTimeline({
             {visibleDays.map((day) => {
               const chip = formatDayChip(day);
               const isToday = day === getTodayIsoArg();
-              const shouldHighlightToday = view === "week" && isToday;
+              const shouldHighlightToday = effectiveView === "week" && isToday;
               return (
                 <div
                   key={`header-${day}`}
@@ -681,7 +681,7 @@ export function ClubWeekTimeline({
                     color: "var(--foreground)",
                   }}
                 >
-                  {view === "day" ? (
+                  {effectiveView === "day" ? (
                     <p className="text-[16px] font-semibold leading-5" style={{ color: "var(--foreground)" }}>
                       {chip.weekday} {chip.day}
                     </p>
@@ -825,7 +825,8 @@ export function ClubWeekTimeline({
           No hay reservas para este rango.
         </div>
       ) : null}
-    </section>
+      </section>
+      </div>
     </>
   );
 }

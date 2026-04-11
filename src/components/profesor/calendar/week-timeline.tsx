@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CALENDAR_END_HOUR,
   CALENDAR_START_HOUR,
@@ -12,6 +12,11 @@ import {
   parseTimeToMinutes,
   PIXELS_PER_MINUTE,
 } from "./time-utils";
+import {
+  buildEndOptionsForDateAndStart,
+  buildStartOptionsForDate,
+  getOneHourLaterOrNextAvailable,
+} from "./time-options";
 import { CalendarBookingItem } from "./types";
 import { BookingDetailContent } from "./booking-detail-content";
 import { groupDayBookingsBySlot } from "./slot-groups";
@@ -24,6 +29,12 @@ type TimelineAvailabilityRange = {
 };
 
 type WeekTimelineProps = {
+  deportes: Array<{
+    key: "tenis" | "padel";
+    label: string;
+    href: string;
+  }>;
+  deporteActivo: "tenis" | "padel" | null;
   days: Array<{
     date: string;
     items: CalendarBookingItem[];
@@ -33,12 +44,15 @@ type WeekTimelineProps = {
     start_at: string;
     end_at: string;
   }>;
+  view: "week" | "day";
   selectedDay: string;
   dayLinks: Array<{ date: string; href: string }>;
-  prevHref: string;
-  todayHref: string;
-  nextHref: string;
-  onCreateSlot?: (slot: { date: string; startTime: string; endTime: string }) => void;
+  weekPrevHref: string;
+  weekTodayHref: string;
+  weekNextHref: string;
+  dayPrevHref: string;
+  dayTodayHref: string;
+  dayNextHref: string;
 };
 
 type CalendarCell = {
@@ -83,15 +97,27 @@ function formatMonthLabel(dateIso: string) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+function getTodayIsoArg() {
+  const formatter = new Intl.DateTimeFormat("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((p) => p.type === "year")?.value ?? "0000";
+  const month = parts.find((p) => p.type === "month")?.value ?? "01";
+  const day = parts.find((p) => p.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
+}
+
 function formatDayChip(dateIso: string) {
   const date = new Date(`${dateIso}T00:00:00-03:00`);
   const weekday = new Intl.DateTimeFormat("es-AR", {
-    weekday: "short",
+    weekday: "long",
     timeZone: "America/Argentina/Buenos_Aires",
   })
-    .format(date)
-    .replace(".", "")
-    .slice(0, 2);
+    .format(date);
   const day = new Intl.DateTimeFormat("es-AR", {
     day: "2-digit",
     timeZone: "America/Argentina/Buenos_Aires",
@@ -100,6 +126,14 @@ function formatDayChip(dateIso: string) {
     weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1),
     day,
   };
+}
+
+function formatDateShort(dateIso: string) {
+  const [year = "", month = "", day = ""] = dateIso.split("-");
+  if (!year || !month || !day) {
+    return "";
+  }
+  return `${day}/${month}/${year.slice(-2)}`;
 }
 
 function getOccupiedEventVisual(slot: NonNullable<CalendarCell["slot"]>) {
@@ -143,15 +177,20 @@ function getOccupiedEventVisual(slot: NonNullable<CalendarCell["slot"]>) {
 }
 
 export function WeekTimeline({
+  deportes,
+  deporteActivo,
   days,
   availability,
   blockedRanges,
+  view,
   selectedDay,
   dayLinks,
-  prevHref,
-  todayHref,
-  nextHref,
-  onCreateSlot,
+  weekPrevHref,
+  weekTodayHref,
+  weekNextHref,
+  dayPrevHref,
+  dayTodayHref,
+  dayNextHref,
 }: WeekTimelineProps) {
   const hourTicks = getHourTicks();
   const timelineHeight = (CALENDAR_END_HOUR * 60 - CALENDAR_START_HOUR * 60) * PIXELS_PER_MINUTE;
@@ -168,11 +207,58 @@ export function WeekTimeline({
   const [selectedSlotKey, setSelectedSlotKey] = useState<string | null>(null);
   const selectedSlot = flatSlots.find((slot) => slot.slot_key === selectedSlotKey) ?? null;
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
+  const [selectedCreateSlot, setSelectedCreateSlot] = useState<{
+    date: string;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
+  const [alumnoNombre, setAlumnoNombre] = useState("");
+  const [selectedType, setSelectedType] = useState<"individual" | "dobles" | "trio" | "grupal">("individual");
+  const [createDate, setCreateDate] = useState("");
+  const [createStartTime, setCreateStartTime] = useState("");
+  const [createEndTime, setCreateEndTime] = useState("");
+  const [createFeedback, setCreateFeedback] = useState<{ type: "error" | "success"; message: string } | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
 
   const selectedItem =
     selectedSlot?.bookings.find((booking) => booking.id === selectedBookingId) ??
     selectedSlot?.bookings[0] ??
     null;
+  const createStartTimeOptions = useMemo(
+    () => buildStartOptionsForDate(createDate, availability),
+    [createDate, availability],
+  );
+  const createEndTimeOptions = useMemo(
+    () => buildEndOptionsForDateAndStart(createDate, createStartTime, availability),
+    [createDate, createStartTime, availability],
+  );
+  const canConfirmCreate =
+    alumnoNombre.trim().length > 1 &&
+    createDate.length > 0 &&
+    createStartTime.length > 0 &&
+    createEndTime.length > 0 &&
+    createStartTimeOptions.length > 0 &&
+    createEndTimeOptions.length > 0;
+
+  useEffect(() => {
+    if (!selectedCreateSlot) {
+      return;
+    }
+    setCreateDate(selectedCreateSlot.date);
+    setCreateStartTime(selectedCreateSlot.startTime);
+    setCreateEndTime(selectedCreateSlot.endTime);
+    setAlumnoNombre("");
+    setSelectedType("individual");
+    setCreateFeedback(null);
+  }, [selectedCreateSlot]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 1023px)");
+    const sync = () => setIsMobile(mediaQuery.matches);
+    sync();
+    mediaQuery.addEventListener("change", sync);
+    return () => mediaQuery.removeEventListener("change", sync);
+  }, []);
 
   const dayCells = useMemo(() => {
     return daySlots.map((day) => {
@@ -227,67 +313,127 @@ export function WeekTimeline({
     });
   }, [availability, blockedRanges, daySlots]);
 
-  const monthLabel = formatMonthLabel(days[0]?.date ?? new Date().toISOString().slice(0, 10));
+  const effectiveView: "week" | "day" = isMobile === null ? view : isMobile ? "day" : "week";
+  const visibleDays = effectiveView === "day" ? [selectedDay] : days.map((day) => day.date);
+  const monthLabel = formatMonthLabel(visibleDays[0] ?? new Date().toISOString().slice(0, 10));
+  const navControlClass =
+    "btn-ghost text-sm transition-all duration-150 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--misu)]";
+  const segmentControlClass =
+    "rounded-md px-2 py-1 text-xs font-medium transition-all duration-150 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--misu)]";
+  const sportSegmentClass = segmentControlClass;
+  const gridCols = effectiveView === "day" ? "grid-cols-[58px_minmax(0,1fr)]" : "grid-cols-[58px_repeat(7,minmax(0,1fr))]";
+  const prevHref = effectiveView === "week" ? weekPrevHref : dayPrevHref;
+  const todayHref = effectiveView === "week" ? weekTodayHref : dayTodayHref;
+  const nextHref = effectiveView === "week" ? weekNextHref : dayNextHref;
+  const showSidePanel = Boolean(selectedItem || selectedCreateSlot);
+
+  function applyCreateDate(nextDate: string) {
+    setCreateDate(nextDate);
+    const nextStartOptions = buildStartOptionsForDate(nextDate, availability);
+    const nextStart = nextStartOptions[0]?.value ?? "";
+    setCreateStartTime(nextStart);
+    const nextEndOptions = buildEndOptionsForDateAndStart(nextDate, nextStart, availability);
+    setCreateEndTime(getOneHourLaterOrNextAvailable(nextStart, nextEndOptions));
+  }
 
   return (
-    <section className="mt-6 hidden md:block">
-      <div className="card relative p-3">
-        <div className={selectedItem ? "pr-[298px]" : ""}>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-3xl font-bold leading-none" style={{ color: "var(--foreground)" }}>
-              {monthLabel}
-            </p>
-            <div className="flex items-center gap-2">
+    <section className="mt-6">
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 px-2.5 sm:px-3">
+        {deportes.length > 1 ? (
+          <div
+            className="inline-flex items-center rounded-lg border p-1"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          >
+            {deportes.map((deporte) => (
               <Link
-                href={prevHref}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-base font-semibold transition"
-                style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
-                aria-label="Semana anterior"
+                key={deporte.key}
+                href={deporte.href}
+                className={sportSegmentClass}
+                style={
+                  deporte.key === deporteActivo
+                    ? { background: "var(--misu)", color: "#fff" }
+                    : { background: "transparent", color: "var(--muted)" }
+                }
               >
-                {"<"}
+                {deporte.label}
               </Link>
-              <Link
-                href={todayHref}
-                className="btn-ghost text-sm"
-                aria-label="Ir al día actual"
-              >
-                Hoy
-              </Link>
-              <Link
-                href={nextHref}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-base font-semibold transition"
-                style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--foreground)" }}
-                aria-label="Semana siguiente"
-              >
-                {">"}
-              </Link>
-            </div>
+            ))}
           </div>
+        ) : null}
 
-          <div className="grid grid-cols-[58px_repeat(7,minmax(0,1fr))] gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <p className="mr-1 text-2xl font-bold leading-none sm:text-3xl" style={{ color: "var(--foreground)" }}>
+            {monthLabel}
+          </p>
+          <Link
+            href={prevHref}
+            className={navControlClass}
+            aria-label="Semana anterior"
+          >
+            {"<"}
+          </Link>
+          <Link
+            href={todayHref}
+            className={navControlClass}
+            aria-label="Ir al dia actual"
+          >
+            Hoy
+          </Link>
+          <Link
+            href={nextHref}
+            className={navControlClass}
+            aria-label="Semana siguiente"
+          >
+            {">"}
+          </Link>
+        </div>
+      </div>
+
+      <div className="card overflow-hidden p-2.5 pt-1 sm:p-3 sm:pt-1.5">
+        <div className={`${showSidePanel ? "grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}>
+        <div>
+          <div className={`grid ${gridCols} gap-2`}>
             <div />
-            {days.map((day) => {
-              const chip = formatDayChip(day.date);
+            {visibleDays.map((day) => {
+              const chip = formatDayChip(day);
+              const isToday = day === getTodayIsoArg();
+              const shouldHighlightToday = effectiveView === "week" && isToday;
               return (
-                <div
-                  key={`header-${day.date}`}
-                  className="rounded-lg border px-1 py-0.5 text-center"
-                  style={{
-                    borderColor: "var(--border)",
-                    background: "var(--surface-2)",
-                    color: "var(--foreground)",
-                  }}
-                >
-                  <p className="text-[10px] font-medium leading-3" style={{ color: "var(--muted)" }}>
-                    {chip.weekday}
-                  </p>
-                  <p className="mt-0.5 text-[19px] font-semibold leading-4">{chip.day}</p>
-                </div>
+                  <div
+                    key={`header-${day}`}
+                    className="rounded-lg border px-2 py-0.5 text-center"
+                    style={{
+                      borderColor: shouldHighlightToday ? "var(--misu)" : "var(--border)",
+                      background: shouldHighlightToday
+                        ? "color-mix(in srgb, var(--misu) 12%, var(--surface-2))"
+                        : "var(--surface-2)",
+                      color: "var(--foreground)",
+                    }}
+                  >
+                    {effectiveView === "day" ? (
+                      <p className="text-[16px] font-semibold leading-5" style={{ color: "var(--foreground)" }}>
+                        {new Intl.DateTimeFormat("es-AR", {
+                          weekday: "long",
+                          day: "2-digit",
+                          timeZone: "America/Argentina/Buenos_Aires",
+                        })
+                          .format(new Date(`${day}T00:00:00-03:00`))
+                          .replace(".", "")}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-[11px] font-medium leading-3" style={{ color: "var(--muted)" }}>
+                          {chip.weekday}
+                        </p>
+                        <p className="mt-0.5 text-[19px] font-semibold leading-4">{chip.day}</p>
+                      </>
+                    )}
+                  </div>
               );
             })}
           </div>
 
-          <div className="mt-2 grid grid-cols-[58px_repeat(7,minmax(0,1fr))] gap-2">
+          <div className={`mt-2 grid ${gridCols} gap-2`}>
             <div className="relative" style={{ height: `${timelineHeight}px` }}>
               {hourTicks.map((hour) => {
                 const top = (hour * 60 - timelineStart) * PIXELS_PER_MINUTE;
@@ -303,28 +449,21 @@ export function WeekTimeline({
               })}
             </div>
 
-            {dayCells.map((day) => (
-              <div
-                key={day.date}
-                className="relative rounded-md border"
-                style={{ height: `${timelineHeight}px`, borderColor: "var(--border)", background: "var(--surface-1)" }}
-              >
-                {hourTicks.map((hour) => {
-                  const top = (hour * 60 - timelineStart) * PIXELS_PER_MINUTE;
-                  return <div key={hour} className="absolute left-0 right-0 border-t" style={{ top, borderColor: "var(--border)" }} />;
-                })}
-                {hourTicks.slice(0, -1).map((hour) => {
-                  const top = (hour * 60 + 30 - timelineStart) * PIXELS_PER_MINUTE;
-                  return (
-                    <div
-                      key={`half-${hour}`}
-                      className="absolute left-0 right-0 border-t border-dashed"
-                      style={{ top, borderColor: "var(--border)" }}
-                    />
-                  );
-                })}
+            {visibleDays.map((visibleDate) => {
+              const day = dayCells.find((entry) => entry.date === visibleDate);
+              if (!day) return null;
 
-                {day.cells.map((cell) => {
+              return (
+                <div
+                  key={day.date}
+                  className="relative rounded-md border"
+                  style={{ height: `${timelineHeight}px`, borderColor: "var(--border)", background: "var(--surface-1)" }}
+                >
+                  {hourTicks.map((hour) => {
+                    const top = (hour * 60 - timelineStart) * PIXELS_PER_MINUTE;
+                    return <div key={hour} className="absolute left-0 right-0 border-t" style={{ top, borderColor: "var(--border)" }} />;
+                  })}
+                  {day.cells.map((cell) => {
                   const occupiedSlot = cell.state === "occupied" ? cell.slot : null;
                   const occupiedEventVisual = occupiedSlot ? getOccupiedEventVisual(occupiedSlot) : null;
 
@@ -342,15 +481,30 @@ export function WeekTimeline({
                           if (selectedSlot?.slot_key === occupiedSlot.slot_key) {
                             setSelectedSlotKey(null);
                             setSelectedBookingId(null);
+                            setSelectedCreateSlot(null);
                             return;
                           }
                           setSelectedSlotKey(occupiedSlot.slot_key);
                           setSelectedBookingId(occupiedSlot.bookings[0]?.id ?? null);
+                          setSelectedCreateSlot(null);
                           return;
                         }
 
                         if (cell.state === "available") {
-                          onCreateSlot?.({
+                          const isSameCreateSlot =
+                            selectedCreateSlot?.date === cell.date &&
+                            selectedCreateSlot?.startTime === cell.start_time.slice(0, 5) &&
+                            selectedCreateSlot?.endTime === cell.end_time.slice(0, 5);
+
+                          if (isSameCreateSlot) {
+                            setSelectedCreateSlot(null);
+                            setCreateFeedback(null);
+                            return;
+                          }
+
+                          setSelectedSlotKey(null);
+                          setSelectedBookingId(null);
+                          setSelectedCreateSlot({
                             date: cell.date,
                             startTime: cell.start_time.slice(0, 5),
                             endTime: cell.end_time.slice(0, 5),
@@ -361,7 +515,7 @@ export function WeekTimeline({
                       <div
                         className={`h-full w-full overflow-hidden text-left ${
                           occupiedSlot || cell.state === "blocked"
-                            ? "rounded-none border-[2px] px-2 py-1.5"
+                            ? "rounded border border-l-[3px] px-[6px] py-[3px]"
                             : "rounded-none border-none"
                         }`}
                         style={
@@ -371,26 +525,14 @@ export function WeekTimeline({
                                   occupiedSlot.slot_key === selectedSlot?.slot_key
                                     ? `color-mix(in srgb, ${occupiedEventVisual?.background ?? "var(--surface-2)"} 78%, var(--foreground) 22%)`
                                     : occupiedEventVisual?.background,
-                                color: occupiedEventVisual?.color,
-                                borderTopColor:
-                                  occupiedSlot.slot_key === selectedSlot?.slot_key
-                                    ? "color-mix(in srgb, currentColor 80%, var(--foreground) 20%)"
-                                    : "color-mix(in srgb, currentColor 62%, var(--border))",
-                                borderBottomColor:
-                                  occupiedSlot.slot_key === selectedSlot?.slot_key
-                                    ? "color-mix(in srgb, currentColor 80%, var(--foreground) 20%)"
-                                    : "color-mix(in srgb, currentColor 62%, var(--border))",
-                                borderLeftColor: "color-mix(in srgb, currentColor 68%, var(--border))",
-                                borderRightColor: "color-mix(in srgb, currentColor 68%, var(--border))",
+                                borderColor: `color-mix(in srgb, ${occupiedEventVisual?.color ?? "var(--border)"} 62%, var(--border))`,
+                                borderLeftColor: `color-mix(in srgb, ${occupiedEventVisual?.color ?? "var(--border)"} 80%, var(--border) 20%)`,
                               }
                             : cell.state === "blocked"
                               ? {
                                   background: "color-mix(in srgb, var(--error) 20%, var(--surface-1))",
-                                  color: "var(--error)",
-                                  borderTopColor: "color-mix(in srgb, var(--error) 62%, var(--border))",
-                                  borderBottomColor: "color-mix(in srgb, var(--error) 62%, var(--border))",
-                                  borderLeftColor: "color-mix(in srgb, var(--error) 68%, var(--border))",
-                                  borderRightColor: "color-mix(in srgb, var(--error) 68%, var(--border))",
+                                  borderColor: "color-mix(in srgb, var(--error) 62%, var(--border))",
+                                  borderLeftColor: "color-mix(in srgb, var(--error) 80%, var(--border) 20%)",
                                 }
                               : {
                                   background: "transparent",
@@ -399,41 +541,232 @@ export function WeekTimeline({
                       >
                         {occupiedSlot ? (
                           <>
-                            <p className="truncate text-xs font-semibold leading-snug">
+                            <p className="truncate text-[11px] font-bold leading-tight">
+                              <span style={{ color: occupiedEventVisual?.color ?? "var(--foreground)" }}>
                               {occupiedSlot.type_label}
                               {occupiedSlot.type !== "individual"
                                 ? ` (${occupiedSlot.occupied_count}/${occupiedSlot.capacity})`
                                 : ""}
+                              </span>
                             </p>
-                            <p className="mt-0.5 truncate text-[10px] opacity-80">
-                              {occupiedSlot.type === "individual"
-                                ? occupiedSlot.bookings[0]?.alumno_name ?? "Alumno"
-                                : "Clase grupal"}
-                            </p>
+                            {cell.height >= 44 ? (
+                              <p className="mt-[1px] truncate text-[14px] font-semibold leading-tight" style={{ color: "var(--foreground)" }}>
+                                {occupiedSlot.type === "individual"
+                                  ? occupiedSlot.bookings[0]?.alumno_name ?? "Alumno"
+                                  : "Clase grupal"}
+                              </p>
+                            ) : null}
                           </>
                         ) : cell.state === "blocked" ? (
-                          <p className="text-xs font-semibold leading-snug">Ausencia</p>
+                          <p className="text-xs font-semibold leading-snug" style={{ color: "var(--foreground)" }}>
+                            Ausencia
+                          </p>
                         ) : null}
                       </div>
                     </button>
                   );
-                })}
-              </div>
-            ))}
+                  })}
+                </div>
+              );
+            })}
           </div>
         </div>
-        {selectedItem ? (
-          <aside className="absolute bottom-3 right-3 top-3 w-[280px] overflow-y-auto pl-3">
-            <BookingDetailContent
-              item={selectedItem}
-              availabilityRanges={availability}
-              timeRange={{ start: selectedItem.start_time, end: selectedItem.end_time }}
-              slotBookings={selectedSlot?.bookings}
-              selectedBookingId={selectedBookingId}
-              onSelectBooking={(bookingId) => setSelectedBookingId(bookingId)}
-            />
+
+        {showSidePanel ? (
+          <aside
+            className="hidden rounded-xl border p-4 lg:block"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          >
+            {selectedItem ? (
+              <BookingDetailContent
+                item={selectedItem}
+                availabilityRanges={availability}
+                timeRange={{ start: selectedItem.start_time, end: selectedItem.end_time }}
+                slotBookings={selectedSlot?.bookings}
+                selectedBookingId={selectedBookingId}
+                onSelectBooking={(bookingId) => setSelectedBookingId(bookingId)}
+              />
+            ) : selectedCreateSlot ? (
+              <form
+                className="grid gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+
+                  if (!canConfirmCreate) {
+                    setCreateFeedback({
+                      type: "error",
+                      message: "Completa alumno, fecha y horario para confirmar.",
+                    });
+                    return;
+                  }
+
+                  setCreateFeedback({
+                    type: "error",
+                    message:
+                      "La creacion para alumnos sin cuenta requiere habilitacion backend (no disponible en este modulo aun).",
+                  });
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+                      Crear clase
+                    </p>
+                    <p className="mt-0.5 text-sm" style={{ color: "var(--muted)" }}>
+                      {formatDateShort(createDate)} - {createStartTime} a {createEndTime}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-ghost text-xs"
+                    onClick={() => {
+                      setSelectedCreateSlot(null);
+                      setCreateFeedback(null);
+                    }}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+
+                {deportes.length > 1 ? (
+                  <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                    Deporte
+                    <select
+                      value={deporteActivo ?? ""}
+                      disabled
+                      className="select h-10 text-sm"
+                      style={{ background: "var(--surface-1)" }}
+                    >
+                      {deportes.map((deporte) => (
+                        <option key={deporte.key} value={deporte.key}>
+                          {deporte.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                  Alumno
+                  <input
+                    type="text"
+                    value={alumnoNombre}
+                    onChange={(event) => setAlumnoNombre(event.target.value)}
+                    placeholder="Nombre del alumno"
+                    className="input h-10 text-sm"
+                    style={{ background: "var(--surface-1)" }}
+                  />
+                </label>
+
+                <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                  Modalidad
+                  <select
+                    value={selectedType}
+                    onChange={(event) =>
+                      setSelectedType(event.target.value as "individual" | "dobles" | "trio" | "grupal")
+                    }
+                    className="select h-10 text-sm"
+                    style={{ background: "var(--surface-1)" }}
+                  >
+                    <option value="individual">Individual</option>
+                    <option value="dobles">Dobles</option>
+                    <option value="trio">Trio</option>
+                    <option value="grupal">Grupal</option>
+                  </select>
+                </label>
+
+                <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                  Fecha
+                  <input
+                    type="date"
+                    value={createDate}
+                    onChange={(event) => applyCreateDate(event.target.value)}
+                    className="input h-10 text-sm"
+                    style={{ background: "var(--surface-1)" }}
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                    Hora inicio
+                    <select
+                      value={createStartTime}
+                      onChange={(event) => {
+                        const nextStart = event.target.value;
+                        setCreateStartTime(nextStart);
+                        if (createEndTime <= nextStart) {
+                          const nextEndOptions = buildEndOptionsForDateAndStart(
+                            createDate,
+                            nextStart,
+                            availability,
+                          );
+                          setCreateEndTime(getOneHourLaterOrNextAvailable(nextStart, nextEndOptions));
+                        }
+                      }}
+                      className="select h-10 text-sm"
+                      style={{ background: "var(--surface-1)" }}
+                    >
+                      {createStartTimeOptions.map((option) => (
+                        <option key={`create-start-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="grid min-w-0 gap-1.5 text-sm" style={{ color: "var(--muted)" }}>
+                    Hora fin
+                    <select
+                      value={createEndTime}
+                      onChange={(event) => setCreateEndTime(event.target.value)}
+                      className="select h-10 text-sm"
+                      style={{ background: "var(--surface-1)" }}
+                    >
+                      {createEndTimeOptions.map((option) => (
+                        <option key={`create-end-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {createStartTimeOptions.length === 0 ? (
+                  <p
+                    className="rounded-md border px-3 py-2 text-sm"
+                    style={{
+                      borderColor: "var(--warning-border)",
+                      background: "var(--warning-bg)",
+                      color: "var(--warning)",
+                    }}
+                  >
+                    No hay disponibilidad configurada para la fecha elegida.
+                  </p>
+                ) : null}
+
+                {createFeedback ? (
+                  <p
+                    className="rounded-md border px-3 py-2 text-sm"
+                    style={{
+                      borderColor: "var(--error-border)",
+                      background: "var(--error-bg)",
+                      color: "var(--error)",
+                    }}
+                  >
+                    {createFeedback.message}
+                  </p>
+                ) : null}
+
+                <div className="flex justify-end">
+                  <button type="submit" className="btn-primary h-9 px-4 text-sm font-semibold" disabled={!canConfirmCreate}>
+                    Confirmar
+                  </button>
+                </div>
+              </form>
+            ) : null}
           </aside>
         ) : null}
+        </div>
       </div>
     </section>
   );

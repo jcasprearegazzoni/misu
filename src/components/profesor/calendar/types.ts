@@ -1,5 +1,5 @@
-export type BookingStatus = "pendiente" | "confirmado" | "cancelado";
-export type BookingType = "individual" | "dobles" | "trio" | "grupal";
+export type { BookingStatus, BookingType } from "@/types/booking";
+import type { BookingStatus, BookingType } from "@/types/booking";
 
 export type CalendarBookingItem = {
   id: number;

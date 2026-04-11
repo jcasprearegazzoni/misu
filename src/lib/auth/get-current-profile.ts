@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Role } from "@/types/role";
 
@@ -33,7 +34,7 @@ export type CurrentProfile = {
   solo_decision_deadline_minutes: number | null;
 };
 
-export async function getCurrentProfile(): Promise<CurrentProfile | null> {
+export const getCurrentProfile = cache(async (): Promise<CurrentProfile | null> => {
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -61,4 +62,4 @@ export async function getCurrentProfile(): Promise<CurrentProfile | null> {
   }
 
   return data as CurrentProfile;
-}
+});

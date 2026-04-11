@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type CurrentClub = {
@@ -23,7 +24,7 @@ export type CurrentClub = {
   tiene_parrilla: boolean;
 };
 
-export async function getCurrentClub(): Promise<CurrentClub | null> {
+export const getCurrentClub = cache(async (): Promise<CurrentClub | null> => {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -46,4 +47,4 @@ export async function getCurrentClub(): Promise<CurrentClub | null> {
   }
 
   return data as CurrentClub;
-}
+});

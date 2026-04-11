@@ -64,30 +64,20 @@ export async function reserveSlotAction(
 
   for (let weekOffset = 0; weekOffset < parsed.data.weeks_count; weekOffset += 1) {
     const targetDate = addWeeksToDate(parsed.data.date, weekOffset);
-    const { data: bookingId, error } = await supabase.rpc("reserve_booking_with_capacity", {
+    const { error } = await supabase.rpc("reserve_booking_with_capacity", {
       p_profesor_id: parsed.data.profesor_id,
       p_alumno_id: user.id,
       p_date: targetDate,
       p_start_time: parsed.data.start_time,
       p_end_time: parsed.data.end_time,
       p_type: parsed.data.type,
+      // Delegamos el guardado del deporte al RPC para evitar una query extra por reserva.
+      p_sport: parsed.data.sport ?? null,
     });
 
     if (error) {
       failedDates.push({ date: targetDate, reason: error.message });
       continue;
-    }
-
-    // Si hay sport definido, actualizar el booking recien creado usando su ID.
-    if (parsed.data.sport) {
-      if (bookingId) {
-        await supabase
-          .from("bookings")
-          .update({ sport: parsed.data.sport })
-          .eq("id", bookingId);
-      } else {
-        console.warn(`[reserveSlotAction] RPC no devolvio booking ID para ${targetDate}, sport no actualizado.`);
-      }
     }
 
     reservedDates.push(targetDate);

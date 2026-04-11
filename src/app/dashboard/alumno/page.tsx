@@ -17,7 +17,6 @@ type BookingRow = {
 type ProfesorRow = {
   user_id: string;
   name: string;
-  sport: "tenis" | "padel" | "ambos" | null;
 };
 
 type ProximaReservaCanchaRow = {
@@ -95,21 +94,43 @@ export default async function DashboardAlumnoPage() {
         .maybeSingle()
     : Promise.resolve({ data: null, error: null });
 
-  const [{ data: bookingsData }, { data: profesoresData }, { data: proximaReservaCanchaData }] =
-    await Promise.all([
-      supabase
-        .from("bookings")
-        .select("id, date, start_time, end_time, type, status, profesor_id, sport")
-        .eq("alumno_id", profile.user_id)
-        .in("status", ["pendiente", "confirmado"])
-        .order("date", { ascending: true })
-        .order("start_time", { ascending: true }),
-      supabase.from("profiles").select("user_id, name, sport").eq("role", "profesor"),
-      proximaReservaCanchaPromise,
-    ]);
+  const [
+    { data: bookingsData, error: bookingsError },
+    { data: proximaReservaCanchaData, error: proximaReservaCanchaError },
+  ] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("id, date, start_time, end_time, type, status, profesor_id, sport")
+      .eq("alumno_id", profile.user_id)
+      .in("status", ["pendiente", "confirmado"])
+      .order("date", { ascending: true })
+      .order("start_time", { ascending: true }),
+    proximaReservaCanchaPromise,
+  ]);
+
+  // Si falla cualquier consulta base del dashboard, mostramos estado de error.
+  const hasLoadError = Boolean(bookingsError || proximaReservaCanchaError);
+  if (hasLoadError) {
+    return (
+      <main className="mx-auto flex w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-10">
+        <p className="alert-error">No se pudieron cargar los datos del dashboard. Intentá de nuevo.</p>
+      </main>
+    );
+  }
 
   const bookings = (bookingsData ?? []) as BookingRow[];
-  const profesores = (profesoresData ?? []) as ProfesorRow[];
+  const profesorIds = Array.from(new Set(bookings.map((booking) => booking.profesor_id).filter(Boolean)));
+  let profesores: ProfesorRow[] = [];
+
+  if (profesorIds.length > 0) {
+    const { data: profesoresData } = await supabase
+      .from("profiles")
+      .select("user_id, name")
+      .in("user_id", profesorIds);
+
+    profesores = (profesoresData ?? []) as ProfesorRow[];
+  }
+
   const profesorMap = new Map(profesores.map((p) => [p.user_id, p]));
   const proximaReservaParticipante = (proximaReservaCanchaData ?? null) as ProximaReservaCanchaRow | null;
   const reservaCancha = Array.isArray(proximaReservaParticipante?.reservas_cancha)
@@ -130,19 +151,21 @@ export default async function DashboardAlumnoPage() {
     : (reservaCancha?.clubs?.nombre ?? "Club");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-10">
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-10">
       <header className="mb-8">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl" style={{ color: "var(--foreground)" }}>
-          Hola, <span style={{ color: "var(--misu)" }}>{firstName}</span> 👋
+          Hola, <span style={{ color: "var(--misu)" }}>{firstName}</span>
         </h1>
         <p className="mt-1.5 text-sm" style={{ color: "var(--muted)" }}>
           ¿Qué querés hacer hoy?
         </p>
       </header>
 
-      {proximaClase ? (
+      {proximaClase || reservaCancha ? (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2">
+          {proximaClase ? (
         <div
-          className="mb-6 rounded-2xl p-5"
+          className="rounded-2xl p-5"
           style={{ background: "var(--misu-subtle)", border: "1px solid var(--border-misu)" }}
         >
           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--misu)" }}>
@@ -186,7 +209,7 @@ export default async function DashboardAlumnoPage() {
 
       {reservaCancha ? (
         <div
-          className="mb-6 rounded-2xl p-5"
+          className="rounded-2xl p-5"
           style={{ background: "var(--success-bg)", border: "1px solid var(--success-border)" }}
         >
           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--success)" }}>
@@ -237,6 +260,8 @@ export default async function DashboardAlumnoPage() {
               Ver todas →
             </Link>
           </div>
+        </div>
+                ) : null}
         </div>
       ) : null}
 

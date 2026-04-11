@@ -43,21 +43,24 @@ export const availabilitySchema = z
     path: ["end_time"],
   });
 
-export const blockedDateSchema = z.object({
-  start_at: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Selecciona una fecha y hora inicial valida."),
-  end_at: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Selecciona una fecha y hora final valida."),
-  reason: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().max(200, "El motivo puede tener como maximo 200 caracteres.").optional(),
-  ),
-}).refine((data) => new Date(data.start_at) < new Date(data.end_at), {
-  message: "La fecha y hora de inicio debe ser menor que la de fin.",
-  path: ["end_at"],
-});
+export const blockedDateSchema = z
+  .object({
+    id: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
+    start_at: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Selecciona una fecha y hora inicial valida."),
+    end_at: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Selecciona una fecha y hora final valida."),
+    reason: z.preprocess(
+      emptyToUndefined,
+      z.string().trim().max(200, "El motivo puede tener como maximo 200 caracteres.").optional(),
+    ),
+  })
+  .refine((data) => new Date(data.start_at) < new Date(data.end_at), {
+    message: "La fecha y hora de inicio debe ser menor que la de fin.",
+    path: ["end_at"],
+  });
 
 export type AvailabilityInput = z.infer<typeof availabilitySchema>;
 export type BlockedDateInput = z.infer<typeof blockedDateSchema>;

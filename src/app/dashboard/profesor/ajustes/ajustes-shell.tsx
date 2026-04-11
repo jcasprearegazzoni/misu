@@ -397,7 +397,9 @@ export function AjustesShell({
                 </h3>
                 <FrequentScheduleManager availability={availability} clubs={clubsForAvailability} bare />
               </div>
-              <AusenciasManager blockedDates={blockedDates} bare />
+              <div className="card p-4">
+                <AusenciasManager blockedDates={blockedDates} bare />
+              </div>
             </div>
           ) : null}
 

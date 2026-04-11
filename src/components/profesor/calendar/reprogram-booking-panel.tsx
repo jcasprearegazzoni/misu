@@ -2,14 +2,13 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { reprogramBookingAction } from "@/app/dashboard/profesor/calendario/actions";
+import type { BookingType } from "@/types/booking";
 import {
   AvailabilityRange,
   buildEndOptionsForDateAndStart,
   buildStartOptionsForDate,
   getOneHourLaterOrNextAvailable,
 } from "./time-options";
-
-type BookingType = "individual" | "dobles" | "trio" | "grupal";
 
 type ReprogramBookingPanelProps = {
   bookingId: number;

@@ -1,9 +1,9 @@
 ﻿import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { MobileAgenda } from "@/components/profesor/calendar/mobile-agenda";
 import { CalendarClientContainer } from "@/components/profesor/calendar/calendar-client-container";
-import { BookingStatus, CalendarBookingItem } from "@/components/profesor/calendar/types";
+import type { BookingStatus, BookingType } from "@/types/booking";
+import type { CalendarBookingItem } from "@/components/profesor/calendar/types";
 
 
 type BookingRow = {
@@ -12,7 +12,8 @@ type BookingRow = {
   date: string;
   start_time: string;
   end_time: string;
-  type: "individual" | "dobles" | "trio" | "grupal";
+  sport: "tenis" | "padel" | null;
+  type: BookingType;
   status: BookingStatus;
   package_consumed: boolean;
   consumed_student_package_id: number | null;
@@ -30,25 +31,6 @@ type BlockedRangeRow = {
   end_at: string;
 };
 
-type AlumnoNameRow = {
-  alumno_id: string;
-  alumno_name: string | null;
-};
-
-type CoveragePaymentRow = {
-  booking_id: number | null;
-  type: "clase" | "paquete" | "seña" | "diferencia_cobro" | "reembolso";
-};
-
-type AlumnoOptionRow = {
-  user_id: string;
-  name: string | null;
-  branch: string | null;
-  category_tenis: string | null;
-  category_padel: string | null;
-  has_paleta: boolean | null;
-  has_raqueta: boolean | null;
-};
 type RelatedAlumnoOptionRow = {
   alumno_id: string;
   alumno_name: string | null;
@@ -74,21 +56,17 @@ type NextBookingRow = {
   date: string;
   start_time: string;
   end_time: string;
-  type: "individual" | "dobles" | "trio" | "grupal";
+  type: BookingType;
   status: BookingStatus;
+};
+
+type WeekNextBookingRow = NextBookingRow & {
+  alumno_id: string;
 };
 
 type ProfesorAlumnoNoteRow = {
   alumno_id: string;
   note: string;
-};
-
-type AlumnoProfileFallback = {
-  branch: string | null;
-  category_tenis: string | null;
-  category_padel: string | null;
-  has_paleta: boolean;
-  has_raqueta: boolean;
 };
 
 const typeLabel: Record<BookingRow["type"], string> = {
@@ -162,8 +140,19 @@ function parseWeekOffset(value?: string) {
   return Math.min(104, Math.max(-104, parsed));
 }
 
+function parseView(value?: string): CalendarView {
+  return value === "day" ? "day" : "week";
+}
+
+function parseSportFilter(value?: string): "tenis" | "padel" | null {
+  if (value === "tenis" || value === "padel") {
+    return value;
+  }
+  return null;
+}
+
 function getEstimatedAmountByType(
-  bookingType: "individual" | "dobles" | "trio" | "grupal",
+  bookingType: BookingType,
   priceIndividual: number | null,
   priceDobles: number | null,
   priceTrio: number | null,
@@ -202,10 +191,14 @@ function isBookingFinalized(dateIso: string, endTime: string, status: BookingSta
 type CalendarioPageProps = {
   searchParams?: Promise<{
     filter?: string;
+    sport?: string;
     day?: string;
     weekOffset?: string;
+    view?: string;
   }>;
 };
+
+type CalendarView = "week" | "day";
 
 export default async function ProfesorCalendarioPage({ searchParams }: CalendarioPageProps) {
   const profile = await getCurrentProfile();
@@ -218,6 +211,14 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const weekOffset = parseWeekOffset(resolvedSearchParams?.weekOffset);
+  const view = parseView(resolvedSearchParams?.view);
+  const sportFilter = parseSportFilter(resolvedSearchParams?.sport);
+  const deporteActivo =
+    profile.sport === "ambos"
+      ? (sportFilter ?? "tenis")
+      : profile.sport === "tenis" || profile.sport === "padel"
+        ? profile.sport
+        : null;
   const todayIso = getTodayDateIso();
 
   const { weekDates, start, nextMondayIso } = getWeekBounds(weekOffset);
@@ -228,30 +229,16 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       : weekDates[0];
 
   const supabase = await createSupabaseServerClient();
-  const [bookingsResult, alumnoNamesResult, coveragePaymentsResult, alumnosResult, relatedAlumnosResult, notesResult, availabilityResult, blockedRangesResult] = await Promise.all([
+  const [bookingsResult, relatedAlumnosResult, notesResult, availabilityResult, blockedRangesResult] = await Promise.all([
     supabase
       .from("bookings")
-      .select("id, alumno_id, date, start_time, end_time, type, status, package_consumed, consumed_student_package_id")
+      .select("id, alumno_id, date, start_time, end_time, sport, type, status, package_consumed, consumed_student_package_id")
       .eq("profesor_id", profile.user_id)
       .in("status", ["pendiente", "confirmado"])
       .gte("date", start)
       .lt("date", nextMondayIso)
       .order("date", { ascending: true })
       .order("start_time", { ascending: true }),
-    supabase.rpc("get_profesor_bookings_with_alumno_name", {
-      p_profesor_id: profile.user_id,
-    }),
-    supabase
-      .from("payments")
-      .select("booking_id, type")
-      .eq("profesor_id", profile.user_id)
-      .not("booking_id", "is", null)
-      .in("type", ["clase", "seña", "diferencia_cobro"]),
-    supabase
-      .from("profiles")
-      .select("user_id, name, branch, category_tenis, category_padel, has_paleta, has_raqueta")
-      .eq("role", "alumno")
-      .order("name", { ascending: true }),
     supabase.rpc("get_profesor_alumnos_for_manual_class", {
       p_profesor_id: profile.user_id,
     }),
@@ -272,67 +259,35 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
 
   const hasLoadError = Boolean(
     bookingsResult.error ||
-      alumnoNamesResult.error ||
-      coveragePaymentsResult.error ||
-      alumnosResult.error ||
       relatedAlumnosResult.error ||
       notesResult.error ||
       availabilityResult.error ||
       blockedRangesResult.error,
   );
   const bookings = (bookingsResult.data ?? []) as BookingRow[];
-  const alumnoNameRows = (alumnoNamesResult.data ?? []) as AlumnoNameRow[];
-  const coveragePayments = (coveragePaymentsResult.data ?? []) as CoveragePaymentRow[];
-  const directAlumnos = ((alumnosResult.data ?? []) as AlumnoOptionRow[]).map((alumno) => ({
-    user_id: alumno.user_id,
-    name: alumno.name?.trim() || "Alumno",
-  }));
   const relatedAlumnos = ((relatedAlumnosResult.data ?? []) as RelatedAlumnoOptionRow[]).map((alumno) => ({
     user_id: alumno.alumno_id,
     name: alumno.alumno_name?.trim() || "Alumno",
   }));
-  const alumnosMap = new Map<string, { user_id: string; name: string }>();
-  for (const alumno of [...relatedAlumnos, ...directAlumnos]) {
-    if (!alumnosMap.has(alumno.user_id)) {
-      alumnosMap.set(alumno.user_id, alumno);
-    }
-  }
-  const alumnos = Array.from(alumnosMap.values()).sort((a, b) => a.name.localeCompare(b.name, "es-AR"));
-  const alumnosProfilesFallbackMap = new Map<string, AlumnoProfileFallback>();
-  for (const alumno of (alumnosResult.data ?? []) as AlumnoOptionRow[]) {
-    alumnosProfilesFallbackMap.set(alumno.user_id, {
-      branch: alumno.branch ?? null,
-      category_tenis: alumno.category_tenis ?? null,
-      category_padel: alumno.category_padel ?? null,
-      has_paleta: Boolean(alumno.has_paleta),
-      has_raqueta: Boolean(alumno.has_raqueta),
-    });
-  }
+  const alumnos = relatedAlumnos.sort((a, b) => a.name.localeCompare(b.name, "es-AR"));
   const notes = (notesResult.data ?? []) as ProfesorAlumnoNoteRow[];
   const availability = (availabilityResult.data ?? []) as AvailabilityRow[];
   const blockedRanges = (blockedRangesResult.data ?? []) as BlockedRangeRow[];
 
-  const alumnoNameMap = new Map<string, string>();
-  for (const row of alumnoNameRows) {
-    if (!alumnoNameMap.has(row.alumno_id)) {
-      alumnoNameMap.set(row.alumno_id, row.alumno_name?.trim() || "Alumno");
-    }
-  }
-
-  const coveredBookingIds = new Set(
-    coveragePayments
-      .map((payment) => payment.booking_id)
-      .filter((bookingId): bookingId is number => typeof bookingId === "number"),
-  );
   const noteByAlumnoId = new Map<string, string>();
   for (const row of notes) {
     noteByAlumnoId.set(row.alumno_id, row.note ?? "");
   }
 
-  const baseItems = bookings.map((booking) => ({
+  const bookingsFilteredBySport =
+    profile.sport === "ambos" && deporteActivo
+      ? bookings.filter((booking) => booking.sport === deporteActivo || booking.sport === null)
+      : bookings;
+
+  const baseItems = bookingsFilteredBySport.map((booking) => ({
       id: booking.id,
       alumno_id: booking.alumno_id,
-      alumno_name: alumnoNameMap.get(booking.alumno_id) ?? "Alumno",
+      alumno_name: "Alumno",
       date: booking.date,
       start_time: booking.start_time,
       end_time: booking.end_time,
@@ -343,9 +298,9 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       package_consumed: booking.package_consumed,
       consumed_student_package_id: booking.consumed_student_package_id,
       profesor_note: noteByAlumnoId.get(booking.alumno_id) ?? "",
-      has_coverage_payment: coveredBookingIds.has(booking.id),
-      financial_pending: !booking.package_consumed && !coveredBookingIds.has(booking.id),
-      financial_status_label: getFinancialStatusLabel(booking.package_consumed, coveredBookingIds.has(booking.id)),
+      has_coverage_payment: false,
+      financial_pending: !booking.package_consumed,
+      financial_status_label: getFinancialStatusLabel(booking.package_consumed, false),
       estimated_amount: getEstimatedAmountByType(
         booking.type,
         profile.price_individual,
@@ -355,61 +310,56 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
       ),
     }));
 
-  const detailEntries = await Promise.all(
-    baseItems.map(async (item) => {
-      const { data, error } = await supabase.rpc("get_profesor_booking_detail_context", {
-        p_profesor_id: profile.user_id,
-        p_booking_id: item.id,
-      });
-
-      if (error) {
-        return [item.id, null] as const;
-      }
-
-      const row = ((data ?? [])[0] ?? null) as BookingDetailContextRow | null;
-      return [item.id, row] as const;
-    }),
-  );
-
-  const detailMap = new Map<number, BookingDetailContextRow | null>(detailEntries);
-
+  const bookingIds = baseItems.map((item) => item.id);
   const uniqueAlumnoIds = Array.from(new Set(baseItems.map((item) => item.alumno_id)));
-  const nextClassesEntries = await Promise.all(
-    uniqueAlumnoIds.map(async (alumnoId) => {
-      const { data, error } = await supabase.rpc("get_profesor_alumno_next_bookings", {
-        p_profesor_id: profile.user_id,
-        p_alumno_id: alumnoId,
-        p_limit: 5,
-      });
-
-      if (error) {
-        return [alumnoId, [] as NextBookingRow[]] as const;
-      }
-
-      const rows = (data ?? []) as NextBookingRow[];
-      return [alumnoId, rows] as const;
+  const [detailBatchResult, nextBookingsBatchResult] = await Promise.all([
+    // Batch Ãºnico para evitar N+1 en el contexto de cada booking.
+    supabase.rpc("get_profesor_week_booking_contexts", {
+      p_profesor_id: profile.user_id,
+      p_booking_ids: bookingIds,
     }),
-  );
+    // Batch Ãºnico para traer prÃ³ximas clases por alumno con lÃ­mite por particiÃ³n.
+    supabase.rpc("get_profesor_week_next_bookings", {
+      p_profesor_id: profile.user_id,
+      p_alumno_ids: uniqueAlumnoIds,
+      p_limit: 5,
+    }),
+  ]);
 
-  const nextClassesMap = new Map<string, NextBookingRow[]>(nextClassesEntries);
+  const detailMap = new Map<number, BookingDetailContextRow | null>();
+  if (!detailBatchResult.error) {
+    for (const row of (detailBatchResult.data ?? []) as BookingDetailContextRow[]) {
+      detailMap.set(row.booking_id, row);
+    }
+  }
+
+  const nextClassesMap = new Map<string, NextBookingRow[]>();
+  if (!nextBookingsBatchResult.error) {
+    for (const row of (nextBookingsBatchResult.data ?? []) as WeekNextBookingRow[]) {
+      const current = nextClassesMap.get(row.alumno_id) ?? [];
+      current.push({
+        id: row.id,
+        date: row.date,
+        start_time: row.start_time,
+        end_time: row.end_time,
+        type: row.type,
+        status: row.status,
+      });
+      nextClassesMap.set(row.alumno_id, current);
+    }
+  }
 
   const items: CalendarBookingItem[] = baseItems.map((item) => {
     const detail = detailMap.get(item.id);
-    const fallbackProfile = alumnosProfilesFallbackMap.get(item.alumno_id);
     const nextRows = (nextClassesMap.get(item.alumno_id) ?? []).filter((row) => row.id !== item.id).slice(0, 5);
-    const fallbackCategory = fallbackProfile
-      ? [fallbackProfile.category_tenis, fallbackProfile.category_padel].filter(Boolean).join(" · ")
-      : "";
 
     return {
       ...item,
       alumno_name: detail?.alumno_name?.trim() || item.alumno_name,
-      alumno_category: detail?.alumno_category ?? (fallbackCategory || null),
-      alumno_branch: detail?.alumno_branch ?? fallbackProfile?.branch ?? null,
+      alumno_category: detail?.alumno_category ?? null,
+      alumno_branch: detail?.alumno_branch ?? null,
       alumno_zone: detail?.alumno_zone ?? null,
-      alumno_has_equipment:
-        detail?.alumno_has_equipment ??
-        Boolean((fallbackProfile?.has_paleta ?? false) || (fallbackProfile?.has_raqueta ?? false)),
+      alumno_has_equipment: detail?.alumno_has_equipment ?? false,
       is_finalized: item.is_finalized,
       package_consumed: detail?.package_consumed ?? item.package_consumed,
       consumed_student_package_id: detail?.consumed_student_package_id ?? item.consumed_student_package_id ?? null,
@@ -437,12 +387,54 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
     items: items.filter((item) => item.date === date),
   }));
 
-  const prevHref = `/dashboard/profesor/calendario?weekOffset=${weekOffset - 1}&day=${selectedDay}`;
-  const todayHref = `/dashboard/profesor/calendario?weekOffset=0&day=${todayIso}`;
-  const nextHref = `/dashboard/profesor/calendario?weekOffset=${weekOffset + 1}&day=${selectedDay}`;
+  const buildCalendarHref = ({
+    nextView,
+    nextWeekOffset,
+    nextDay,
+    nextSport,
+  }: {
+    nextView: "week" | "day";
+    nextWeekOffset: number;
+    nextDay: string;
+    nextSport: "tenis" | "padel" | null;
+  }) => {
+    const params = new URLSearchParams({
+      view: nextView,
+      weekOffset: String(nextWeekOffset),
+      day: nextDay,
+    });
+    if (nextSport) {
+      params.set("sport", nextSport);
+    }
+    return `/dashboard/profesor/calendario?${params.toString()}`;
+  };
+
+  const weekPrevHref = buildCalendarHref({
+    nextView: "week",
+    nextWeekOffset: weekOffset - 1,
+    nextDay: selectedDay,
+    nextSport: deporteActivo,
+  });
+  const weekTodayHref = buildCalendarHref({
+    nextView: "week",
+    nextWeekOffset: 0,
+    nextDay: todayIso,
+    nextSport: deporteActivo,
+  });
+  const weekNextHref = buildCalendarHref({
+    nextView: "week",
+    nextWeekOffset: weekOffset + 1,
+    nextDay: selectedDay,
+    nextSport: deporteActivo,
+  });
   const dayLinks = weekDates.map((date) => ({
     date,
-    href: `/dashboard/profesor/calendario?weekOffset=${weekOffset}&day=${date}`,
+    href: buildCalendarHref({
+      nextView: view,
+      nextWeekOffset: weekOffset,
+      nextDay: date,
+      nextSport: deporteActivo,
+    }),
   }));
   const selectedDateObject = new Date(`${selectedDay}T00:00:00-03:00`);
   const prevDateObject = new Date(selectedDateObject);
@@ -453,8 +445,49 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
   const nextDayIso = formatDateIso(nextDateObject);
   const prevDayWeekOffset = weekDates.includes(prevDayIso) ? weekOffset : weekOffset - 1;
   const nextDayWeekOffset = weekDates.includes(nextDayIso) ? weekOffset : weekOffset + 1;
-  const prevDayHref = `/dashboard/profesor/calendario?weekOffset=${prevDayWeekOffset}&day=${prevDayIso}`;
-  const nextDayHref = `/dashboard/profesor/calendario?weekOffset=${nextDayWeekOffset}&day=${nextDayIso}`;
+  const dayPrevHref = buildCalendarHref({
+    nextView: "day",
+    nextWeekOffset: prevDayWeekOffset,
+    nextDay: prevDayIso,
+    nextSport: deporteActivo,
+  });
+  const dayNextHref = buildCalendarHref({
+    nextView: "day",
+    nextWeekOffset: nextDayWeekOffset,
+    nextDay: nextDayIso,
+    nextSport: deporteActivo,
+  });
+  const dayTodayHref = buildCalendarHref({
+    nextView: "day",
+    nextWeekOffset: 0,
+    nextDay: todayIso,
+    nextSport: deporteActivo,
+  });
+  const deportes =
+    profile.sport === "ambos"
+      ? [
+          {
+            key: "tenis" as const,
+            label: "Tenis",
+            href: buildCalendarHref({
+              nextView: view,
+              nextWeekOffset: weekOffset,
+              nextDay: selectedDay,
+              nextSport: "tenis",
+            }),
+          },
+          {
+            key: "padel" as const,
+            label: "Padel",
+            href: buildCalendarHref({
+              nextView: view,
+              nextWeekOffset: weekOffset,
+              nextDay: selectedDay,
+              nextSport: "padel",
+            }),
+          },
+        ]
+      : [];
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
@@ -469,29 +502,25 @@ export default async function ProfesorCalendarioPage({ searchParams }: Calendari
           <CalendarClientContainer
             alumnos={alumnos}
             profesorSport={profile.sport ?? null}
+            deportes={deportes}
+            deporteActivo={deporteActivo}
             availabilityRanges={availability}
             days={days}
             blockedRanges={blockedRanges}
+            view={view}
             selectedDay={selectedDay}
             dayLinks={dayLinks}
-            prevHref={prevHref}
-            todayHref={todayHref}
-            nextHref={nextHref}
-          />
-          <MobileAgenda
-            days={days}
-            selectedDay={selectedDay}
-            availabilityRanges={availability}
-            dayLinks={dayLinks}
-            prevDayHref={prevDayHref}
-            nextDayHref={nextDayHref}
+            weekPrevHref={weekPrevHref}
+            weekTodayHref={weekTodayHref}
+            weekNextHref={weekNextHref}
+            dayPrevHref={dayPrevHref}
+            dayTodayHref={dayTodayHref}
+            dayNextHref={dayNextHref}
           />
         </>
       )}
     </main>
   );
 }
-
-
 
 

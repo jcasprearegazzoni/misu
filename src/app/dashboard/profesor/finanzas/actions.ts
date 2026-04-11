@@ -68,7 +68,6 @@ export async function saveProfesorPriceSettingsAction(
   }
 
   revalidatePath("/dashboard/profesor/finanzas");
-  revalidatePath("/dashboard/profesor/ajustes");
 
   return {
     error: null,

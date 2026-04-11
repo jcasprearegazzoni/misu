@@ -21,11 +21,22 @@ export default async function NotificacionesPage() {
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("notifications")
     .select("id, type, title, message, read_at, created_at")
     .eq("user_id", profile.user_id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // Limitamos a 50 para evitar sobrecarga inicial mientras no exista UX de paginacion/ver mas.
+    .limit(50);
+
+  // Si la consulta falla, mostramos feedback explicito al usuario.
+  if (error) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
+        <p className="alert-error">No se pudieron cargar las notificaciones. Intentá de nuevo.</p>
+      </main>
+    );
+  }
 
   const notifications = (data ?? []) as NotificationRow[];
   const unreadCount = notifications.filter((item) => !item.read_at).length;

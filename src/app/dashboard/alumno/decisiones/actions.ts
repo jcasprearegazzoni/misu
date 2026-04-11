@@ -83,12 +83,20 @@ async function respondSoloDecision(
   if (parsed.data.action === "aceptada_individual") {
     await supabase.from("bookings").update({ type: "individual" }).eq("id", booking.id);
 
-    // Notificar al profesor que el alumno aceptó la clase individual.
+    const { data: alumnoProfile } = await supabase
+      .from("profiles")
+      .select("name")
+      .eq("user_id", user.id)
+      .single();
+
+    const alumnoNombre = alumnoProfile?.name ?? "Un alumno";
+
+    // Notificar al profesor que el alumno acepto continuar como individual.
     await createNotification({
       userId: booking.profesor_id,
-      type: "booking_confirmed",
-      title: "Alumno aceptó clase individual",
-      message: `El alumno aceptó continuar con la clase del ${booking.date} de ${booking.start_time.slice(0, 5)} a ${booking.end_time.slice(0, 5)} como individual.`,
+      type: "solo_decision_accepted_individual",
+      title: "Un alumno acept\u00F3 continuar con clase individual",
+      message: `${alumnoNombre} acept\u00F3 continuar con la clase del ${booking.date} de ${booking.start_time.slice(0, 5)} a ${booking.end_time.slice(0, 5)} como individual.`,
     });
   } else {
     await supabase.from("bookings").update({ status: "cancelado" }).eq("id", booking.id);

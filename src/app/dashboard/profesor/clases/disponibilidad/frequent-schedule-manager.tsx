@@ -363,6 +363,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
 
   const [newStart, setNewStart] = useState(defaultStart);
   const [newEnd, setNewEnd] = useState(defaultEnd);
+  const [newClubId, setNewClubId] = useState("");
   const [timeError, setTimeError] = useState<string | null>(null);
 
   function handleNewStartChange(value: string) {
@@ -376,6 +377,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
   function handleOpen() {
     setNewStart(defaultStart);
     setNewEnd(suggestEnd(defaultStart));
+    setNewClubId("");
     setTimeError(null);
     setIsAdding(true);
   }
@@ -413,6 +415,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
                 if (!result.error) {
                   setIsAdding(false);
                   setCreateState(initialState);
+                  setNewClubId("");
                 }
               });
             }}
@@ -422,7 +425,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
 
             {/* Campos: club + horario + duración */}
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-2">
-              <ClubSelector defaultValue={null} clubs={clubs} disabled={isCreating} />
+              <ClubSelector value={newClubId} clubs={clubs} disabled={isCreating} onChange={setNewClubId} />
 
               <div className="flex items-center gap-1.5">
                 <select
@@ -489,6 +492,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
                 onClick={() => {
                   setIsAdding(false);
                   setCreateState(initialState);
+                  setNewClubId("");
                   setTimeError(null);
                 }}
                 className="btn-ghost h-8 px-3 text-xs leading-none"

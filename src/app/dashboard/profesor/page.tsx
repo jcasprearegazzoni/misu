@@ -2,9 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-type BookingStatus = "pendiente" | "confirmado" | "cancelado";
-type BookingType = "individual" | "dobles" | "trio" | "grupal";
+import type { BookingStatus, BookingType } from "@/types/booking";
 
 type BookingRow = {
   id: number;
