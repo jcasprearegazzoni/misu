@@ -7,11 +7,14 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const currentClub = await getCurrentClub();
+  const mobilePaddingClass = currentClub
+    ? ""
+    : "pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0";
 
   return (
     <>
       {!currentClub ? <AppNavbar /> : null}
-      {children}
+      <div className={mobilePaddingClass}>{children}</div>
     </>
   );
 }

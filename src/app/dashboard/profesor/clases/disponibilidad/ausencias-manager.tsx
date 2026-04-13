@@ -86,7 +86,6 @@ function getDateAndTimeParts(isoValue: string) {
 function formatAbsenceDateTime(value: string) {
   const date = new Date(value);
   const dateLabel = date.toLocaleDateString("es-AR", {
-    weekday: "long",
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",
@@ -288,8 +287,7 @@ export function AusenciasManager({ blockedDates, bare = false, hideTitle = false
                     <>
                       <div className="flex items-center gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-[var(--foreground)]">{getAbsenceTitle(item)}</p>
-                          <p className="truncate text-xs text-[var(--muted)]">{getAbsenceRangeLabel(item)}</p>
+                          <p className="truncate text-sm text-[var(--foreground)]">{getAbsenceRangeLabel(item)}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                           <button

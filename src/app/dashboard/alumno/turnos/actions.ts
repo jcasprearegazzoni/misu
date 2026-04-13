@@ -56,7 +56,7 @@ export async function cancelAlumnoBookingAction(formData: FormData): Promise<voi
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, profesor_id, alumno_id, date, start_time, end_time, status, type, package_consumed, consumed_student_package_id")
+    .select("id, profesor_id, alumno_id, date, start_time, end_time, status, type, package_consumed, consumed_student_package_id, student_program_id")
     .eq("id", bookingId)
     .eq("alumno_id", user.id)
     .single();
@@ -118,6 +118,22 @@ export async function cancelAlumnoBookingAction(formData: FormData): Promise<voi
       .from("bookings")
       .update({ package_consumed: false, consumed_student_package_id: null })
       .eq("id", booking.id);
+  }
+
+  // Si la clase pertenecía a un programa, restaurar 1 clase restante.
+  if (booking.student_program_id) {
+    const { data: sp } = await admin
+      .from("student_programs")
+      .select("classes_remaining")
+      .eq("id", booking.student_program_id)
+      .single();
+
+    if (sp) {
+      await admin
+        .from("student_programs")
+        .update({ classes_remaining: sp.classes_remaining + 1 })
+        .eq("id", booking.student_program_id);
+    }
   }
 
   if (isLateCancellation && booking.status === "confirmado" && !booking.package_consumed) {

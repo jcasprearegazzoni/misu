@@ -9,6 +9,8 @@ import { PerfilForm } from "@/app/dashboard/profesor/perfil/perfil-form";
 import { InvitacionesManager } from "@/app/dashboard/profesor/perfil/invitaciones-manager";
 import { FrequentScheduleManager } from "@/app/dashboard/profesor/clases/disponibilidad/frequent-schedule-manager";
 import { AusenciasManager } from "@/app/dashboard/profesor/clases/disponibilidad/ausencias-manager";
+import { GatewayConfigForm } from "@/components/payments/GatewayConfigForm";
+import { saveProfesorGatewayConfig } from "./gateway-actions";
 
 type ChecklistItem = {
   id: string;
@@ -64,7 +66,8 @@ type AjustesSectionKey =
   | "precios"
   | "operativos"
   | "horarios"
-  | "clubes";
+  | "clubes"
+  | "pagos";
 
 type AjustesShellProps = {
   successMessage: string | null;
@@ -96,6 +99,11 @@ type AjustesShellProps = {
   blockedDates: BlockedDateRow[];
   clubsForAvailability: Array<{ id: number; nombre: string }>;
   clubsError: boolean;
+  gatewayInitialValues: {
+    enabled: boolean;
+    gateway: "mercadopago" | null;
+    hasToken: boolean;
+  };
 };
 
 const sectionLabels: Record<AjustesSectionKey, string> = {
@@ -105,6 +113,7 @@ const sectionLabels: Record<AjustesSectionKey, string> = {
   operativos: "Ajustes operativos",
   horarios: "Horarios",
   clubes: "Clubes",
+  pagos: "Pagos online",
 };
 
 const sectionShortLabels: Record<AjustesSectionKey, string> = {
@@ -114,6 +123,7 @@ const sectionShortLabels: Record<AjustesSectionKey, string> = {
   operativos: "Operativos",
   horarios: "Horarios",
   clubes: "Clubes",
+  pagos: "Pagos",
 };
 
 const validSectionKeys = new Set<AjustesSectionKey>([
@@ -123,6 +133,7 @@ const validSectionKeys = new Set<AjustesSectionKey>([
   "operativos",
   "horarios",
   "clubes",
+  "pagos",
 ]);
 
 function resolveSectionKey(
@@ -157,6 +168,7 @@ export function AjustesShell({
   blockedDates,
   clubsForAvailability,
   clubsError,
+  gatewayInitialValues,
 }: AjustesShellProps) {
   const doneCount = useMemo(() => checklist.filter((item) => item.done).length, [checklist]);
   const hasPendingOnboarding = doneCount < checklist.length;
@@ -174,6 +186,7 @@ export function AjustesShell({
         "operativos",
         "horarios",
         "clubes",
+        "pagos",
       ].filter((item) => item !== null) as AjustesSectionKey[]),
     [hasPendingOnboarding],
   );
@@ -391,13 +404,13 @@ export function AjustesShell({
 
           {activeSection === "horarios" ? (
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,1fr)] lg:items-start">
-              <div className="card p-4">
+              <div className="card min-w-0 overflow-x-hidden p-4">
                 <h3 className="mb-4 text-sm font-semibold" style={{ color: "var(--foreground)" }}>
                   Horario frecuente
                 </h3>
                 <FrequentScheduleManager availability={availability} clubs={clubsForAvailability} bare />
               </div>
-              <div className="card p-4">
+              <div className="card min-w-0 overflow-x-hidden p-4">
                 <AusenciasManager blockedDates={blockedDates} bare />
               </div>
             </div>
@@ -433,6 +446,25 @@ export function AjustesShell({
               ) : (
                 <ClubsManager clubs={clubs} />
               )}
+            </div>
+          ) : null}
+
+          {activeSection === "pagos" ? (
+            <div className="card p-3 sm:p-4">
+              <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+                Pagos online
+              </h2>
+              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+                Habilitá MercadoPago para que tus alumnos paguen paquetes directamente desde la app.
+              </p>
+              <div className="mt-4">
+                <GatewayConfigForm
+                  enabled={gatewayInitialValues.enabled}
+                  gateway={gatewayInitialValues.gateway}
+                  hasToken={gatewayInitialValues.hasToken}
+                  onSave={saveProfesorGatewayConfig}
+                />
+              </div>
             </div>
           ) : null}
         </section>

@@ -1,35 +1,44 @@
 "use client";
 
 import { useActionState } from "react";
-import { assignPackageToStudentAction } from "./actions";
+import type { ProgramActionState } from "./actions";
+
+type ProgramOption = {
+  id: number;
+  nombre: string;
+};
 
 type AlumnoOption = {
   user_id: string;
   name: string;
 };
 
-type PackageOption = {
-  id: number;
-  name: string;
-  total_classes: number;
-};
-
-type AssignPackageFormProps = {
+type AssignProgramFormProps = {
+  programs: ProgramOption[];
   alumnos: AlumnoOption[];
-  packages: PackageOption[];
+  action: (
+    prevState: ProgramActionState,
+    formData: FormData,
+  ) => Promise<ProgramActionState>;
+  defaultProgramId?: number;
 };
 
-export function AssignPackageForm({ alumnos, packages }: AssignPackageFormProps) {
-  const [state, formAction, isPending] = useActionState(assignPackageToStudentAction, {
+export function AssignProgramForm({
+  programs,
+  alumnos,
+  action,
+  defaultProgramId,
+}: AssignProgramFormProps) {
+  const [state, formAction, isPending] = useActionState(action, {
     error: null,
     success: null,
   });
 
   return (
     <form action={formAction} className="grid gap-3">
-      <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-        Asignar paquete
-      </h2>
+      <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+        Asignar alumno
+      </h3>
 
       <label className="grid gap-1 text-sm font-medium" style={{ color: "var(--muted)" }}>
         <span>Alumno</span>
@@ -53,9 +62,10 @@ export function AssignPackageForm({ alumnos, packages }: AssignPackageFormProps)
       </label>
 
       <label className="grid gap-1 text-sm font-medium" style={{ color: "var(--muted)" }}>
-        <span>Paquete</span>
+        <span>Programa</span>
         <select
-          name="package_id"
+          name="program_id"
+          defaultValue={defaultProgramId ? String(defaultProgramId) : ""}
           className="rounded-lg px-3 py-2 text-sm outline-none transition"
           style={{
             border: "1px solid var(--border)",
@@ -64,29 +74,43 @@ export function AssignPackageForm({ alumnos, packages }: AssignPackageFormProps)
           }}
           required
         >
-          <option value="">Seleccionar paquete</option>
-          {packages.map((pack) => (
-            <option key={pack.id} value={pack.id}>
-              {pack.name} ({pack.total_classes} clases)
+          <option value="">Seleccionar programa</option>
+          {programs.map((program) => (
+            <option key={program.id} value={program.id}>
+              {program.nombre}
             </option>
           ))}
         </select>
       </label>
 
       {state.error ? (
-        <p className="rounded-lg px-3 py-2 text-sm font-medium" style={{ border: "1px solid var(--error-border)", background: "var(--error-bg)", color: "#fca5a5" }}>
+        <p
+          className="rounded-lg px-3 py-2 text-sm font-medium"
+          style={{
+            border: "1px solid var(--error)",
+            background: "color-mix(in srgb, var(--error) 10%, transparent)",
+            color: "var(--error)",
+          }}
+        >
           {state.error}
         </p>
       ) : null}
 
       {state.success ? (
-        <p className="rounded-lg px-3 py-2 text-sm font-medium" style={{ border: "1px solid var(--success-border)", background: "var(--success-bg)", color: "#86efac" }}>
+        <p
+          className="rounded-lg px-3 py-2 text-sm font-medium"
+          style={{
+            border: "1px solid var(--success)",
+            background: "color-mix(in srgb, var(--success) 10%, transparent)",
+            color: "var(--success)",
+          }}
+        >
           {state.success}
         </p>
       ) : null}
 
       <button type="submit" disabled={isPending} className="btn-primary w-full justify-center disabled:opacity-60">
-        {isPending ? "Guardando..." : "Asignar paquete"}
+        {isPending ? "Asignando..." : "Asignar"}
       </button>
     </form>
   );

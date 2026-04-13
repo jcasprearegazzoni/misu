@@ -84,7 +84,7 @@ function ClubSelector({
       name="club_id"
       value={value}
       onChange={(e) => onChange?.(e.target.value)}
-      className="select h-8 !w-full md:!w-[220px] lg:!w-[250px] !py-0 leading-none"
+      className="select h-9 !w-full !py-0 leading-none"
       disabled={disabled}
     >
       <option value="">Particulares</option>
@@ -419,71 +419,70 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
                 }
               });
             }}
-            className="flex items-start gap-2 rounded-md border border-[var(--border-misu)] px-3 py-2"
+            className="grid gap-2 rounded-md border border-[var(--border-misu)] p-3"
           >
             <input type="hidden" name="day_of_week" value={day.value} />
 
-            {/* Campos: club + horario + duración */}
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-2">
-              <ClubSelector value={newClubId} clubs={clubs} disabled={isCreating} onChange={setNewClubId} />
+            {/* Club selector - ancho completo */}
+            <ClubSelector value={newClubId} clubs={clubs} disabled={isCreating} onChange={setNewClubId} />
 
-              <div className="flex items-center gap-1.5">
-                <select
-                  name="start_time"
-                  value={newStart}
-                  onChange={(e) => handleNewStartChange(e.target.value)}
-                  className="select h-8 !w-[90px] !py-0 leading-none"
-                  required
-                >
-                  {timeOptions.map((option) => (
-                    <option key={`new-start-${day.value}-${option.value}`} value={option.value}>
+            {/* Horario + duración en una fila que no desborda */}
+            <div className="flex items-center gap-1">
+              <select
+                name="start_time"
+                value={newStart}
+                onChange={(e) => handleNewStartChange(e.target.value)}
+                className="select h-9 min-w-0 flex-1 !py-0 leading-none"
+                required
+              >
+                {timeOptions.map((option) => (
+                  <option key={`new-start-${day.value}-${option.value}`} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              <span className="shrink-0 px-0.5 text-sm text-[var(--muted-2)]">–</span>
+
+              <select
+                name="end_time"
+                value={newEnd}
+                onChange={(e) => setNewEnd(e.target.value)}
+                className="select h-9 min-w-0 flex-1 !py-0 leading-none"
+                required
+              >
+                {timeOptions
+                  .filter((option) => toMinutes(option.value) > toMinutes(newStart))
+                  .map((option) => (
+                    <option key={`new-end-${day.value}-${option.value}`} value={option.value}>
                       {option.label}
                     </option>
                   ))}
-                </select>
+              </select>
 
-                <span className="text-sm text-[var(--muted-2)]">–</span>
-
-                <select
-                  name="end_time"
-                  value={newEnd}
-                  onChange={(e) => setNewEnd(e.target.value)}
-                  className="select h-8 !w-[90px] !py-0 leading-none"
-                  required
-                >
-                  {timeOptions
-                    .filter((option) => toMinutes(option.value) > toMinutes(newStart))
-                    .map((option) => (
-                      <option key={`new-end-${day.value}-${option.value}`} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-0.5 pl-1">
                 <input
                   type="number"
                   name="slot_duration_minutes"
                   min={30}
                   step={30}
                   defaultValue={60}
-                  className="input h-8 !w-[60px] !py-0 text-center leading-none"
+                  className="input h-9 !w-[52px] !py-0 text-center leading-none"
                   required
                 />
                 <span className="text-xs text-[var(--muted)]">min</span>
               </div>
-
-              {timeError ? <p className="w-full text-xs font-medium" style={{ color: "var(--error)" }}>{timeError}</p> : null}
-              {createState.error ? <p className="w-full text-xs font-medium" style={{ color: "var(--error)" }}>{createState.error}</p> : null}
             </div>
 
-            {/* Botones apilados a la derecha */}
-            <div className="flex shrink-0 flex-col gap-1">
+            {timeError ? <p className="text-xs font-medium" style={{ color: "var(--error)" }}>{timeError}</p> : null}
+            {createState.error ? <p className="text-xs font-medium" style={{ color: "var(--error)" }}>{createState.error}</p> : null}
+
+            {/* Botones en fila completa */}
+            <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={isCreating}
-                className="btn-primary h-8 px-3 text-xs leading-none"
+                className="btn-primary h-9 flex-1 text-sm leading-none"
               >
                 {isCreating ? "..." : "Agregar"}
               </button>
@@ -495,7 +494,7 @@ function DayScheduleSection({ day, dayRanges, clubs }: DaySectionProps) {
                   setNewClubId("");
                   setTimeError(null);
                 }}
-                className="btn-ghost h-8 px-3 text-xs leading-none"
+                className="btn-ghost h-9 flex-1 text-sm leading-none"
               >
                 Cancelar
               </button>
@@ -582,7 +581,7 @@ export function FrequentScheduleManager({ availability, clubs, bare = false }: F
               key={day.value}
               type="button"
               onClick={() => toggleDay(day.value)}
-              className="relative h-9 rounded-md border px-3 text-sm font-medium leading-none transition-colors"
+              className="relative h-7 rounded-md border px-2 text-xs font-medium leading-none transition-colors"
               style={
                 isActive
                   ? { background: "var(--misu-subtle)", borderColor: "var(--border-misu)", color: "var(--misu-light)" }

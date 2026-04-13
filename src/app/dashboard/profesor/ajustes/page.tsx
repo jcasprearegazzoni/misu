@@ -83,6 +83,7 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
     { data: availabilityData },
     { data: blockedDatesData },
     { data: clubProfData },
+    gatewayResult,
   ] = await Promise.all([
     supabase
       .from("availability")
@@ -132,6 +133,11 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
       .select("club_id, clubs(id, nombre)")
       .eq("profesor_id", profile.user_id)
       .eq("status", "activo"),
+    supabase
+      .from("profiles")
+      .select("payment_gateway, payment_gateway_enabled, payment_gateway_access_token")
+      .eq("user_id", profile.user_id)
+      .maybeSingle(),
   ]);
 
   const invitaciones: Invitacion[] = (invitacionesData ?? [])
@@ -219,6 +225,13 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
     },
   ];
 
+  const gatewayProfile = gatewayResult.data;
+  const gatewayInitialValues = {
+    enabled: gatewayProfile?.payment_gateway_enabled ?? false,
+    gateway: (gatewayProfile?.payment_gateway as "mercadopago" | null) ?? null,
+    hasToken: Boolean(gatewayProfile?.payment_gateway_access_token),
+  };
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
       <header>
@@ -266,6 +279,7 @@ export default async function ProfesorAjustesPage({ searchParams }: AjustesPageP
         blockedDates={blockedDatesData ?? []}
         clubsForAvailability={clubsForAvailability}
         clubsError={Boolean(clubsError)}
+        gatewayInitialValues={gatewayInitialValues}
       />
     </main>
   );

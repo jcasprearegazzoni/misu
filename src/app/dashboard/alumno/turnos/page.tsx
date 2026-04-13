@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { formatUserDate, formatUserDateTime } from "@/lib/format/date";
 import { getCurrentProfile } from "@/lib/auth/get-current-profile";
@@ -47,11 +47,14 @@ type DecisionRow = {
   created_at: string;
 };
 
-type StudentPackageRow = {
+type StudentProgramRow = {
   id: number;
   classes_remaining: number;
   paid: boolean;
-  package: { name: string; total_classes: number } | { name: string; total_classes: number }[] | null;
+  program:
+    | { nombre: string; total_clases: number; tipo_clase: string; fecha_inicio: string; fecha_fin: string }
+    | { nombre: string; total_clases: number; tipo_clase: string; fecha_inicio: string; fecha_fin: string }[]
+    | null;
 };
 
 const statusLabel: Record<BookingRow["status"], string> = {
@@ -139,7 +142,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
     { data: profesoresData },
     { data: bookingsData },
     { data: decisionsData },
-    { data: studentPackagesData },
+    { data: studentProgramsData },
     { data: misProfesoresData },
   ] = await Promise.all([
       supabase
@@ -162,8 +165,8 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
         .order("decision_deadline_at", { ascending: true })
         .order("created_at", { ascending: false }),
       supabase
-        .from("student_packages")
-        .select("id, classes_remaining, paid, package:packages(name, total_classes)")
+        .from("student_programs")
+        .select("id, classes_remaining, paid, program:programs(nombre, total_clases, tipo_clase, fecha_inicio, fecha_fin)")
         .eq("alumno_id", profile.user_id)
         .gt("classes_remaining", 0)
         .order("created_at", { ascending: false }),
@@ -178,7 +181,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
   const profesores = (profesoresData ?? []) as ProfesorRow[];
   const bookings = (bookingsData ?? []) as BookingRow[];
   const decisions = (decisionsData ?? []) as DecisionRow[];
-  const studentPackages = (studentPackagesData ?? []) as StudentPackageRow[];
+  const studentPrograms = (studentProgramsData ?? []) as StudentProgramRow[];
   const misProfesoresIds = [...new Set((misProfesoresData ?? []).map((booking) => booking.profesor_id))];
 
   const profesorMap = new Map(profesores.map((row) => [row.user_id, row]));
@@ -318,19 +321,19 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
               </div>
             );
           })() : null}
-          {studentPackages.length > 0 ? (
+          {studentPrograms.length > 0 ? (
             <div className="rounded-xl p-4" style={{ background: "var(--success-bg)", border: "1px solid var(--success-border)" }}>
               <p className="text-sm font-semibold" style={{ color: "var(--success)" }}>
                 Créditos de paquete disponibles
               </p>
               <ul className="mt-3 grid gap-2">
-                {studentPackages.map((pkg) => {
-                  const pkgData = Array.isArray(pkg.package) ? pkg.package[0] : pkg.package;
-                  const nombre = pkgData?.name ?? "Paquete";
-                  const total = pkgData?.total_classes ?? 0;
+                {studentPrograms.map((programa) => {
+                  const programData = Array.isArray(programa.program) ? programa.program[0] : programa.program;
+                  const nombre = programData?.nombre ?? "Programa";
+                  const total = programData?.total_clases ?? 0;
                   return (
                     <li
-                      key={pkg.id}
+                      key={programa.id}
                       className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
                       style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}
                     >
@@ -338,7 +341,7 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
                         {nombre} ({total} clases)
                       </span>
                       <span className="font-bold" style={{ color: "var(--success)" }}>
-                        {pkg.classes_remaining} restantes
+                        {programa.classes_remaining} restantes
                       </span>
                     </li>
                   );
@@ -504,3 +507,6 @@ export default async function AlumnoTurnosPage({ searchParams }: AlumnoTurnosPag
     </main>
   );
 }
+
+
+

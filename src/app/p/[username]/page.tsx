@@ -1,11 +1,12 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatUserDate } from "@/lib/format/date";
 import { WeekCalendarStrip } from "@/components/calendar/week-calendar-strip";
 import { AppNavbar } from "@/components/app-navbar";
 import { ReserveSlotForm } from "@/app/alumno/profesores/[profesorId]/slots/reserve-slot-form";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getProfesorSlotsByWeek, parseWeekOffset } from "@/lib/turnos/get-profesor-slots";
-import { BuyPackageForm } from "./buy-package-form";
+import { EnrollProgramForm } from "./enroll-program-form";
 
 type PublicProfesorRow = {
   user_id: string;
@@ -19,17 +20,26 @@ type PublicProfesorRow = {
   price_grupal: number | string | null;
 };
 
-type PackageRow = {
+type ProgramRow = {
   id: number;
-  name: string;
-  total_classes: number;
-  price: number;
-  description: string | null;
+  nombre: string;
+  total_clases: number;
+  precio: number;
+  descripcion: string | null;
+  categoria: string | null;
+  nivel: string;
+  tipo_clase: string;
+  cupo_max: number | null;
+  fecha_inicio: string;
+  fecha_fin: string;
+  hora_inicio: string;
+  hora_fin: string;
+  dias_semana: number[];
 };
 
 type PageProps = {
   params: Promise<{ username: string }>;
-  searchParams?: Promise<{ weekOffset?: string; day?: string }>;
+  searchParams?: Promise<{ weekOffset?: string; day?: string; pago?: "ok" | "pendiente" | "error" }>;
 };
 
 const PRECIO_LABELS: Array<{
@@ -38,9 +48,15 @@ const PRECIO_LABELS: Array<{
 }> = [
   { key: "price_individual", label: "Individual" },
   { key: "price_dobles", label: "Dobles" },
-  { key: "price_trio", label: "Trío" },
+  { key: "price_trio", label: "Trio" },
   { key: "price_grupal", label: "Grupal" },
 ];
+
+const DIA_LABELS: Record<number, string> = { 0: "Dom", 1: "Lun", 2: "Mar", 3: "Mié", 4: "Jue", 5: "Vie", 6: "Sáb" };
+
+function formatDias(dias: number[]): string {
+  return [...dias].sort((a, b) => a - b).map((d) => DIA_LABELS[d] ?? d).join(", ");
+}
 
 function normalizePrice(value: unknown) {
   if (value === null || value === undefined) {
@@ -56,10 +72,10 @@ function getSportLabel(sport: PublicProfesorRow["sport"]) {
     return "Tenis";
   }
   if (sport === "padel") {
-    return "Pádel";
+    return "Padel";
   }
   if (sport === "ambos") {
-    return "Tenis y pádel";
+    return "Tenis y padel";
   }
   return "No definido";
 }
@@ -99,16 +115,29 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
     }
   }
 
-  const { data: packagesData } = user
-    ? await supabase
-        .from("packages")
-        .select("id, name, total_classes, price, description")
-        .eq("profesor_id", profesor.user_id)
-        .eq("active", true)
-        .order("price", { ascending: true })
-    : { data: [] };
+  const [{ data: programasData }, { data: gatewayData }] = await Promise.all([
+    user
+      ? supabase
+          .from("programs")
+          .select("id, nombre, total_clases, precio, descripcion, categoria, nivel, tipo_clase, cupo_max, fecha_inicio, fecha_fin, hora_inicio, hora_fin, dias_semana")
+          .eq("profesor_id", profesor.user_id)
+          .eq("visibilidad", "publico")
+          .eq("estado", "activo")
+          .eq("active", true)
+          .order("precio", { ascending: true })
+      : Promise.resolve({ data: [] as ProgramRow[] }),
+    user
+      ? supabase
+          .from("profiles")
+          .select("payment_gateway_enabled")
+          .eq("user_id", profesor.user_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null as { payment_gateway_enabled?: boolean } | null }),
+  ]);
 
-  const activePackages = (packagesData ?? []) as PackageRow[];
+  const activePrograms = (programasData ?? []) as ProgramRow[];
+  const profesorGatewayEnabled = gatewayData?.payment_gateway_enabled ?? false;
+  const pagoStatus = resolvedSearchParams?.pago;
 
   const slotsData = await getProfesorSlotsByWeek({
     supabase,
@@ -134,11 +163,8 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
           className="rounded-xl border p-4"
           style={{ background: "var(--surface-1)", borderColor: "var(--border)" }}
         >
-          <p
-            className="text-xs font-medium uppercase tracking-wide"
-            style={{ color: "var(--muted-2)" }}
-          >
-            Perfil público
+          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted-2)" }}>
+            Perfil publico
           </p>
           <h1 className="mt-1 text-2xl font-semibold" style={{ color: "var(--foreground)" }}>
             {profesor.name}
@@ -174,58 +200,98 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
           </section>
         ) : null}
 
-        {activePackages.length > 0 ? (
+        {pagoStatus === "ok" ? (
+          <div
+            className="mt-4 rounded-lg border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--success-border)", background: "var(--success-bg)", color: "var(--success)" }}
+          >
+            ¡Pago procesado! Tus créditos se activarán en unos segundos.
+          </div>
+        ) : null}
+        {pagoStatus === "pendiente" ? (
+          <div
+            className="mt-4 rounded-lg border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--warning)", background: "var(--warning-bg)", color: "var(--warning)" }}
+          >
+            Tu pago está siendo procesado. Te avisaremos cuando se confirme.
+          </div>
+        ) : null}
+        {pagoStatus === "error" ? (
+          <div
+            className="mt-4 rounded-lg border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--danger)", background: "color-mix(in srgb, var(--danger) 10%, transparent)", color: "var(--danger)" }}
+          >
+            No pudimos procesar el pago. Podés intentarlo de nuevo.
+          </div>
+        ) : null}
+
+        {activePrograms.length > 0 ? (
           <section
             className="mt-4 rounded-xl border p-4"
             style={{ background: "var(--surface-1)", borderColor: "var(--border)" }}
           >
             <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-              Paquetes de clases
+              Programas
             </p>
             <p className="mt-1 text-xs" style={{ color: "var(--muted-2)" }}>
-              Solicitá un paquete y coordiná el pago con el profesor para activar tus créditos.
+              {profesorGatewayEnabled
+                ? "Inscribite y pagá online con MercadoPago."
+                : "Solicitá la inscripción y coordiná el pago con el profesor para activar tus clases."}
             </p>
+
             <div className="mt-3 grid grid-cols-1 items-start gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {activePackages.map((pkg) =>
+              {activePrograms.map((prog) =>
                 userRole === "alumno" ? (
                   <div
-                    key={pkg.id}
+                    key={prog.id}
                     className="rounded-lg border p-3"
                     style={{ background: "var(--surface-2)", borderColor: "var(--border)" }}
                   >
-                    {pkg.description ? (
+                    {prog.descripcion ? (
                       <p className="mb-2 text-xs" style={{ color: "var(--muted-2)" }}>
-                        {pkg.description}
+                        {prog.descripcion}
                       </p>
                     ) : null}
-                    <BuyPackageForm
-                      packageId={pkg.id}
+                    <EnrollProgramForm
+                      programId={prog.id}
                       profesorId={profesor.user_id}
-                      packageName={pkg.name}
-                      totalClasses={pkg.total_classes}
-                      price={Number(pkg.price)}
+                      profesorUsername={profesor.username}
+                      programaNombre={prog.nombre}
+                      totalClases={prog.total_clases}
+                      precio={Number(prog.precio)}
+                      gatewayEnabled={profesorGatewayEnabled}
                     />
                   </div>
                 ) : (
                   <div
-                    key={pkg.id}
+                    key={prog.id}
                     className="rounded-lg border p-3"
                     style={{ background: "var(--surface-2)", borderColor: "var(--border)" }}
                   >
                     <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                      {pkg.name}
+                      {prog.nombre}
+                    </p>
+                    {prog.categoria ? (
+                      <p className="text-xs" style={{ color: "var(--muted-2)" }}>
+                        {prog.categoria}
+                      </p>
+                    ) : null}
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      {formatUserDate(prog.fecha_inicio)} → {formatUserDate(prog.fecha_fin)}
                     </p>
                     <p className="text-xs" style={{ color: "var(--muted)" }}>
-                      {pkg.total_classes} clases ·{" "}
+                      {prog.tipo_clase} · {formatDias(prog.dias_semana)} · {prog.hora_inicio.slice(0, 5)} - {prog.hora_fin.slice(0, 5)}
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
                       {new Intl.NumberFormat("es-AR", {
                         style: "currency",
                         currency: "ARS",
                         maximumFractionDigits: 0,
-                      }).format(Number(pkg.price))}
+                      }).format(Number(prog.precio))}
                     </p>
-                    {pkg.description ? (
+                    {prog.cupo_max !== null ? (
                       <p className="mt-1 text-xs" style={{ color: "var(--muted-2)" }}>
-                        {pkg.description}
+                        Cupo máximo: {prog.cupo_max}
                       </p>
                     ) : null}
                     {!user ? (
@@ -234,15 +300,15 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
                         className="mt-3 inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition hover:opacity-90"
                         style={{ background: "var(--misu)", color: "#fff" }}
                       >
-                        Solicitar
+                        Solicitar inscripción
                       </Link>
                     ) : (
                       <p className="mt-2 text-xs" style={{ color: "var(--muted-2)" }}>
-                        Usá una cuenta de alumno para solicitar.
+                        Usa una cuenta de alumno para solicitar.
                       </p>
                     )}
                   </div>
-                )
+                ),
               )}
             </div>
           </section>
@@ -264,7 +330,7 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
             className="mt-6 rounded-lg border px-4 py-3 text-sm"
             style={{ background: "var(--surface-1)", borderColor: "var(--border)", color: "var(--muted)" }}
           >
-            No hay clases disponibles para este día.
+            No hay clases disponibles para este dia.
           </p>
         ) : (
           <section
@@ -306,7 +372,7 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
                           href={loginHref}
                           className="btn-primary inline-flex w-full items-center justify-center rounded-md px-3 py-2 text-xs font-medium"
                         >
-                          Iniciá sesión para reservar
+                          Inicia sesion para reservar
                         </Link>
                       ) : userRole === "alumno" ? (
                         <ReserveSlotForm
@@ -322,7 +388,7 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
                           className="rounded-md border px-3 py-2 text-xs"
                           style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--muted)" }}
                         >
-                          Estás logueado como profesor. Para reservar, usá una cuenta de alumno.
+                          Estas logueado como profesor. Para reservar, usa una cuenta de alumno.
                         </p>
                       )}
                     </div>
@@ -336,3 +402,4 @@ export default async function PublicProfesorPage({ params, searchParams }: PageP
     </>
   );
 }
+

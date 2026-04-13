@@ -10,13 +10,16 @@ import { CancelarInvitacionForm } from "@/app/dashboard/club/profesores/cancelar
 import { EliminarProfesorForm } from "@/app/dashboard/club/profesores/eliminar-profesor-form";
 import { InvitarProfesorForm } from "@/app/dashboard/club/profesores/invitar-profesor-form";
 import type { DeporteConfiguracion } from "@/app/dashboard/club/configuracion/disponibilidad-manager";
+import { GatewayConfigForm } from "@/components/payments/GatewayConfigForm";
+import { saveClubGatewayConfig } from "./gateway-actions";
 
-type SectionKey = "perfil" | "profesores" | "horarios";
+type SectionKey = "perfil" | "profesores" | "horarios" | "pagos";
 
 const sectionLabels: Record<SectionKey, string> = {
   perfil: "Perfil",
   profesores: "Profesores",
   horarios: "Canchas",
+  pagos: "Pagos online",
 };
 
 type Cancha = {
@@ -79,10 +82,15 @@ type Props = {
   searchResults: ProfesorSearchRow[];
   defaultSection: string | null;
   profileUpdated: boolean;
+  gatewayInitialValues: {
+    enabled: boolean;
+    gateway: "mercadopago" | null;
+    hasToken: boolean;
+  };
 };
 
 function resolveSectionKey(value: string | null | undefined): SectionKey {
-  const valid = new Set<SectionKey>(["perfil", "profesores", "horarios"]);
+  const valid = new Set<SectionKey>(["perfil", "profesores", "horarios", "pagos"]);
   if (value && valid.has(value as SectionKey)) return value as SectionKey;
   return "perfil";
 }
@@ -140,6 +148,7 @@ export function ClubAjustesShell({
   searchResults,
   defaultSection,
   profileUpdated,
+  gatewayInitialValues,
 }: Props) {
   const [activeSection, setActiveSection] = useState<SectionKey>(resolveSectionKey(defaultSection));
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -471,7 +480,7 @@ export function ClubAjustesShell({
             </div>
           ) : null}
 
-                              {activeSection === "horarios" ? (
+          {activeSection === "horarios" ? (
             <div className="grid gap-6">
               <div>
                 <h2 className="text-base font-semibold sm:text-lg" style={{ color: "var(--foreground)" }}>
@@ -543,6 +552,25 @@ export function ClubAjustesShell({
                     bare
                   />
                 </div>
+              </div>
+            </div>
+          ) : null}
+
+          {activeSection === "pagos" ? (
+            <div className="card p-4 sm:p-5">
+              <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+                Pagos online
+              </h2>
+              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+                Habilitá MercadoPago para recibir señas o pagos de reservas directamente desde la app.
+              </p>
+              <div className="mt-4">
+                <GatewayConfigForm
+                  enabled={gatewayInitialValues.enabled}
+                  gateway={gatewayInitialValues.gateway}
+                  hasToken={gatewayInitialValues.hasToken}
+                  onSave={saveClubGatewayConfig}
+                />
               </div>
             </div>
           ) : null}

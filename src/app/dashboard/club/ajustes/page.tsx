@@ -33,7 +33,9 @@ export default async function ClubAjustesPage({ searchParams }: PageProps) {
     await Promise.all([
       supabase
         .from("club_configuracion")
-        .select("confirmacion_automatica, cancelacion_horas_limite")
+        .select(
+          "confirmacion_automatica, cancelacion_horas_limite, payment_gateway, payment_gateway_enabled, payment_gateway_access_token",
+        )
         .eq("club_id", club.id)
         .maybeSingle(),
       supabase
@@ -96,6 +98,11 @@ export default async function ClubAjustesPage({ searchParams }: PageProps) {
   }
 
   const configuracion = configResult.data ?? { confirmacion_automatica: true, cancelacion_horas_limite: 24 };
+  const gatewayInitialValues = {
+    enabled: configResult.data?.payment_gateway_enabled ?? false,
+    gateway: (configResult.data?.payment_gateway as "mercadopago" | null) ?? null,
+    hasToken: Boolean(configResult.data?.payment_gateway_access_token),
+  };
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-3 py-6 sm:px-4 sm:py-8">
@@ -121,6 +128,7 @@ export default async function ClubAjustesPage({ searchParams }: PageProps) {
         searchResults={searchResults}
         defaultSection={defaultSection}
         profileUpdated={profileUpdated}
+        gatewayInitialValues={gatewayInitialValues}
       />
     </main>
   );

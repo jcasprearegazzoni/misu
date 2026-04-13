@@ -48,7 +48,7 @@ async function updateBookingStatus(
 
   const { data: bookingContext } = await supabase
     .from("bookings")
-    .select("profesor_id, alumno_id, date, start_time, end_time, package_consumed, consumed_student_package_id")
+    .select("profesor_id, alumno_id, date, start_time, end_time, package_consumed, consumed_student_package_id, student_program_id")
     .eq("id", parsed.data.bookingId)
     .eq("profesor_id", user.id)
     .single();
@@ -72,22 +72,12 @@ async function updateBookingStatus(
       return { error: confirmError.message || "No se pudo confirmar la clase." };
     }
 
-    // Descuenta 1 credito si el alumno tiene paquete activo y pagado.
-    const { error: packageError } = await supabase.rpc("consume_student_package_credit_on_booking_confirm", {
-      p_booking_id: parsed.data.bookingId,
-      p_profesor_id: user.id,
-    });
-
-    if (packageError) {
-      return { error: "Clase confirmada, pero no se pudo descontar el credito del paquete." };
-    }
   } else {
     let restoredPackageCredit = false;
+    const admin = createSupabaseAdminClient();
 
     // Si la clase habia consumido un credito de paquete, restaurarlo antes de cancelar.
     if (bookingContext?.package_consumed && bookingContext.consumed_student_package_id) {
-      const admin = createSupabaseAdminClient();
-
       const { data: pkg } = await admin
         .from("student_packages")
         .select("classes_remaining")
@@ -115,6 +105,22 @@ async function updateBookingStatus(
 
       if (clearBookingPackageError) {
         return { error: "No se pudo actualizar el consumo de paquete en la reserva." };
+      }
+    }
+
+    // Si el booking pertenece a un programa, restaurar 1 clase restante.
+    if (bookingContext?.student_program_id) {
+      const { data: sp } = await admin
+        .from("student_programs")
+        .select("classes_remaining")
+        .eq("id", bookingContext.student_program_id)
+        .single();
+
+      if (sp) {
+        await admin
+          .from("student_programs")
+          .update({ classes_remaining: sp.classes_remaining + 1 })
+          .eq("id", bookingContext.student_program_id);
       }
     }
 
